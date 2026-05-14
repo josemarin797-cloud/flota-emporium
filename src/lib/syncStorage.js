@@ -37,8 +37,22 @@ const SELF_ECHO_WINDOW_MS = 3000;
 // ============================================================
 // HELPERS: camelCase ↔ snake_case
 // ============================================================
-const camelToSnake = (str) => str.replace(/[A-Z]/g, (l) => '_' + l.toLowerCase());
-const snakeToCamel = (str) => str.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
+// Campos especiales que tienen números o conversiones no estándar
+const SPECIAL_CAMEL_TO_SNAKE = {
+  'litersPer100km': 'liters_per_100km',
+};
+const SPECIAL_SNAKE_TO_CAMEL = {
+  'liters_per_100km': 'litersPer100km',
+};
+
+const camelToSnake = (str) => {
+  if (SPECIAL_CAMEL_TO_SNAKE[str]) return SPECIAL_CAMEL_TO_SNAKE[str];
+  return str.replace(/[A-Z]/g, (l) => '_' + l.toLowerCase());
+};
+const snakeToCamel = (str) => {
+  if (SPECIAL_SNAKE_TO_CAMEL[str]) return SPECIAL_SNAKE_TO_CAMEL[str];
+  return str.replace(/_([a-z])/g, (_, l) => l.toUpperCase());
+};
 
 function objectKeysToSnake(obj) {
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return obj;

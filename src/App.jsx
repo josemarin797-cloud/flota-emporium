@@ -60,6 +60,168 @@ const DEFAULT_CONFIG = {
   discordWebhookByVehicle: {},
 };
 
+// ============================================================
+// SISTEMA DE VOZ (Web Speech API - gratis, sin internet)
+// ============================================================
+
+// Detectar voces disponibles en español
+function getSpanishVoices() {
+  if (!('speechSynthesis' in window)) return [];
+  const voices = window.speechSynthesis.getVoices();
+  return voices.filter(v => v.lang.toLowerCase().startsWith('es'));
+}
+
+// Hablar un texto en voz alta
+function speakText(text, options = {}) {
+  if (!('speechSynthesis' in window)) return;
+  // Si está silenciado, no hablar
+  const muted = localStorage.getItem('emp:voice_muted') !== 'false';
+  if (muted) return;
+  // Cancelar mensajes previos
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'es-VE';
+  utterance.rate = options.rate || 1.0;
+  utterance.pitch = options.pitch || 1.0;
+  utterance.volume = options.volume || 1.0;
+  // Voz preferida del usuario
+  const preferredVoice = localStorage.getItem('emp:voice_name');
+  if (preferredVoice) {
+    const voices = getSpanishVoices();
+    const found = voices.find(v => v.name === preferredVoice);
+    if (found) utterance.voice = found;
+  }
+  window.speechSynthesis.speak(utterance);
+}
+
+// Beep de confirmación corto (más sutil que voz)
+function playBeep() {
+  const muted = localStorage.getItem('emp:voice_muted') !== 'false';
+  if (muted) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 800;
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.2);
+  } catch (e) {}
+}
+
+// Saludo con hora del día
+function getGreetingByTime() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return 'Buenos días';
+  if (h >= 12 && h < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+// Botón para silenciar/activar voz (visible en barra superior)
+function VoiceToggleButton() {
+  const [muted, setMuted] = useState(localStorage.getItem('emp:voice_muted') !== 'false');
+  const toggle = () => {
+    const newMuted = !muted;
+    setMuted(newMuted);
+    localStorage.setItem('emp:voice_muted', newMuted ? 'true' : 'false');
+    // Si acaba de activar, dar feedback
+    if (!newMuted) {
+      // localStorage cambia el flag muted (debe leer 'false' = no muted)
+      setTimeout(() => speakText('Voz activada'), 100);
+    } else {
+      window.speechSynthesis?.cancel();
+    }
+  };
+  return (
+    <button onClick={toggle} title={muted ? 'Activar voz' : 'Silenciar voz'}
+      className={`text-sm flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition border ${
+        muted
+          ? 'bg-white/10 border-white/20 text-stone-300 hover:bg-white/20'
+          : 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300 hover:bg-emerald-500/30'
+      }`}>
+      {muted ? '🔇' : '🔊'} <span className="hidden sm:inline">{muted ? 'Voz off' : 'Voz on'}</span>
+    </button>
+  );
+}
+
+// Botón flotante de "Instalar app" (PWA)
+// Aparece cuando el navegador detecta que la app puede instalarse
+function InstallAppButton() {
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [dismissed, setDismissed] = useState(localStorage.getItem('emp:install_dismissed') === 'true');
+  const [installed, setInstalled] = useState(false);
+
+  useEffect(() => {
+    // Detectar si ya está instalada (modo standalone)
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+      setInstalled(true);
+      return;
+    }
+
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const installedHandler = () => {
+      setInstalled(true);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', installedHandler);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', installedHandler);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstalled(true);
+    }
+    setDeferredPrompt(null);
+  };
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    localStorage.setItem('emp:install_dismissed', 'true');
+  };
+
+  if (installed || dismissed || !deferredPrompt) return null;
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50 max-w-xs animate-pulse">
+      <div className="bg-emerald-600 hover:bg-emerald-700 transition rounded-2xl shadow-2xl p-4 border-2 border-emerald-400">
+        <button onClick={handleDismiss}
+          className="absolute -top-2 -right-2 bg-white text-stone-700 w-7 h-7 rounded-full text-xs font-bold border border-stone-300 hover:bg-stone-100 shadow-md">
+          ✕
+        </button>
+        <div className="flex items-start gap-3">
+          <div className="text-3xl">📱</div>
+          <div className="flex-1">
+            <div className="text-white font-bold text-sm mb-1">Instalar Emporium</div>
+            <p className="text-emerald-50 text-xs mb-3 leading-tight">
+              Instala la app en tu celular para acceso rápido como aplicación nativa.
+            </p>
+            <button onClick={handleInstall}
+              className="bg-white text-emerald-700 hover:bg-emerald-50 font-bold py-2 px-4 rounded-lg text-sm w-full flex items-center justify-center gap-1.5 shadow-md">
+              <Download className="w-4 h-4" /> Instalar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [view, setView] = useState('welcome');
   const [currentUser, setCurrentUser] = useState(null);
@@ -114,8 +276,28 @@ export default function App() {
   const savePhotos = (d) => { setPhotos(d); persist(KEYS.PHOTOS, d); };
   const saveGpsTracks = (d) => { setGpsTracks(d); persist(KEYS.GPS_TRACKS, d); };
 
-  const handleLogin = (role, user) => { setCurrentUser(user); setView(role); };
-  const handleLogout = () => { setCurrentUser(null); setView('login'); };
+  const handleLogin = (role, user) => {
+    setCurrentUser(user);
+    setView(role);
+    // Saludo de voz al hacer login
+    const greeting = getGreetingByTime();
+    if (role === 'driver') {
+      // Saludo + recordatorio de seguridad al chofer
+      setTimeout(() => {
+        speakText(`${greeting} ${user.shortName}. Recuerda verificar neumáticos, aceite y agua. Límite ochenta kilómetros por hora. Maneja con precaución.`);
+      }, 500);
+    } else {
+      // Saludo cordial al coordinador
+      setTimeout(() => {
+        speakText(`${greeting} ${user.shortName}. Bienvenido al Sistema de Control de Flota Emporium.`);
+      }, 500);
+    }
+  };
+  const handleLogout = () => {
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    setCurrentUser(null);
+    setView('login');
+  };
   const handleWelcomeOk = () => setView('login');
 
   if (loading) {
@@ -133,30 +315,36 @@ export default function App() {
     );
   }
 
-  if (view === 'welcome') return <WelcomeScreen onOk={handleWelcomeOk} />;
-  if (view === 'login') return <LoginScreen drivers={drivers} onLogin={handleLogin} />;
+  if (view === 'welcome') return <><WelcomeScreen onOk={handleWelcomeOk} /><InstallAppButton /></>;
+  if (view === 'login') return <><LoginScreen drivers={drivers} onLogin={handleLogin} /><InstallAppButton /></>;
 
   if (view === 'driver') {
-    return <DriverApp
-      currentDriver={currentUser} onLogout={handleLogout}
-      vehicles={vehicles} drivers={drivers} branches={branches}
-      trips={trips} activeTrips={activeTrips} photos={photos} gpsTracks={gpsTracks}
-      saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} saveVehicles={saveVehicles}
-      savePhotos={savePhotos} saveGpsTracks={saveGpsTracks}
-      config={config}
-    />;
+    return <>
+      <DriverApp
+        currentDriver={currentUser} onLogout={handleLogout}
+        vehicles={vehicles} drivers={drivers} branches={branches}
+        trips={trips} activeTrips={activeTrips} photos={photos} gpsTracks={gpsTracks}
+        saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} saveVehicles={saveVehicles}
+        savePhotos={savePhotos} saveGpsTracks={saveGpsTracks}
+        config={config}
+      />
+      <InstallAppButton />
+    </>;
   }
 
   if (view === 'coordinator') {
-    return <CoordinatorApp
-      onLogout={handleLogout}
-      vehicles={vehicles} drivers={drivers} branches={branches}
-      trips={trips} activeTrips={activeTrips} archivedMonths={archivedMonths} photos={photos} gpsTracks={gpsTracks}
-      config={config}
-      saveVehicles={saveVehicles} saveDrivers={saveDrivers} saveBranches={saveBranches}
-      saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} saveGpsTracks={saveGpsTracks}
-      saveArchived={saveArchived} saveConfig={saveConfig} savePhotos={savePhotos}
-    />;
+    return <>
+      <CoordinatorApp
+        onLogout={handleLogout}
+        vehicles={vehicles} drivers={drivers} branches={branches}
+        trips={trips} activeTrips={activeTrips} archivedMonths={archivedMonths} photos={photos} gpsTracks={gpsTracks}
+        config={config}
+        saveVehicles={saveVehicles} saveDrivers={saveDrivers} saveBranches={saveBranches}
+        saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} saveGpsTracks={saveGpsTracks}
+        saveArchived={saveArchived} saveConfig={saveConfig} savePhotos={savePhotos}
+      />
+      <InstallAppButton />
+    </>;
   }
   return null;
 }
@@ -420,7 +608,7 @@ function LoginScreen({ drivers, onLogin }) {
 // ============================================================
 // MAPA (componente reutilizable basado en Leaflet)
 // ============================================================
-function LeafletMap({ markers = [], polylines = [], height = '400px', center = [10.35, -66.65], zoom = 11 }) {
+function LeafletMap({ markers = [], polylines = [], height = '400px', center = [10.4703, -66.6193], zoom = 13 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const [ready, setReady] = useState(false);
@@ -450,10 +638,20 @@ function LeafletMap({ markers = [], polylines = [], height = '400px', center = [
   useEffect(() => {
     if (!ready || !mapRef.current || mapInstanceRef.current) return;
     const L = window.L;
-    const map = L.map(mapRef.current, { zoomControl: true, attributionControl: false }).setView(center, zoom);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    const map = L.map(mapRef.current, { 
+      zoomControl: true, 
+      attributionControl: false,
+      scrollWheelZoom: true,
+      doubleClickZoom: true,
+      touchZoom: true,
+    }).setView(center, zoom);
+    // Mapa estilo OpenStreetMap a color (similar a Google Maps)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
+      subdomains: ['a', 'b', 'c'],
     }).addTo(map);
+    // Control de escala (km/m visible)
+    L.control.scale({ imperial: false, metric: true, position: 'bottomleft' }).addTo(map);
     mapInstanceRef.current = map;
   }, [ready]);
 
@@ -518,17 +716,19 @@ function LeafletMap({ markers = [], polylines = [], height = '400px', center = [
           0%, 100% { transform: scale(1); }
           50% { transform: scale(1.08); }
         }
-        .leaflet-container { background: #1c1d1c !important; }
-        .leaflet-popup-content-wrapper { background:#fafaf9 !important; color:#1c1917 !important; border-radius:12px !important; box-shadow:0 4px 16px rgba(0,0,0,0.3); }
-        .leaflet-popup-content { font-family: system-ui; font-size: 12px; }
-        .leaflet-popup-tip { background:#fafaf9 !important; }
-        .leaflet-control-zoom a { background:#fafaf9 !important; color:#1c1917 !important; border:1px solid #e7e5e4 !important; }
+        .leaflet-container { background: #e5e7eb !important; }
+        .leaflet-popup-content-wrapper { background:#ffffff !important; color:#1c1917 !important; border-radius:12px !important; box-shadow:0 4px 16px rgba(0,0,0,0.3); }
+        .leaflet-popup-content { font-family: system-ui; font-size: 13px; }
+        .leaflet-popup-tip { background:#ffffff !important; }
+        .leaflet-control-zoom a { background:#ffffff !important; color:#1c1917 !important; border:1px solid #d6d3d1 !important; font-weight:bold !important; }
+        .leaflet-control-zoom a:hover { background:#f5f5f4 !important; }
+        .leaflet-control-scale { background:rgba(255,255,255,0.85) !important; padding:2px 6px !important; border-radius:4px !important; }
       `}</style>
       <div ref={mapRef} style={{ height, width: '100%', borderRadius: '16px', overflow: 'hidden' }}>
         {!ready && (
-          <div className="h-full bg-[#252726] flex items-center justify-center text-emerald-700 font-mono text-sm">
+          <div className="h-full bg-stone-100 flex items-center justify-center text-emerald-700 font-mono text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
               CARGANDO MAPA...
             </div>
           </div>
@@ -561,14 +761,64 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     }
   }, [selectedVehicle, myActiveTrips]);
 
+  // Estado para velocidad y alertas
+  const lastSpeedAlertRef = useRef(0);
+
   // GPS Tracking
   const startGpsTracking = (tripId) => {
     if (!navigator.geolocation) return;
     setGpsEnabled(true);
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
-        const point = { lat: pos.coords.latitude, lng: pos.coords.longitude, t: Date.now(), speed: pos.coords.speed || 0 };
+        // Velocidad: usar la del GPS si está disponible (m/s → km/h),
+        // sino calcular desde el punto anterior
+        let speedKmh = 0;
+        if (pos.coords.speed != null && pos.coords.speed >= 0) {
+          speedKmh = pos.coords.speed * 3.6;
+        } else {
+          // Cálculo manual desde el último punto
+          const existing = gpsTracks.find(g => g.tripId === tripId);
+          const lastPoint = existing?.points?.[existing.points.length - 1];
+          if (lastPoint) {
+            const R = 6371; // Radio Tierra en km
+            const dLat = (pos.coords.latitude - lastPoint.lat) * Math.PI / 180;
+            const dLng = (pos.coords.longitude - lastPoint.lng) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(lastPoint.lat * Math.PI / 180) * Math.cos(pos.coords.latitude * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+            const dist = 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); // km
+            const dt = (Date.now() - lastPoint.t) / 3600000; // horas
+            if (dt > 0) speedKmh = dist / dt;
+          }
+        }
+        // Filtrar valores extraños (mayor a 200 km/h probablemente es error de GPS)
+        if (speedKmh > 200) speedKmh = 0;
+
+        const point = { lat: pos.coords.latitude, lng: pos.coords.longitude, t: Date.now(), speed: speedKmh, accuracy: pos.coords.accuracy };
         setCurrentPosition(point);
+
+        // Alerta por exceso de velocidad (más de 100 km/h)
+        // Solo notificar a Discord 1 vez cada 60 segundos para no spamear
+        if (speedKmh > 100 && Date.now() - lastSpeedAlertRef.current > 60000) {
+          lastSpeedAlertRef.current = Date.now();
+          const v = vehicles.find(x => x.id === (selectedVehicle?.id || currentTrip?.vehicleId));
+          // 🔊 ALERTA DE VOZ al chofer
+          speakText('¡Atención! Estás superando el límite. Reduce la velocidad por tu seguridad.');
+          const webhookUrl = v ? config.discordWebhookByVehicle?.[v.id] : '';
+          if (webhookUrl) {
+            fetch(webhookUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                embeds: [{
+                  title: `🚨 EXCESO DE VELOCIDAD - ${v.code}`,
+                  description: `**${currentDriver.shortName}** está conduciendo a **${Math.round(speedKmh)} km/h** (límite 80).\n📍 Posición: ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`,
+                  color: 16711680, // Rojo
+                  timestamp: new Date().toISOString(),
+                }],
+              }),
+            }).catch(e => console.warn('Discord alert error:', e));
+          }
+        }
+
         // Guardar punto del recorrido
         const existing = gpsTracks.find(g => g.tripId === tripId);
         if (existing) {
@@ -579,7 +829,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         }
       },
       (err) => { console.warn('GPS error', err); setGpsEnabled(false); },
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
     );
   };
   const stopGpsTracking = () => {
@@ -616,6 +866,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     // Iniciar GPS
     startGpsTracking(trip.id);
+
+    // Beep de confirmación
+    playBeep();
 
     // Notificación Discord
     const origin = branches.find(b => b.id === data.originBranchId);
@@ -670,6 +923,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     stopGpsTracking();
     setCurrentTrip(completed);
     setStep('finish');
+
+    // Beep de confirmación
+    playBeep();
 
     // Notificación Discord
     const origin = branches.find(b => b.id === currentTrip.originBranchId);
@@ -768,9 +1024,12 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
             </div>
           </div>
         </div>
-        <button onClick={() => { stopGpsTracking(); onLogout(); }} className="text-stone-300 hover:text-white text-sm flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition">
-          <LogOut className="w-4 h-4" /> Salir
-        </button>
+        <div className="flex items-center gap-2">
+          <VoiceToggleButton />
+          <button onClick={() => { stopGpsTracking(); onLogout(); }} className="text-stone-300 hover:text-white text-sm flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition">
+            <LogOut className="w-4 h-4" /> Salir
+          </button>
+        </div>
       </header>
 
       <div className="bg-white border-b border-stone-200 sticky top-[60px] z-20 shadow-sm">
@@ -1116,6 +1375,48 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
         </div>
       </div>
 
+      {/* Velocímetro con alertas */}
+      {gpsEnabled && currentPosition && (
+        (() => {
+          const speed = Math.round(currentPosition.speed || 0);
+          let bg = 'from-emerald-500 to-emerald-700';
+          let label = 'VELOCIDAD NORMAL';
+          let pulse = '';
+          if (speed > 100) {
+            bg = 'from-rose-600 to-red-800';
+            label = '🚨 EXCESO GRAVE';
+            pulse = 'animate-pulse';
+          } else if (speed > 80) {
+            bg = 'from-amber-500 to-orange-700';
+            label = '⚠ PASASTE EL LÍMITE';
+          } else if (speed > 60) {
+            bg = 'from-yellow-500 to-amber-600';
+            label = 'EN CARRETERA';
+          } else if (speed < 5) {
+            bg = 'from-stone-500 to-stone-700';
+            label = 'DETENIDO';
+          }
+          return (
+            <div className={`bg-gradient-to-br ${bg} text-white rounded-2xl p-5 shadow-xl border border-white/20 ${pulse}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest font-mono opacity-80">{label}</div>
+                  <div className="text-5xl font-black tabular-nums mt-1 font-mono leading-none">{speed}</div>
+                  <div className="text-xs uppercase tracking-wider font-mono opacity-90 mt-1">km/h</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] font-mono uppercase opacity-70">Límite oficial</div>
+                  <div className="text-xl font-black font-mono">80 km/h</div>
+                  {speed > 100 && (
+                    <div className="text-[10px] mt-2 bg-white/20 rounded px-2 py-0.5 font-mono">🚨 ALERTA enviada</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()
+      )}
+
       {/* Origen → Destino */}
       <div className="bg-white rounded-2xl p-4 border border-stone-200 shadow-sm">
         <div className="text-center text-xs text-stone-500 font-mono uppercase tracking-wider mb-3">{driver.shortName} · {vehicle.code}</div>
@@ -1253,6 +1554,8 @@ function TripCompleteView({ trip, driver, vehicle, branches, onNewTrip, onLogout
   const destination = branches.find(b => b.id === trip.destinationBranchId);
   const [timeAtDest, setTimeAtDest] = useState('');
   const [departed, setDeparted] = useState(!!trip.timeAtDestinationMinutes);
+  const [confirmedMinutes, setConfirmedMinutes] = useState(trip.timeAtDestinationMinutes || null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   useEffect(() => {
     if (departed) return;
@@ -1267,7 +1570,17 @@ function TripCompleteView({ trip, driver, vehicle, branches, onNewTrip, onLogout
   }, [trip, departed]);
 
   const handleDeparted = () => {
-    if (confirm(`¿Confirmar salida de ${destination?.name}?`)) { onMarkDeparted(trip.id); setDeparted(true); }
+    setShowConfirmDialog(true);
+  };
+
+  const confirmDeparted = () => {
+    // Calcular minutos ACTUALES (lo mismo que markDepartedDestination calculará)
+    const arrivedMs = parseDateTime(trip.endDate, trip.endTime);
+    const minutes = Math.max(0, Math.round((Date.now() - arrivedMs) / 60000));
+    setConfirmedMinutes(minutes);
+    onMarkDeparted(trip.id);
+    setDeparted(true);
+    setShowConfirmDialog(false);
   };
 
   return (
@@ -1292,9 +1605,9 @@ function TripCompleteView({ trip, driver, vehicle, branches, onNewTrip, onLogout
           <DarkStat label="Costo" value={`$${trip.cost.toFixed(2)}`} icon={DollarSign} accent="emerald" />
         </div>
         {trip.timeAtBranchPrevMinutes != null && (
-          <div className="mt-3 bg-blue-950/40 border border-blue-700/30 rounded-lg p-3">
-            <div className="text-xs text-blue-300 font-bold font-mono uppercase tracking-wider">⏱ Tiempo en {origin?.name} antes de salir</div>
-            <div className="text-lg font-bold text-blue-100 mt-1 font-mono">{formatDuration(trip.timeAtBranchPrevMinutes)}</div>
+          <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="text-xs text-blue-700 font-bold font-mono uppercase tracking-wider">⏱ Tiempo en {origin?.name} antes de salir</div>
+            <div className="text-lg font-bold text-blue-900 mt-1 font-mono">{formatDuration(trip.timeAtBranchPrevMinutes)}</div>
           </div>
         )}
       </div>
@@ -1318,10 +1631,36 @@ function TripCompleteView({ trip, driver, vehicle, branches, onNewTrip, onLogout
           </button>
         </div>
       ) : (
-        <div className="bg-emerald-50 border border-stone-300 rounded-2xl p-4">
+        <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4">
           <div className="text-xs text-emerald-700 font-bold font-mono uppercase">✅ Tiempo en {destination?.name}</div>
-          <div className="text-2xl font-bold text-stone-900 mt-1 font-mono">{formatDuration(trip.timeAtDestinationMinutes)}</div>
-          <div className="text-xs text-stone-500 mt-1 font-mono">Salida registrada</div>
+          <div className="text-3xl font-bold text-stone-900 mt-1 font-mono">{formatDuration(confirmedMinutes ?? trip.timeAtDestinationMinutes ?? 0)}</div>
+          <div className="text-xs text-stone-500 mt-1 font-mono">Salida registrada · Permanencia guardada</div>
+        </div>
+      )}
+
+      {showConfirmDialog && (
+        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4" onClick={() => setShowConfirmDialog(false)}>
+          <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6 text-purple-700" />
+              </div>
+              <h3 className="font-bold text-stone-900 text-lg">Confirmar salida</h3>
+            </div>
+            <p className="text-sm text-stone-600 mb-4">
+              ¿Confirmar que estás saliendo de <b>{destination?.name}</b>? Se registrará el tiempo que estuviste en esta sucursal.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setShowConfirmDialog(false)}
+                className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">
+                Cancelar
+              </button>
+              <button onClick={confirmDeparted}
+                className="py-3 rounded-xl font-bold text-white bg-purple-600 hover:bg-purple-700">
+                Sí, salí
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1632,6 +1971,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-3">
+              <VoiceToggleButton />
               <button onClick={onLogout} className="text-stone-300 hover:text-white text-sm flex items-center gap-1.5 px-2 py-1 rounded hover:bg-white/10 transition"><LogOut className="w-4 h-4" /> Salir</button>
               <div className="h-6 w-px bg-stone-600"></div>
               <div className="flex items-center gap-3">
@@ -1798,6 +2138,94 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
           💡 <b>Cómo se calcula:</b> Consumo (L/100km) ÷ 100 × Precio combustible = Costo por km recorrido
         </div>
       </div>
+
+      {/* RENTABILIDAD DEL DÍA - Qué unidad fue más productiva */}
+      {(() => {
+        const today = new Date().toISOString().slice(0, 10);
+        const todayTrips = trips.filter(t => t.startDate === today);
+        const rentByVehicle = vehicles.map(v => {
+          const vt = todayTrips.filter(t => t.vehicleId === v.id);
+          const km = vt.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
+          const cost = vt.reduce((s, t) => s + (Number(t.cost) || 0), 0);
+          const deliv = vt.reduce((s, t) => s + (Number(t.deliveries) || 0), 0);
+          const tripCount = vt.length;
+          // Eficiencia: entregas/km (más entregas por km recorrido = mejor)
+          const efficiency = km > 0 ? deliv / km : 0;
+          return { ...v, km, cost, deliv, tripCount, efficiency };
+        }).filter(v => v.tripCount > 0)
+          .sort((a, b) => b.deliv - a.deliv);
+
+        if (rentByVehicle.length === 0) {
+          return (
+            <div className="bg-white rounded-2xl border border-stone-200 p-5 text-center text-stone-400">
+              <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
+              <div className="text-sm font-mono">Sin viajes hoy todavía</div>
+            </div>
+          );
+        }
+
+        const maxDeliv = Math.max(...rentByVehicle.map(v => v.deliv), 1);
+        return (
+          <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
+            <div className="px-4 py-3 border-b border-stone-200 bg-stone-50 flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Award className="w-4 h-4 text-amber-600" />
+                <span className="font-bold text-stone-900 text-sm">Rentabilidad del día</span>
+                <span className="text-xs text-stone-500 font-mono">{today}</span>
+              </div>
+              <span className="text-xs text-stone-600">
+                <b className="text-amber-700">{rentByVehicle[0]?.code}</b> es la unidad más productiva hoy
+              </span>
+            </div>
+            <div className="divide-y divide-stone-100">
+              {rentByVehicle.map((v, i) => {
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+                const barPct = (v.deliv / maxDeliv) * 100;
+                return (
+                  <div key={v.id} className="p-3">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="text-xl">{medal}</span>
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: v.color }}></div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-stone-900 text-sm">{v.code}</div>
+                          <div className="text-[10px] text-stone-500 font-mono truncate">{v.plate}</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-4 gap-3 text-xs text-right">
+                        <div>
+                          <div className="text-[9px] uppercase text-stone-500 font-mono">Viajes</div>
+                          <div className="font-bold text-stone-900">{v.tripCount}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] uppercase text-stone-500 font-mono">KM</div>
+                          <div className="font-bold text-stone-900">{v.km}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] uppercase text-stone-500 font-mono">Entregas</div>
+                          <div className="font-bold text-emerald-700">{v.deliv}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] uppercase text-stone-500 font-mono">Costo</div>
+                          <div className="font-bold text-rose-700">${v.cost.toFixed(2)}</div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Barra visual de productividad */}
+                    <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all"
+                        style={{ width: `${barPct}%`, background: v.color }}></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="px-4 py-2 bg-amber-50 border-t border-amber-200 text-xs text-amber-900">
+              💡 <b>Criterio:</b> Ranking por entregas del día. Más entregas = más productivo.
+            </div>
+          </div>
+        );
+      })()}
 
       {activeTrips.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
@@ -2070,116 +2498,182 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
   const generarExcelHTML = () => {
     const stylesHead = `
       <style>
-        table { border-collapse: collapse; font-family: Arial; font-size: 11px; }
-        th, td { border: 1px solid #999; padding: 4px 6px; }
-        th { background: #10b981; color: white; font-weight: bold; }
-        .title { font-size: 14px; font-weight: bold; background: #064e3b; color: white; }
+        table { border-collapse: collapse; font-family: Arial; font-size: 11px; margin-bottom: 24px; }
+        th, td { border: 1px solid #999; padding: 5px 8px; }
+        th { background: #10b981; color: white; font-weight: bold; font-size: 10px; }
+        .title { font-size: 16px; font-weight: bold; background: #064e3b; color: white; padding: 8px; }
+        .vehicle-title { font-size: 14px; font-weight: bold; background: #047857; color: white; }
         .subtitle { background: #d1fae5; font-weight: bold; }
         .total { background: #fef3c7; font-weight: bold; }
-        .date { mso-number-format: 'dd/mm/yyyy'; }
-        .num { mso-number-format: '#,##0.00'; }
+        .dashboard { background: #ecfdf5; }
+        .num { mso-number-format: '#,##0.00'; text-align: right; }
+        .int { mso-number-format: '0'; text-align: right; }
+        .money { mso-number-format: '$#,##0.00'; text-align: right; color: #047857; font-weight: bold; }
+        .header-info { background: #f0fdf4; font-weight: bold; }
+        h2 { color: #047857; margin-top: 30px; border-bottom: 2px solid #10b981; padding-bottom: 4px; }
+        h3 { color: #065f46; margin-top: 20px; }
       </style>`;
 
-    // Cada hoja de vehículo es un <table>
     let sheets = '';
+    const fmtMin = (m) => m == null ? '' : (m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`);
 
+    // 1) HOJA POR CADA VEHÍCULO con todas las columnas pedidas
     vehicles.forEach(v => {
-      const vTrips = trips.filter(t => t.vehicleId === v.id);
+      const vTrips = [...trips.filter(t => t.vehicleId === v.id)].sort((a, b) => a.createdAt - b.createdAt);
       if (vTrips.length === 0) return;
-      const byDate = {};
-      vTrips.forEach(t => { (byDate[t.startDate] = byDate[t.startDate] || []).push(t); });
-      sheets += `<h3>${esc(v.code)} (${esc(v.plate)})</h3>`;
+
+      sheets += `<h2>🚛 ${esc(v.code)} · ${esc(v.plate)} (${esc(v.type)})</h2>`;
+      
+      // Tabla detallada de viajes
       sheets += `<table>`;
-      sheets += `<tr><td class="title" colspan="15">DEPARTAMENTO DE TRANSPORTE - ${esc(v.code)} - ${esc(v.plate)}</td></tr>`;
-      sheets += `<tr class="subtitle"><th>CHOFER</th><th>FECHA</th><th>SURTIDO (L)</th><th>INICIO</th><th>FIN</th><th>KM INICIO</th><th>KM FIN</th><th>KM REC.</th><th>LITROS</th><th>$/L</th><th>GASTO $</th><th>RUTA</th><th>VIAJES</th><th>ENTREGAS</th><th>SALDO TANQUE</th></tr>`;
-      let totKm = 0, totL = 0, totC = 0, totD = 0, totT = 0;
-      Object.entries(byDate).sort((a, b) => a[0].localeCompare(b[0])).forEach(([date, dt]) => {
-        const first = [...dt].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime))[0];
-        const last = [...dt].sort((a, b) => parseDateTime(b.endDate, b.endTime) - parseDateTime(a.endDate, a.endTime))[0];
-        const driver = drivers.find(d => d.id === first.driverId);
-        const km = dt.reduce((s, t) => s + t.kmTraveled, 0);
-        const lt = dt.reduce((s, t) => s + t.liters, 0);
-        const cs = dt.reduce((s, t) => s + t.cost, 0);
-        const dl = dt.reduce((s, t) => s + (t.deliveries || 0), 0);
-        const tr = dt.reduce((s, t) => s + (t.tripsCount || 1), 0);
-        const fl = dt.reduce((s, t) => s + (t.fuelLoaded || 0), 0);
-        totKm += km; totL += lt; totC += cs; totD += dl; totT += tr;
+      sheets += `<tr><td class="vehicle-title" colspan="13">DETALLE DE VIAJES - ${esc(v.code)}</td></tr>`;
+      sheets += `<tr class="subtitle">
+        <th>Fecha</th>
+        <th>Chofer</th>
+        <th>Hora Salida</th>
+        <th>Hora Llegada</th>
+        <th>KM Salida</th>
+        <th>KM Llegada</th>
+        <th>KM Recorridos</th>
+        <th>Tiempo Trayecto</th>
+        <th>Combustible (L)</th>
+        <th>Costo $</th>
+        <th>Transferencias</th>
+        <th>Ruta</th>
+        <th>T. en Destino</th>
+      </tr>`;
+
+      let totKm = 0, totL = 0, totC = 0, totD = 0;
+      vTrips.forEach(t => {
+        const d = drivers.find(x => x.id === t.driverId);
+        const o = branches.find(x => x.id === t.originBranchId);
+        const dest = branches.find(x => x.id === t.destinationBranchId);
+        totKm += Number(t.kmTraveled) || 0;
+        totL += Number(t.liters) || 0;
+        totC += Number(t.cost) || 0;
+        totD += Number(t.deliveries) || 0;
         sheets += `<tr>`;
-        sheets += `<td>${esc(driver?.shortName)}</td>`;
-        sheets += `<td>${esc(date)}</td>`;
-        sheets += `<td class="num">${fl > 0 ? fl : ''}</td>`;
-        sheets += `<td>${esc(first.startTime)}</td>`;
-        sheets += `<td>${esc(last.endTime)}</td>`;
-        sheets += `<td class="num">${first.kmStart}</td>`;
-        sheets += `<td class="num">${last.kmEnd}</td>`;
-        sheets += `<td class="num">${km}</td>`;
-        sheets += `<td class="num">${lt.toFixed(2)}</td>`;
-        sheets += `<td class="num">${(first.fuelPrice || 0.5).toFixed(2)}</td>`;
-        sheets += `<td class="num">${cs.toFixed(2)}</td>`;
-        sheets += `<td>${esc(first.route || 'LOCAL')}</td>`;
-        sheets += `<td class="num">${tr}</td>`;
-        sheets += `<td class="num">${dl}</td>`;
-        sheets += `<td></td>`;
+        sheets += `<td>${esc(t.startDate)}</td>`;
+        sheets += `<td>${esc(d?.shortName)}</td>`;
+        sheets += `<td>${esc(t.startTime)}</td>`;
+        sheets += `<td>${esc(t.endTime)}</td>`;
+        sheets += `<td class="int">${t.kmStart}</td>`;
+        sheets += `<td class="int">${t.kmEnd}</td>`;
+        sheets += `<td class="int">${t.kmTraveled}</td>`;
+        sheets += `<td>${fmtMin(t.tripMinutes)}</td>`;
+        sheets += `<td class="num">${Number(t.liters || 0).toFixed(2)}</td>`;
+        sheets += `<td class="money">${Number(t.cost || 0).toFixed(2)}</td>`;
+        sheets += `<td class="int">${t.deliveries || 0}</td>`;
+        sheets += `<td>${esc(o?.name)} → ${esc(dest?.name)}</td>`;
+        sheets += `<td>${t.timeAtDestinationMinutes != null ? fmtMin(t.timeAtDestinationMinutes) : '<span style="color:#888">en curso</span>'}</td>`;
         sheets += `</tr>`;
       });
-      sheets += `<tr class="total"><td colspan="7">TOTAL</td><td class="num">${totKm}</td><td class="num">${totL.toFixed(2)}</td><td></td><td class="num">${totC.toFixed(2)}</td><td></td><td class="num">${totT}</td><td class="num">${totD}</td><td></td></tr>`;
-      sheets += `</table><br/><br/>`;
+
+      // Fila de totales
+      sheets += `<tr class="total">`;
+      sheets += `<td colspan="6">TOTAL</td>`;
+      sheets += `<td class="int">${totKm}</td>`;
+      sheets += `<td></td>`;
+      sheets += `<td class="num">${totL.toFixed(2)}</td>`;
+      sheets += `<td class="money">${totC.toFixed(2)}</td>`;
+      sheets += `<td class="int">${totD}</td>`;
+      sheets += `<td colspan="2"></td>`;
+      sheets += `</tr>`;
+      sheets += `</table>`;
+
+      // Dashboard pequeño del vehículo
+      const kmL = totL > 0 ? (totKm / totL).toFixed(2) : '0';
+      const costoPorKm = totKm > 0 ? (totC / totKm).toFixed(3) : '0';
+      sheets += `<table style="width:auto">`;
+      sheets += `<tr><td class="vehicle-title" colspan="2">DASHBOARD ${esc(v.code)}</td></tr>`;
+      sheets += `<tr class="dashboard"><td class="header-info">Total Viajes</td><td class="int">${vTrips.length}</td></tr>`;
+      sheets += `<tr class="dashboard"><td class="header-info">Total KM</td><td class="int">${totKm}</td></tr>`;
+      sheets += `<tr class="dashboard"><td class="header-info">Total Combustible</td><td class="num">${totL.toFixed(2)} L</td></tr>`;
+      sheets += `<tr class="dashboard"><td class="header-info">Total Gasto</td><td class="money">${totC.toFixed(2)}</td></tr>`;
+      sheets += `<tr class="dashboard"><td class="header-info">Total Entregas</td><td class="int">${totD}</td></tr>`;
+      sheets += `<tr class="dashboard"><td class="header-info">Promedio km/L</td><td class="num">${kmL}</td></tr>`;
+      sheets += `<tr class="dashboard"><td class="header-info">Costo por km</td><td class="money">${costoPorKm}</td></tr>`;
+      sheets += `<tr class="dashboard"><td class="header-info">Consumo nominal</td><td class="num">${v.litersPer100km} L/100km</td></tr>`;
+      sheets += `</table>`;
     });
 
-    // Tabla resumen general
-    sheets += `<h3>Registro de Viajes (Detalle)</h3>`;
-    sheets += `<table><tr class="subtitle"><th>Fecha</th><th>Unidad</th><th>Chofer</th><th>Origen</th><th>Destino</th><th>Salida</th><th>Llegada</th><th>T. Viaje</th><th>T. Origen</th><th>T. Destino</th><th>KM Inicio</th><th>KM Fin</th><th>KM Rec.</th><th>Litros</th><th>Costo $</th><th>Entregas</th><th>Notas</th></tr>`;
-    [...trips].sort((a, b) => a.createdAt - b.createdAt).forEach(t => {
-      const v = vehicles.find(x => x.id === t.vehicleId);
-      const d = drivers.find(x => x.id === t.driverId);
-      const o = branches.find(x => x.id === t.originBranchId);
-      const dest = branches.find(x => x.id === t.destinationBranchId);
-      const fmtMin = (m) => m == null ? '' : (m < 60 ? `${m}m` : `${Math.floor(m/60)}h ${m%60}m`);
+    // 2) RESUMEN GENERAL POR VEHÍCULO (tipo dashboard)
+    sheets += `<h2>📊 Dashboard - Comparativo de Flota</h2>`;
+    sheets += `<table>`;
+    sheets += `<tr class="subtitle">
+      <th>Unidad</th><th>Placa</th>
+      <th>Viajes</th><th>KM Total</th>
+      <th>Litros</th><th>Costo Total $</th>
+      <th>Entregas</th><th>km/L Prom.</th>
+      <th>$/km</th><th>Eficiencia</th>
+    </tr>`;
+    let grandKm = 0, grandL = 0, grandC = 0, grandD = 0, grandT = 0;
+    vehicles.forEach(v => {
+      const vt = trips.filter(t => t.vehicleId === v.id);
+      const km = vt.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
+      const lt = vt.reduce((s, t) => s + (Number(t.liters) || 0), 0);
+      const cs = vt.reduce((s, t) => s + (Number(t.cost) || 0), 0);
+      const dl = vt.reduce((s, t) => s + (Number(t.deliveries) || 0), 0);
+      const kmL = lt > 0 ? (km / lt).toFixed(2) : '0';
+      const costoKm = km > 0 ? (cs / km).toFixed(3) : '0';
+      const efic = km > 0 ? (dl / km * 100).toFixed(2) : '0';
+      grandKm += km; grandL += lt; grandC += cs; grandD += dl; grandT += vt.length;
       sheets += `<tr>`;
-      sheets += `<td>${esc(t.startDate)}</td>`;
-      sheets += `<td>${esc(v?.code)}</td>`;
-      sheets += `<td>${esc(d?.shortName)}</td>`;
-      sheets += `<td>${esc(o?.name)}</td>`;
-      sheets += `<td>${esc(dest?.name)}</td>`;
-      sheets += `<td>${esc(t.startTime)}</td>`;
-      sheets += `<td>${esc(t.endTime)}</td>`;
-      sheets += `<td>${fmtMin(t.tripMinutes)}</td>`;
-      sheets += `<td>${fmtMin(t.timeAtBranchPrevMinutes)}</td>`;
-      sheets += `<td>${fmtMin(t.timeAtDestinationMinutes)}</td>`;
-      sheets += `<td class="num">${t.kmStart}</td>`;
-      sheets += `<td class="num">${t.kmEnd}</td>`;
-      sheets += `<td class="num">${t.kmTraveled}</td>`;
-      sheets += `<td class="num">${t.liters.toFixed(2)}</td>`;
-      sheets += `<td class="num">${t.cost.toFixed(2)}</td>`;
-      sheets += `<td class="num">${t.deliveries}</td>`;
-      sheets += `<td>${esc(t.notes)}</td>`;
+      sheets += `<td><b>${esc(v.code)}</b></td>`;
+      sheets += `<td>${esc(v.plate)}</td>`;
+      sheets += `<td class="int">${vt.length}</td>`;
+      sheets += `<td class="int">${km}</td>`;
+      sheets += `<td class="num">${lt.toFixed(2)}</td>`;
+      sheets += `<td class="money">${cs.toFixed(2)}</td>`;
+      sheets += `<td class="int">${dl}</td>`;
+      sheets += `<td class="num">${kmL}</td>`;
+      sheets += `<td class="money">${costoKm}</td>`;
+      sheets += `<td class="num">${efic}%</td>`;
       sheets += `</tr>`;
     });
-    sheets += `</table><br/><br/>`;
+    sheets += `<tr class="total">`;
+    sheets += `<td colspan="2">TOTAL FLOTA</td>`;
+    sheets += `<td class="int">${grandT}</td>`;
+    sheets += `<td class="int">${grandKm}</td>`;
+    sheets += `<td class="num">${grandL.toFixed(2)}</td>`;
+    sheets += `<td class="money">${grandC.toFixed(2)}</td>`;
+    sheets += `<td class="int">${grandD}</td>`;
+    sheets += `<td colspan="3"></td>`;
+    sheets += `</tr>`;
+    sheets += `</table>`;
 
-    // Resumen por chofer
-    sheets += `<h3>Resumen por Conductor</h3>`;
-    sheets += `<table><tr class="subtitle"><th>Conductor</th><th>Viajes</th><th>KM Total</th><th>Litros</th><th>Costo $</th><th>Entregas</th><th>km/L promedio</th></tr>`;
-    drivers.forEach(d => {
+    // 3) Ranking de conductores
+    sheets += `<h2>👤 Ranking de Conductores</h2>`;
+    sheets += `<table>`;
+    sheets += `<tr class="subtitle"><th>Conductor</th><th>Viajes</th><th>KM Total</th><th>Litros</th><th>Costo $</th><th>Entregas</th><th>km/L Prom.</th><th>Éxito</th></tr>`;
+    const driverStats = drivers.map(d => {
       const dt = trips.filter(t => t.driverId === d.id);
-      if (dt.length === 0) return;
-      const km = dt.reduce((s, t) => s + t.kmTraveled, 0);
-      const lt = dt.reduce((s, t) => s + t.liters, 0);
-      const cs = dt.reduce((s, t) => s + t.cost, 0);
-      const dl = dt.reduce((s, t) => s + (t.deliveries || 0), 0);
+      const km = dt.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
+      const lt = dt.reduce((s, t) => s + (Number(t.liters) || 0), 0);
+      const cs = dt.reduce((s, t) => s + (Number(t.cost) || 0), 0);
+      const dl = dt.reduce((s, t) => s + (Number(t.deliveries) || 0), 0);
+      return { ...d, count: dt.length, km, lt, cs, dl };
+    }).filter(d => d.count > 0).sort((a, b) => b.dl - a.dl);
+    driverStats.forEach((d, i) => {
+      const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
+      const kmL = d.lt > 0 ? (d.km / d.lt).toFixed(2) : '0';
+      const succ = d.count > 0 ? (d.dl / d.count * 100).toFixed(1) : '0';
       sheets += `<tr>`;
-      sheets += `<td>${esc(d.name)}</td>`;
-      sheets += `<td class="num">${dt.length}</td>`;
-      sheets += `<td class="num">${km}</td>`;
-      sheets += `<td class="num">${lt.toFixed(2)}</td>`;
-      sheets += `<td class="num">${cs.toFixed(2)}</td>`;
-      sheets += `<td class="num">${dl}</td>`;
-      sheets += `<td class="num">${lt > 0 ? (km/lt).toFixed(2) : '0'}</td>`;
+      sheets += `<td><b>${medal}${esc(d.name)}</b></td>`;
+      sheets += `<td class="int">${d.count}</td>`;
+      sheets += `<td class="int">${d.km}</td>`;
+      sheets += `<td class="num">${d.lt.toFixed(2)}</td>`;
+      sheets += `<td class="money">${d.cs.toFixed(2)}</td>`;
+      sheets += `<td class="int">${d.dl}</td>`;
+      sheets += `<td class="num">${kmL}</td>`;
+      sheets += `<td class="num">${succ}%</td>`;
       sheets += `</tr>`;
     });
     sheets += `</table>`;
 
-    const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8">${stylesHead}</head><body>${sheets}</body></html>`;
+    sheets += `<p style="color:#666;font-size:10px;margin-top:30px;font-family:Arial">📋 Reporte generado el ${new Date().toLocaleString('es-VE')} · Transporte Emporium</p>`;
+
+    const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8">${stylesHead}</head><body><h1 style="color:#047857;font-family:Arial">🚛 TRANSPORTE EMPORIUM - REPORTE DE FLOTA</h1>${sheets}</body></html>`;
     return html;
   };
 
@@ -2584,36 +3078,85 @@ function DriversTab({ drivers, saveDrivers, trips }) {
 
 function BranchesTab({ branches, saveBranches }) {
   const [editing, setEditing] = useState(null);
+  const [gpsStatus, setGpsStatus] = useState(null);
   const handleSave = (b) => {
     if (editing?.id) saveBranches(branches.map(x => x.id === b.id ? b : x));
     else saveBranches([...branches, { ...b, id: `b_${Date.now()}` }]);
     setEditing(null);
   };
+  const useMyLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsStatus({ type: 'error', msg: 'Tu navegador no soporta GPS' });
+      setTimeout(() => setGpsStatus(null), 4000);
+      return;
+    }
+    setGpsStatus({ type: 'loading', msg: 'Obteniendo ubicación...' });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setEditing(e => ({ ...e, lat: Number(pos.coords.latitude.toFixed(6)), lng: Number(pos.coords.longitude.toFixed(6)) }));
+        setGpsStatus({ type: 'success', msg: `✓ Ubicación capturada (precisión: ${Math.round(pos.coords.accuracy)}m)` });
+        setTimeout(() => setGpsStatus(null), 4000);
+      },
+      (err) => {
+        const msg = err.code === 1 ? 'Permiso denegado. Permite el acceso al GPS en tu navegador.' :
+                    err.code === 2 ? 'No se pudo obtener señal GPS. Sal al aire libre.' :
+                    err.code === 3 ? 'Tardó demasiado. Reintenta.' :
+                    'Error desconocido del GPS';
+        setGpsStatus({ type: 'error', msg });
+        setTimeout(() => setGpsStatus(null), 5000);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  };
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <h2 className="font-black text-stone-900">Sucursales</h2>
-        <button onClick={() => setEditing({ name: '', fullName: '', lat: 10.35, lng: -66.65 })}
-          className="bg-emerald-600 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-bold">
+        <div>
+          <h2 className="text-xl font-black text-stone-900">Sucursales</h2>
+          <p className="text-sm text-stone-600">{branches.length} ubicaciones registradas</p>
+        </div>
+        <button onClick={() => setEditing({ name: '', fullName: '', lat: 10.4703, lng: -66.6193 })}
+          className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-bold shadow-md">
           <Plus className="w-4 h-4" /> Agregar
         </button>
       </div>
       {editing && (
-        <div className="bg-white rounded-xl border-2 border-emerald-500/40 p-4">
+        <div className="bg-white rounded-xl border-2 border-emerald-500 p-4 shadow-lg">
           <div className="flex justify-between items-center mb-3">
             <h3 className="font-bold text-stone-900">{editing.id ? 'Editar' : 'Nueva'} sucursal</h3>
-            <button onClick={() => setEditing(null)} className="text-emerald-700"><X className="w-5 h-5" /></button>
+            <button onClick={() => setEditing(null)} className="text-stone-500 hover:text-stone-900"><X className="w-5 h-5" /></button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <DarkField label="Nombre corto"><input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} className="dark-input" /></DarkField>
-            <DarkField label="Nombre completo"><input value={editing.fullName} onChange={e => setEditing({ ...editing, fullName: e.target.value })} className="dark-input" /></DarkField>
-            <DarkField label="Latitud"><input type="number" step="0.0001" value={editing.lat} onChange={e => setEditing({ ...editing, lat: Number(e.target.value) })} className="dark-input" /></DarkField>
-            <DarkField label="Longitud"><input type="number" step="0.0001" value={editing.lng} onChange={e => setEditing({ ...editing, lng: Number(e.target.value) })} className="dark-input" /></DarkField>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <DarkField label="Nombre corto"><input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} className="dark-input" placeholder="Ej: Suc. Casarapa" /></DarkField>
+            <DarkField label="Nombre completo"><input value={editing.fullName} onChange={e => setEditing({ ...editing, fullName: e.target.value })} className="dark-input" placeholder="Opcional" /></DarkField>
+            <DarkField label="Latitud"><input type="number" step="0.000001" value={editing.lat} onChange={e => setEditing({ ...editing, lat: Number(e.target.value) })} className="dark-input font-mono" /></DarkField>
+            <DarkField label="Longitud"><input type="number" step="0.000001" value={editing.lng} onChange={e => setEditing({ ...editing, lng: Number(e.target.value) })} className="dark-input font-mono" /></DarkField>
           </div>
-          <div className="text-xs text-stone-500 mt-2 font-mono">💡 Para obtener coordenadas exactas, busca la sucursal en Google Maps, click derecho y copia las coordenadas</div>
+
+          {/* Botón Usar mi ubicación actual */}
+          <button onClick={useMyLocation} type="button"
+            className="mt-3 w-full bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 text-blue-700 font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition">
+            <Navigation className="w-5 h-5" />
+            Usar mi ubicación actual (GPS)
+          </button>
+          {gpsStatus && (
+            <div className={`mt-2 rounded-lg p-2 text-xs font-semibold ${
+              gpsStatus.type === 'success' ? 'bg-emerald-50 border border-emerald-200 text-emerald-900' :
+              gpsStatus.type === 'error' ? 'bg-rose-50 border border-rose-200 text-rose-900' :
+              'bg-blue-50 border border-blue-200 text-blue-900 animate-pulse'
+            }`}>
+              {gpsStatus.msg}
+            </div>
+          )}
+
+          <div className="text-xs text-stone-500 mt-3 bg-stone-50 rounded-lg p-2">
+            💡 <b>Para obtener coordenadas exactas:</b><br/>
+            <b>Opción A:</b> Ve físicamente a la sucursal y toca "Usar mi ubicación actual" (desde el celular)<br/>
+            <b>Opción B:</b> Busca la sucursal en Google Maps, click derecho sobre el lugar exacto, copia las coordenadas que aparecen.
+          </div>
           <div className="flex justify-end gap-2 mt-3">
-            <button onClick={() => setEditing(null)} className="px-3 py-1.5 text-sm text-emerald-700">Cancelar</button>
-            <button onClick={() => handleSave(editing)} className="px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg font-bold">Guardar</button>
+            <button onClick={() => setEditing(null)} className="px-3 py-1.5 text-sm text-stone-700">Cancelar</button>
+            <button onClick={() => handleSave(editing)} className="px-3 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold">Guardar</button>
           </div>
         </div>
       )}
@@ -2622,7 +3165,7 @@ function BranchesTab({ branches, saveBranches }) {
           <div key={b.id} className="bg-white border border-stone-200 shadow-sm rounded-xl p-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${b.isCenter ? 'bg-amber-500/20 border border-amber-500/40' : 'bg-emerald-500/20 border border-emerald-500/40'}`}>
-                <MapPin className={`w-5 h-5 ${b.isCenter ? 'text-amber-400' : 'text-emerald-700'}`} />
+                <MapPin className={`w-5 h-5 ${b.isCenter ? 'text-amber-600' : 'text-emerald-700'}`} />
               </div>
               <div>
                 <div className="font-bold text-stone-900">{b.name}</div>
@@ -2631,8 +3174,16 @@ function BranchesTab({ branches, saveBranches }) {
               </div>
             </div>
             <div className="flex gap-1">
-              <button onClick={() => setEditing(b)} className="text-emerald-700 hover:text-stone-700 p-1"><Edit className="w-4 h-4" /></button>
-              <button onClick={() => { if (confirm('¿Eliminar?')) saveBranches(branches.filter(x => x.id !== b.id)); }} className="text-emerald-700 hover:text-rose-400 p-1"><Trash2 className="w-4 h-4" /></button>
+              <a href={`https://www.google.com/maps?q=${b.lat},${b.lng}`} target="_blank" rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-700 p-1" title="Ver en Google Maps">
+                <MapPin className="w-4 h-4" />
+              </a>
+              <button onClick={() => setEditing(b)} className="text-emerald-700 hover:text-stone-700 p-1" title="Editar">
+                <Edit className="w-4 h-4" />
+              </button>
+              <button onClick={() => { if (confirm('¿Eliminar?')) saveBranches(branches.filter(x => x.id !== b.id)); }} className="text-stone-400 hover:text-rose-500 p-1" title="Eliminar">
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           </div>
         ))}
@@ -2924,6 +3475,43 @@ function DiscordTab({ config, saveConfig, vehicles }) {
 
 function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhotos, saveGpsTracks, saveArchived, vehicles, saveVehicles }) {
   const [form, setForm] = useState(config);
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const [selectedVoice, setSelectedVoice] = useState(localStorage.getItem('emp:voice_name') || '');
+  const [voiceMuted, setVoiceMuted] = useState(localStorage.getItem('emp:voice_muted') !== 'false');
+
+  // Cargar voces disponibles
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = getSpanishVoices();
+      setAvailableVoices(voices);
+    };
+    loadVoices();
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
+
+  const testVoice = (voiceName) => {
+    // Temporalmente quitar mute si está muteado para esta prueba
+    const wasMuted = localStorage.getItem('emp:voice_muted') !== 'false';
+    localStorage.setItem('emp:voice_muted', 'false');
+    if (voiceName) localStorage.setItem('emp:voice_name', voiceName);
+    speakText(`Hola José, así sonará la voz seleccionada. ${getGreetingByTime()}, bienvenido al Sistema Emporium.`);
+    setTimeout(() => {
+      if (wasMuted) localStorage.setItem('emp:voice_muted', 'true');
+    }, 5000);
+  };
+
+  const handleSelectVoice = (voiceName) => {
+    setSelectedVoice(voiceName);
+    localStorage.setItem('emp:voice_name', voiceName);
+  };
+
+  const toggleVoiceMute = () => {
+    const newMuted = !voiceMuted;
+    setVoiceMuted(newMuted);
+    localStorage.setItem('emp:voice_muted', newMuted ? 'true' : 'false');
+  };
 
   const limpiarViajesPrueba = () => {
     if (!confirm('¿Borrar TODOS los viajes, fotos y recorridos GPS?\n\nEsto deja la app limpia para empezar de cero.\nLos vehículos, choferes y sucursales se mantienen.')) return;
@@ -2964,6 +3552,67 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
           className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg font-bold transition">
           Guardar cambios
         </button>
+      </div>
+
+      {/* Sistema de voz */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
+        <h3 className="font-bold text-stone-900 mb-3 flex items-center gap-2">
+          🔊 Sistema de voz
+        </h3>
+        <p className="text-xs text-stone-600 mb-3">
+          La app puede hablar para dar saludos, recordatorios de seguridad y alertas de velocidad. Por defecto está <b>silenciada</b>.
+        </p>
+
+        <div className="flex items-center gap-2 mb-4">
+          <button onClick={toggleVoiceMute}
+            className={`px-4 py-2.5 rounded-lg font-bold flex items-center gap-2 ${
+              voiceMuted
+                ? 'bg-stone-200 text-stone-700 hover:bg-stone-300'
+                : 'bg-emerald-600 text-white hover:bg-emerald-700'
+            }`}>
+            {voiceMuted ? '🔇 Voz silenciada' : '🔊 Voz activada'}
+          </button>
+          <span className="text-xs text-stone-500">Click para alternar</span>
+        </div>
+
+        {availableVoices.length === 0 ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900">
+            ⚠️ No hay voces en español disponibles en este dispositivo. Prueba en otro navegador (Chrome funciona mejor).
+          </div>
+        ) : (
+          <div>
+            <div className="text-xs font-bold text-stone-700 mb-2 uppercase tracking-wider">
+              Voces disponibles ({availableVoices.length})
+            </div>
+            <div className="space-y-1.5 max-h-60 overflow-y-auto">
+              {availableVoices.map(v => (
+                <div key={v.name} className={`flex items-center gap-2 p-2 rounded-lg border ${
+                  selectedVoice === v.name ? 'bg-emerald-50 border-emerald-300' : 'bg-stone-50 border-stone-200'
+                }`}>
+                  <button onClick={() => testVoice(v.name)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1 shrink-0">
+                    ▶ Probar
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-stone-900 truncate">{v.name}</div>
+                    <div className="text-[10px] text-stone-500 font-mono">{v.lang}</div>
+                  </div>
+                  <button onClick={() => handleSelectVoice(v.name)}
+                    className={`px-3 py-1.5 rounded text-xs font-bold ${
+                      selectedVoice === v.name
+                        ? 'bg-emerald-700 text-white'
+                        : 'bg-stone-200 text-stone-700 hover:bg-stone-300'
+                    }`}>
+                    {selectedVoice === v.name ? '✓ Elegida' : 'Elegir'}
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 text-xs text-stone-500 bg-blue-50 border border-blue-200 rounded p-2">
+              💡 Prueba varias voces y elige la que más te guste. Tu elección se guarda automáticamente.
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mantenimiento de datos */}
