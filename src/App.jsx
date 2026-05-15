@@ -391,6 +391,11 @@ function WelcomeScreen({ onOk }) {
 
   const tryEnter = () => {
     if (password.toLowerCase().trim() === GLOBAL_PASSWORD) {
+     // 🔊 SALUDO al ingresar contraseña general correctamente
+        const greeting = getGreetingByTime();
+        setTimeout(() => {
+          speakText(`${greeting}. Bienvenido al Sistema de Control de Flota Emporium.`);
+        }, 300);
       onOk();
     } else {
       setError('Contraseña incorrecta');
@@ -2520,8 +2525,6 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
     // 1) HOJA POR CADA VEHÍCULO con todas las columnas pedidas
     vehicles.forEach(v => {
       const vTrips = [...trips.filter(t => t.vehicleId === v.id)].sort((a, b) => a.createdAt - b.createdAt);
-      if (vTrips.length === 0) return;
-
       sheets += `<h2>🚛 ${esc(v.code)} · ${esc(v.plate)} (${esc(v.type)})</h2>`;
       
       // Tabla detallada de viajes
@@ -2705,9 +2708,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       if (XLSX && XLSX.utils && XLSX.utils.book_new) {
         const wb = XLSX.utils.book_new();
         vehicles.forEach(v => {
-          const vTrips = trips.filter(t => t.vehicleId === v.id);
-          if (vTrips.length === 0) return;
-          const byDate = {};
+          const vTrips = trips.filter(t => t.vehicleId === v.id);          const byDate = {};
           vTrips.forEach(t => { (byDate[t.startDate] = byDate[t.startDate] || []).push(t); });
           const rows = [
             [`DEPARTAMENTO DE TRANSPORTE REGISTRO KILOMETRAJE`],
