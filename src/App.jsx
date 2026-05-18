@@ -2177,6 +2177,7 @@ function DarkMonthSelector({ selectedMonth, setSelectedMonth }) {
 }
 
 function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selectedMonth, gpsTracks, config, checklists = [] }) {
+  const [selectedChecklist, setSelectedChecklist] = React.useState(null);
   const kpis = useMemo(() => {
     const totalKm = trips.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
     const totalLiters = trips.reduce((s, t) => s + (Number(t.liters) || 0), 0);
@@ -2228,7 +2229,8 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
       </div>
 
       {/* SEMÁFORO DE CHEQUEOS HOY */}
-      <FleetChecklistWidget vehicles={vehicles} checklists={checklists} drivers={drivers} />
+      <FleetChecklistWidget vehicles={vehicles} checklists={checklists} drivers={drivers} onSelect={setSelectedChecklist} />
+      {selectedChecklist && <ChecklistDetailModal checklist={selectedChecklist} vehicles={vehicles} onClose={() => setSelectedChecklist(null)} />}
 
       {/* COSTO POR KM POR VEHÍCULO */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
@@ -4301,7 +4303,7 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
 // ============================================================
 // WIDGET FLOTA — SEMÁFORO PARA EL DASHBOARD DEL COORDINADOR
 // ============================================================
-function FleetChecklistWidget({ vehicles, checklists, drivers }) {
+function FleetChecklistWidget({ vehicles, checklists, drivers, onSelect }) {
   const todayKey = new Date().toISOString().slice(0, 10);
   const todayChecklists = checklists.filter(c => c.date === todayKey);
 
@@ -4361,7 +4363,7 @@ function FleetChecklistWidget({ vehicles, checklists, drivers }) {
             const badCount  = c.items.filter(i => i.value === 'bad').length;
             const warnCount = c.items.filter(i => i.value === 'warn').length;
             return (
-              <div key={c.id} className="flex items-center gap-3 p-2.5 bg-stone-50 border border-stone-100 rounded-xl">
+              <div key={c.id} onClick={() => onSelect && onSelect(c)} className={`flex items-center gap-3 p-2.5 bg-stone-50 border border-stone-100 rounded-xl transition ${onSelect ? 'cursor-pointer hover:bg-stone-100 hover:border-stone-200' : ''}`}>
                 <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${hasBad ? 'bg-red-500' : hasWarn ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-stone-800 text-xs">{v?.code || c.vehicleCode}</div>
@@ -4393,6 +4395,169 @@ function FleetChecklistWidget({ vehicles, checklists, drivers }) {
           <div className="text-stone-400 text-xs">Ninguna unidad chequeada hoy</div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// MODAL DETALLE DEL CHEQUEO
+// Muestra el chequeo completo: foto, firma, ítems, novedades
+// Se abre al hacer click en un chequeo del widget
+// ============================================================
+function ChecklistDetailModal({ checklist, vehicles, onClose }) {
+  const vehicle = vehicles.find(v => v.id === checklist.vehicleId);
+  const criticalItems = (checklist.items || []).filter(i => i.value === 'bad');
+  const warnItems = (checklist.items || []).filter(i => i.value === 'warn');
+  const okItems = (checklist.items || []).filter(i => i.value === 'ok');
+  const hasCritical = criticalItems.length > 0;
+  const hasWarn = warnItems.length > 0;
+
+  const statusBadge = hasCritical
+    ? { bg: 'bg-red-100', text: 'text-red-700', label: '🔴 Con fallas críticas' }
+    : hasWarn
+      ? { bg: 'bg-amber-100', text: 'text-amber-700', label: '🟡 Con observaciones' }
+      : { bg: 'bg-emerald-100', text: 'text-emerald-700', label: '✅ Todo en orden' };
+
+  const groups = [
+    { id: 'seguridad', label: '🔴 Seguridad', color: 'text-red-600' },
+    { id: 'mecanica', label: '🟡 Mecánica y niveles', color: 'text-amber-600' },
+    { id: 'docs', label: '🔵 Documentos', color: 'text-blue-600' },
+  ];
+
+  const valueColors = { ok: 'text-emerald-600 bg-emerald-50', warn: 'text-amber-600 bg-amber-50', bad: 'text-red-600 bg-red-50' };
+
+  const handleWhatsApp = () => {
+    const status = hasCritical ? '🔴 CON FALLAS CRÍTICAS' : hasWarn ? '🟡 CON OBSERVACIONES' : '✅ TODO EN ORDEN';
+    const critList = criticalItems.map(i => {
+      const def = CHECKLIST_ITEMS.find(ci => ci.id === i.id);
+      return `🔴 ${def?.label}: ${def?.bad}${i.note ? ` (${i.note})` : ''}`;
+    }).join('\n');
+    const warnList = warnItems.map(i => {
+      const def = CHECKLIST_ITEMS.find(ci => ci.id === i.id);
+      return `🟡 ${def?.label}: ${def?.warn}${i.note ? ` (${i.note})` : ''}`;
+    }).join('\n');
+    const msg = `🚛 *CHEQUEO PRE-VIAJE*\n*${vehicle?.code || checklist.vehicleCode}* (${checklist.vehiclePlate})\n*${checklist.driverName}* · ${checklist.time} · ${checklist.date}\n\n${status}\n✅ OK: ${okItems.length} ítems\n🟡 Observaciones: ${warnItems.length}\n🔴 Críticos: ${criticalItems.length}\n${critList ? '\n' + critList : ''}${warnList ? '\n' + warnList : ''}${checklist.reporte ? `\n\n📝 *Novedad:* ${checklist.reporte}` : ''}\n\n✍️ Firmado digitalmente`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8"
+      style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-stone-200 px-5 py-4 flex items-center justify-between rounded-t-2xl z-10">
+          <div>
+            <div className="font-bold text-stone-900 text-base">{vehicle?.code || checklist.vehicleCode}</div>
+            <div className="text-xs text-stone-500">{checklist.vehiclePlate} · {checklist.driverName} · {checklist.time}</div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusBadge.bg} ${statusBadge.text}`}>
+              {statusBadge.label}
+            </span>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center transition">
+              <X className="w-4 h-4 text-stone-600" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-5">
+
+          {/* Info general */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-stone-50 rounded-xl p-2.5">
+              <div className="text-lg font-black text-emerald-600">{okItems.length}</div>
+              <div className="text-[10px] text-stone-400 uppercase tracking-wider">OK</div>
+            </div>
+            <div className="bg-stone-50 rounded-xl p-2.5">
+              <div className="text-lg font-black text-amber-600">{warnItems.length}</div>
+              <div className="text-[10px] text-stone-400 uppercase tracking-wider">Observ.</div>
+            </div>
+            <div className="bg-stone-50 rounded-xl p-2.5">
+              <div className="text-lg font-black text-red-600">{criticalItems.length}</div>
+              <div className="text-[10px] text-stone-400 uppercase tracking-wider">Críticos</div>
+            </div>
+          </div>
+
+          {/* Firma + Foto lado a lado */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Firma del chofer</div>
+              {checklist.signature
+                ? <img src={checklist.signature} alt="Firma" className="w-full rounded-xl border border-stone-200" style={{ height: '100px', objectFit: 'contain', background: '#fafaf9' }} />
+                : <div className="w-full rounded-xl border border-stone-200 bg-stone-50 flex items-center justify-center text-xs text-stone-400" style={{ height: '100px' }}>Sin firma</div>
+              }
+            </div>
+            <div>
+              <div className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">Foto de respaldo</div>
+              {checklist.finalPhoto
+                ? <img src={checklist.finalPhoto} alt="Foto respaldo" className="w-full rounded-xl border border-stone-200" style={{ height: '100px', objectFit: 'cover' }} />
+                : <div className="w-full rounded-xl border border-stone-200 bg-stone-50 flex items-center justify-center text-xs text-stone-400" style={{ height: '100px' }}>Sin foto</div>
+              }
+            </div>
+          </div>
+
+          {/* KM */}
+          {checklist.kmInicial && (
+            <div className="bg-stone-50 rounded-xl px-4 py-2.5 flex justify-between items-center">
+              <span className="text-xs text-stone-500">Km odómetro</span>
+              <span className="font-bold text-stone-800">{Number(checklist.kmInicial).toLocaleString()} km</span>
+            </div>
+          )}
+
+          {/* Ítems por grupo */}
+          {groups.map(group => {
+            const groupItems = (checklist.items || []).filter(i => {
+              const def = CHECKLIST_ITEMS.find(ci => ci.id === i.id);
+              return def?.group === group.id;
+            });
+            if (!groupItems.length) return null;
+            return (
+              <div key={group.id}>
+                <div className={`text-xs font-bold uppercase tracking-wider mb-2 ${group.color}`}>{group.label}</div>
+                <div className="space-y-1.5">
+                  {groupItems.map(item => {
+                    const def = CHECKLIST_ITEMS.find(ci => ci.id === item.id);
+                    const label = item.value === 'ok' ? def?.ok : item.value === 'warn' ? def?.warn : def?.bad;
+                    const colorClass = valueColors[item.value] || 'text-stone-400 bg-stone-50';
+                    return (
+                      <div key={item.id} className="bg-white border border-stone-100 rounded-xl overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2">
+                          <span className="text-sm text-stone-700">{def?.label}</span>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colorClass}`}>{label}</span>
+                        </div>
+                        {item.note && (
+                          <div className="px-3 pb-2 text-xs text-stone-500 italic">📝 {item.note}</div>
+                        )}
+                        {item.photo && (
+                          <img src={item.photo} alt="Foto del ítem" className="w-full" style={{ maxHeight: '120px', objectFit: 'cover' }} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Reporte de novedades */}
+          {checklist.reporte && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+              <div className="text-xs font-bold text-amber-700 mb-1">📝 Reporte de novedades</div>
+              <p className="text-sm text-amber-800">{checklist.reporte}</p>
+            </div>
+          )}
+
+          {/* Botón WhatsApp */}
+          <button onClick={handleWhatsApp}
+            className="w-full py-3 rounded-2xl font-bold text-white text-sm flex items-center justify-center gap-2 transition active:scale-[0.98]"
+            style={{ background: '#25D366' }}>
+            <MessageCircle className="w-5 h-5" />
+            Compartir resumen por WhatsApp
+          </button>
+
+        </div>
+      </div>
     </div>
   );
 }
