@@ -19,6 +19,83 @@ const KEYS = {
 };
 
 // ============================================================
+// SUPABASE — Base de datos en la nube para checklists
+// ============================================================
+const SB_URL = 'https://sieadibkcqnvbwlwlmds.supabase.co';
+const SB_KEY = 'sb_publishable_10TgLdGmmcHccAqJu2JLiw_zyYgKT_M';
+
+// Comprimir imágenes antes de enviar a Supabase (para no saturar)
+const compressImage = (dataUrl, maxDim = 600, quality = 0.65) => {
+  if (!dataUrl || !dataUrl.startsWith('data:image')) return Promise.resolve(dataUrl || '');
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * ratio);
+      canvas.height = Math.round(img.height * ratio);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+};
+
+// Petición genérica a Supabase REST API
+const sbFetch = async (path, options = {}) => {
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+      ...options,
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': `Bearer ${SB_KEY}`,
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+    });
+    if (!res.ok) { console.warn('Supabase error:', res.status, await res.text()); return null; }
+    const text = await res.text();
+    return text ? JSON.parse(text) : true;
+  } catch (e) { console.warn('Supabase fetch failed:', e); return null; }
+};
+
+// Cargar todos los checklists desde Supabase
+const loadSBChecklists = async () => {
+  const data = await sbFetch('checklists?order=created_at.desc&limit=500');
+  if (!Array.isArray(data)) return null;
+  return data.map(r => ({
+    id: r.id, vehicleId: r.vehicle_id, vehicleCode: r.vehicle_code,
+    vehiclePlate: r.vehicle_plate, driverId: r.driver_id, driverName: r.driver_name,
+    date: r.date, time: r.time, kmInicial: r.km_inicial, items: r.items,
+    reporte: r.reporte, signature: r.signature, finalPhoto: r.final_photo,
+    createdAt: r.created_at,
+  }));
+};
+
+// Guardar un checklist en Supabase (con compresión de imágenes)
+const saveSBChecklist = async (checklist) => {
+  const [signature, finalPhoto] = await Promise.all([
+    compressImage(checklist.signature, 600, 0.8),
+    compressImage(checklist.finalPhoto, 600, 0.65),
+  ]);
+  const items = await Promise.all((checklist.items || []).map(async item => ({
+    ...item, photo: item.photo ? await compressImage(item.photo, 400, 0.6) : null,
+  })));
+  return sbFetch('checklists', {
+    method: 'POST',
+    headers: { 'Prefer': 'return=minimal' },
+    body: JSON.stringify({
+      id: checklist.id, vehicle_id: checklist.vehicleId, vehicle_code: checklist.vehicleCode,
+      vehicle_plate: checklist.vehiclePlate, driver_id: checklist.driverId,
+      driver_name: checklist.driverName, date: checklist.date, time: checklist.time,
+      km_inicial: checklist.kmInicial || '', items, reporte: checklist.reporte || '',
+      signature, final_photo: finalPhoto, created_at: checklist.createdAt || Date.now(),
+    }),
+  });
+};
+
+// ============================================================
 // CHECKLIST PRE-VIAJE — 14 ítems, 3 opciones cada uno
 // ok=verde(palomita), warn=amarillo(letra), bad=rojo(letra)
 // ============================================================
@@ -275,7 +352,6 @@ export default function App() {
           window.storage.get(KEYS.CONFIG).catch(() => null),
           window.storage.get(KEYS.PHOTOS).catch(() => null),
           window.storage.get(KEYS.GPS_TRACKS).catch(() => null),
-          window.storage.get(KEYS.CHECKLISTS).catch(() => null),
         ]);
         if (reads[0]?.value) setVehicles(JSON.parse(reads[0].value));
         if (reads[1]?.value) setDrivers(JSON.parse(reads[1].value));
@@ -286,7 +362,14 @@ export default function App() {
         if (reads[6]?.value) setConfig(JSON.parse(reads[6].value));
         if (reads[7]?.value) setPhotos(JSON.parse(reads[7].value));
         if (reads[8]?.value) setGpsTracks(JSON.parse(reads[8].value));
-        if (reads[9]?.value) setChecklists(JSON.parse(reads[9].value));
+        // Cargar checklists desde SUPABASE (sincronizados entre todos los dispositivos)
+        const sbData = await loadSBChecklists();
+        if (sbData !== null) {
+          setChecklists(sbData);
+        } else {
+          const local = await window.storage.get(KEYS.CHECKLISTS).catch(() => null);
+          if (local?.value) setChecklists(JSON.parse(local.value));
+        }
       } catch (e) {}
       setLoading(false);
     };
@@ -303,7 +386,25 @@ export default function App() {
   const saveConfig = (d) => { setConfig(d); persist(KEYS.CONFIG, d); };
   const savePhotos = (d) => { setPhotos(d); persist(KEYS.PHOTOS, d); };
   const saveGpsTracks = (d) => { setGpsTracks(d); persist(KEYS.GPS_TRACKS, d); };
-  const saveChecklists = (d) => { setChecklists(d); persist(KEYS.CHECKLISTS, d); };
+  // saveChecklists: guarda LOCAL siempre + Supabase si está disponible
+  const saveChecklists = async (d) => {
+    setChecklists(d);
+    persist(KEYS.CHECKLISTS, d); // backup local siempre
+    if (d.length > 0) {
+      const latest = d[d.length - 1];
+      saveSBChecklist(latest).catch(() => {}); // Supabase opcional, no bloquea
+    }
+  };
+
+  // Refrescar checklists desde Supabase cada 30 segundos (para el coordinador)
+  useEffect(() => {
+    const poll = async () => {
+      const fresh = await loadSBChecklists();
+      if (fresh !== null) setChecklists(fresh);
+    };
+    const interval = setInterval(poll, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogin = (role, user) => {
     setCurrentUser(user);
