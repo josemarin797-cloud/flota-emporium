@@ -2099,6 +2099,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     { id: 'branches', label: 'Sucursales', icon: MapPin },
     { id: 'maintenance', label: 'Mantenim.', icon: Wrench },
     { id: 'history', label: 'Histórico', icon: History },
+    { id: 'checklists', label: 'Checklists', icon: CheckCircle2 },
     { id: 'discord', label: 'Discord', icon: MessageCircle },
     { id: 'settings', label: 'Config', icon: Settings },
   ];
@@ -2158,6 +2159,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
         {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} />}
         {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} />}
+        {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} />}
         {tab === 'discord' && <DiscordTab config={config} saveConfig={saveConfig} vehicles={vehicles} />}
         {tab === 'settings' && <SettingsTab config={config} saveConfig={saveConfig} saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} savePhotos={savePhotos} saveGpsTracks={saveGpsTracks} saveArchived={saveArchived} vehicles={vehicles} saveVehicles={saveVehicles} />}
       </main>
@@ -4557,6 +4559,144 @@ function ChecklistDetailModal({ checklist, vehicles, onClose }) {
           </button>
 
         </div>
+      </div>
+    </div>
+  );
+}
+
+async function sendChecklistDiscord(cl, vehicle, driver, config) {
+  const webhookUrl = config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+  if (!webhookUrl) return;
+  const crits = cl.criticalCount || 0;
+  const warns = cl.warningCount || 0;
+  const status = crits > 0 ? '🔴 CRÍTICO' : warns > 0 ? '⚠️ REVISAR' : '✅ TODO BIEN';
+  const allItems = typeof CHECKLIST_ITEMS !== 'undefined' ? CHECKLIST_ITEMS : [];
+  const itemLines = allItems.map(item => {
+    const val = (cl.items || {})[item.id];
+    const opts = item.options || item.opts || [];
+    const opt = opts.find(o => o.v === val);
+    const idx = opt ? opts.indexOf(opt) : -1;
+    const e = idx === 0 ? '✅' : idx === 1 ? '⚠️' : idx === 2 ? '🔴' : '⬜';
+    const label = opt?.l || opt?.label || val || '—';
+    return `${e} **${item.label}**: ${label}`;
+  }).join('\n');
+  const embed = {
+    title: `📋 CHEQUEO PRE-VIAJE · ${vehicle?.code} · ${status}`,
+    description: `**${driver?.name}** completó el chequeo de **${vehicle?.code}** (${vehicle?.plate})`,
+    color: crits > 0 ? 0xFF0000 : warns > 0 ? 0xFFA500 : 0x00AA55,
+    fields: [
+      { name: '📅 Fecha y hora', value: `${cl.date} a las ${cl.time || '—'}`, inline: true },
+      { name: '🔢 Odómetro', value: `${(cl.kmOdometer || vehicle?.currentKm || 0).toLocaleString()} km`, inline: true },
+      { name: '📊 Resultado', value: crits > 0 ? `🔴 ${crits} crítico(s)` : warns > 0 ? `⚠️ ${warns} para revisar` : '✅ Sin novedades', inline: true },
+      { name: `📋 Detalle (${Object.keys(cl.items || {}).length} ítems)`, value: itemLines.slice(0, 1000) || '—' },
+    ],
+    footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
+    timestamp: new Date().toISOString(),
+  };
+  if (cl.notas || cl.notes) embed.fields.push({ name: '📝 Novedades', value: cl.notas || cl.notes });
+  embed.fields.push({ name: '✍️ Firma', value: (cl.firma || cl.signature) ? '✅ Firmado por el chofer' : '❌ Sin firma' });
+  embed.fields.push({ name: '📸 Foto', value: (cl.foto || cl.photo) ? '✅ Foto tomada' : '❌ Sin foto' });
+  await sendDiscordNotification(webhookUrl, embed);
+}
+
+// ============================================================
+// ChecklistCoordTab — vista para el coordinador con PDF
+// ============================================================
+function ChecklistCoordTab({ checklists, vehicles, drivers, config }) {
+  const [filterDate, setFilterDate] = useState(new Date().toISOString().slice(0, 10));
+  const [filterVehicle, setFilterVehicle] = useState('all');
+  const filtered = (checklists || [])
+    .filter(c => (!filterDate || c.date === filterDate) && (filterVehicle === 'all' || c.vehicleId === filterVehicle))
+    .sort((a, b) => b.createdAt - a.createdAt);
+  const openPDF = (cl) => {
+    const v = vehicles.find(x => x.id === cl.vehicleId);
+    const d = drivers.find(x => x.id === cl.driverId);
+    const crits = cl.criticalCount || 0;
+    const warns = cl.warningCount || 0;
+    const statusBadge = crits > 0
+      ? `<span style="background:#fee2e2;color:#991b1b;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:700">🔴 ${crits} CRÍTICO(S)</span>`
+      : warns > 0
+      ? `<span style="background:#fef3c7;color:#92400e;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:700">⚠️ ${warns} REVISAR</span>`
+      : `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:700">✅ TODO BIEN</span>`;
+    const allItems = typeof CHECKLIST_ITEMS !== 'undefined' ? CHECKLIST_ITEMS : [];
+    const rows = allItems.map(item => {
+      const val = (cl.items || {})[item.id];
+      const opts = item.options || item.opts || [];
+      const opt = opts.find(o => o.v === val);
+      const idx = opt ? opts.indexOf(opt) : -1;
+      const e = idx === 0 ? '✅' : idx === 1 ? '⚠️' : idx === 2 ? '🔴' : '—';
+      const label = opt?.l || opt?.label || val || '—';
+      const bg = idx === 0 ? '#d1fae5' : idx === 1 ? '#fef3c7' : idx === 2 ? '#fee2e2' : '#f3f4f6';
+      const tc = idx === 0 ? '#065f46' : idx === 1 ? '#92400e' : idx === 2 ? '#991b1b' : '#6b7280';
+      return `<tr><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:12px">${item.label}</td><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#6b7280">${item.category || item.cat || ''}</td><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;text-align:center"><span style="background:${bg};color:${tc};padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700">${e} ${label}</span></td></tr>`;
+    }).join('');
+    const sig = cl.firma || cl.signature;
+    const foto = cl.foto || cl.photo;
+    const notas = cl.notas || cl.notes;
+    const w = window.open('', '_blank', 'width=820,height=960');
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Chequeo - ${v?.code} - ${cl.date}</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#1c1917;font-size:13px}@media print{.no-print{display:none}}h1{font-size:18px;margin:0;color:#047857}.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #10b981;padding-bottom:12px;margin-bottom:16px}.info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:14px}.info label{font-size:10px;text-transform:uppercase;color:#6b7280;display:block;font-weight:700}table{width:100%;border-collapse:collapse;border:1px solid #e5e7eb;margin-bottom:14px}th{background:#f9fafb;padding:6px 10px;font-size:10px;text-transform:uppercase;color:#6b7280;text-align:left;border-bottom:1px solid #e5e7eb}.sf{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.sf-box{border:1px solid #e5e7eb;border-radius:8px;padding:10px}.sf-title{font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:700;margin-bottom:6px}.print-btn{background:#047857;color:white;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:700;margin-bottom:16px;font-size:13px}.footer{margin-top:16px;border-top:1px solid #e5e7eb;padding-top:8px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}</style></head><body><button class="no-print print-btn" onclick="window.print()">🖨️ Guardar como PDF / Imprimir</button><div class="hdr"><div><h1>Transporte Emporium</h1><div style="font-weight:700;margin-top:4px">Chequeo Pre-Viaje</div><div style="color:#6b7280">${v?.code || '—'} · ${v?.plate || '—'}</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:700">${cl.date}</div><div style="margin:4px 0">${cl.time || ''}</div>${statusBadge}</div></div><div class="info"><div><label>Chofer</label><strong>${d?.name || '—'}</strong></div><div><label>Unidad</label><strong>${v?.code || '—'}</strong></div><div><label>Placa</label><strong>${v?.plate || '—'}</strong></div><div><label>KM Odómetro</label><strong>${(cl.kmOdometer || 0).toLocaleString()}</strong></div></div><table><tr><th>Ítem</th><th>Categoría</th><th>Estado</th></tr>${rows}</table>${notas ? `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:14px"><div style="font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:700;margin-bottom:4px">Novedades reportadas</div><div>${notas}</div></div>` : ''}<div class="sf"><div class="sf-box"><div class="sf-title">Firma del chofer</div>${sig ? `<img src="${sig}" style="width:100%;max-height:90px;object-fit:contain;background:#f9fafb">` : '<div style="height:70px;background:#f9fafb;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px">Sin firma</div>'}</div><div class="sf-box"><div class="sf-title">Foto de respaldo</div>${foto ? `<img src="${foto}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px">` : '<div style="height:90px;background:#f9fafb;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px">Sin foto</div>'}</div></div><div class="footer"><span>Transporte Emporium · Sistema de Control de Flota</span><span>Generado: ${new Date().toLocaleString('es-VE')}</span></div></body></html>`);
+    w.document.close(); w.focus();
+  };
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="text-xl font-black text-stone-900">Checklists del día</h2>
+          <p className="text-sm text-stone-500">{filtered.length} chequeo(s) encontrado(s)</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)}
+            className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm font-mono bg-white text-stone-900 outline-none focus:border-emerald-500" />
+          <select value={filterVehicle} onChange={e => setFilterVehicle(e.target.value)}
+            className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm bg-white text-stone-900 outline-none focus:border-emerald-500">
+            <option value="all">Todas las unidades</option>
+            {vehicles.map(v => <option key={v.id} value={v.id}>{v.code}</option>)}
+          </select>
+        </div>
+      </div>
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center text-stone-400">
+          <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <div className="font-bold">Sin checklists para esta fecha</div>
+          <div className="text-sm mt-1">Los choferes deben completar el chequeo antes de cada viaje</div>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map(cl => {
+            const v = vehicles.find(x => x.id === cl.vehicleId);
+            const d = drivers.find(x => x.id === cl.driverId);
+            const crits = cl.criticalCount || 0;
+            const warns = cl.warningCount || 0;
+            const sig = cl.firma || cl.signature;
+            const foto = cl.foto || cl.photo;
+            return (
+              <div key={cl.id} className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 ${crits > 0 ? 'bg-rose-100' : warns > 0 ? 'bg-amber-100' : 'bg-emerald-100'}`}>
+                    {crits > 0 ? '🔴' : warns > 0 ? '⚠️' : '✅'}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-bold text-stone-900">{v?.code} · {d?.shortName || d?.name}</div>
+                    <div className="text-xs text-stone-500 font-mono">{cl.date} {cl.time} · {Object.keys(cl.items || {}).length}/14 ítems</div>
+                    {crits > 0 && <div className="text-xs text-rose-700 font-bold">{crits} crítico(s)</div>}
+                    {warns > 0 && !crits && <div className="text-xs text-amber-700 font-bold">{warns} para revisar</div>}
+                  </div>
+                </div>
+                <div className="flex gap-2 items-center flex-wrap">
+                  {sig && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-bold">✍️ Firma</span>}
+                  {foto && <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">📸 Foto</span>}
+                  <button onClick={() => openPDF(cl)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-1.5 shadow-md transition active:scale-[0.98]">
+                    <FileText className="w-4 h-4" /> Ver PDF
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-900">
+        💡 <b>Cómo guardar PDF:</b> Click en "Ver PDF" → nueva ventana → "🖨️ Guardar como PDF".
       </div>
     </div>
   );
