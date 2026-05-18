@@ -1090,7 +1090,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     saveGpsTracks(gpsTracks.filter(g => g.tripId !== currentTrip.id));
     stopGpsTracking();
     setCurrentTrip(null);
-    onLogout();
+    setStep('select');
   };
   const newTrip = () => { setCurrentTrip(null); setStep('select'); };
   const markDepartedDestination = (tripId) => {
