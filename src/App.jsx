@@ -4055,10 +4055,7 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
       createdAt: Date.now(),
     };
 
-    console.log('🔍 CHECKLIST OBJ:', checklist);
-        console.log('🔍 saveSBChecklist tipo:', typeof saveSBChecklist);
-        console.log('🔍 SB_URL:', SB_URL);
-        saveChecklists([...checklists, checklist]).then(() => console.log('✅ saveChecklists terminó OK')).catch(e => console.error('❌ saveChecklists ERROR:', e));
+    saveChecklists([...checklists, checklist]);
 
     // Notificación Discord si hay fallas críticas
     if (criticalItems.length > 0) {
