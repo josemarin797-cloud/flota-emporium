@@ -4057,36 +4057,49 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
 
     saveChecklists([...checklists, checklist]);
 
-    // Notificación Discord si hay fallas críticas
-    if (criticalItems.length > 0) {
-      const webhookUrl = config?.discordWebhookByVehicle?.[vehicle.id] || config?.discordWebhookGeneral;
-      if (webhookUrl) {
-        const critDesc = criticalItems.map(i => {
-          const def = CHECKLIST_ITEMS.find(ci => ci.id === i.id);
-          return `🔴 **${def.label}**: ${def.bad}`;
-        }).join('\n');
-        await sendDiscordNotification(webhookUrl, {
-          title: `🚨 CHEQUEO CON FALLAS CRÍTICAS · ${vehicle.code}`,
-          description: `**Chofer:** ${driver.name}\n**Unidad:** ${vehicle.code} (${vehicle.plate})\n**Hora:** ${timeNow}\n\n${critDesc}${reporte ? `\n\n📝 **Novedad:** ${reporte}` : ''}`,
-          color: 15158332,
-          timestamp: new Date().toISOString(),
-        }).catch(() => {});
-      }
-    } else if (warnItems.length > 0) {
-      const webhookUrl = config?.discordWebhookByVehicle?.[vehicle.id] || config?.discordWebhookGeneral;
-      if (webhookUrl) {
-        const warnDesc = warnItems.map(i => {
-          const def = CHECKLIST_ITEMS.find(ci => ci.id === i.id);
-          return `🟡 **${def.label}**: ${def.warn}`;
-        }).join('\n');
-        await sendDiscordNotification(webhookUrl, {
-          title: `🟡 CHEQUEO CON OBSERVACIONES · ${vehicle.code}`,
-          description: `**Chofer:** ${driver.name}\n**Unidad:** ${vehicle.code} (${vehicle.plate})\n**Hora:** ${timeNow}\n\n${warnDesc}${reporte ? `\n\n📝 **Novedad:** ${reporte}` : ''}`,
-          color: 16776960,
-          timestamp: new Date().toISOString(),
-        }).catch(() => {});
-      }
-    }
+   // Notificación Discord — SIEMPRE (con o sin fallas)
+        const webhookUrl = config?.discordWebhookByVehicle?.[vehicle.id] || config?.discordWebhookGeneral;
+        if (webhookUrl) {
+          const totalItems = checklist.items?.length || 0;
+          const badCount = criticalItems.length;
+          const warnCount = warnItems.length;
+          const secItems = CHECKLIST_ITEMS.filter(i => i.group === 'seguridad');
+          const mecItems = CHECKLIST_ITEMS.filter(i => i.group === 'mecanica');
+          const docItems = CHECKLIST_ITEMS.filter(i => i.group === 'docs');
+          const secOk = secItems.every(i => values[i.id] !== 'bad');
+          const mecOk = mecItems.every(i => values[i.id] !== 'bad');
+          const docOk = docItems.every(i => values[i.id] !== 'bad');
+          if (criticalItems.length > 0) {
+            const critDesc = criticalItems.map(i => {
+              const def = CHECKLIST_ITEMS.find(ci => ci.id === i.id);
+              return `● **${def.label}**: ${def.bad}`;
+            }).join('\n');
+            await sendDiscordNotification(webhookUrl, {
+              title: `🔴 CHEQUEO CON FALLAS · ${vehicle.code}`,
+              description: `**Chofer:** ${driver.name}\n**Unidad:** ${vehicle.code} (${vehicle.plate})\n**Hora:** ${timeNow}\n\n${critDesc}${reporte ? `\n\n📝 **Novedad:** ${reporte}` : ''}\n\n🔒 Seg ${secOk?'✅':'❌'} · 🔧 Mec ${mecOk?'✅':'❌'} · 📄 Docs ${docOk?'✅':'❌'}\n📊 ${totalItems-badCount-warnCount}/${totalItems} ítems OK · Km: ${kmInicial||'—'}`,
+              color: 15158332,
+              timestamp: new Date().toISOString(),
+            }).catch(() => {});
+          } else if (warnItems.length > 0) {
+            const warnDesc = warnItems.map(i => {
+              const def = CHECKLIST_ITEMS.find(ci => ci.id === i.id);
+              return `🟡 **${def.label}**: ${def.warn}`;
+            }).join('\n');
+            await sendDiscordNotification(webhookUrl, {
+              title: `🟡 CHEQUEO CON OBSERVACIONES · ${vehicle.code}`,
+              description: `**Chofer:** ${driver.name}\n**Unidad:** ${vehicle.code} (${vehicle.plate})\n**Hora:** ${timeNow}\n\n${warnDesc}${reporte ? `\n\n📝 **Novedad:** ${reporte}` : ''}\n\n🔒 Seg ${secOk?'✅':'⚠️'} · 🔧 Mec ${mecOk?'✅':'⚠️'} · 📄 Docs ${docOk?'✅':'⚠️'}\n📊 ${totalItems-badCount}/${totalItems} ítems OK · Km: ${kmInicial||'—'}`,
+              color: 16776960,
+              timestamp: new Date().toISOString(),
+            }).catch(() => {});
+          } else {
+            await sendDiscordNotification(webhookUrl, {
+              title: `✅ CHEQUEO COMPLETADO · ${vehicle.code}`,
+              description: `**Chofer:** ${driver.name}\n**Unidad:** ${vehicle.code} (${vehicle.plate})\n**Hora:** ${timeNow}\n\n🔒 Seg ✅ · 🔧 Mec ✅ · 📄 Docs ✅\n📊 ${totalItems}/${totalItems} ítems OK · Km: ${kmInicial||'—'}${reporte ? `\n\n📝 **Novedad:** ${reporte}` : ''}`,
+              color: 5763719,
+              timestamp: new Date().toISOString(),
+            }).catch(() => {});
+          }
+        }
 
     setSubmitting(false);
     onDone();
