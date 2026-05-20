@@ -4590,7 +4590,8 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config }) {
       : `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:700">✅ TODO BIEN</span>`;
     const allItems = typeof CHECKLIST_ITEMS !== 'undefined' ? CHECKLIST_ITEMS : [];
     const rows = allItems.map(item => {
-      const val = ((cl.items || []).find(i => i.id === item.id)?.value;
+      const found = (cl.items || []).find(i => i.id === item.id);
+      const val = found ? found.valor : null;
       const opts = item.options || item.opts || [];
       const opt = opts.find(o => o.v === val);
       const idx = opt ? opts.indexOf(opt) : -1;
