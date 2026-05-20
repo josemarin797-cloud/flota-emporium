@@ -4542,13 +4542,14 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
   const crits = cl.criticalCount || 0;
   const warns = cl.warningCount || 0;
   const status = crits > 0 ? '🔴 CRÍTICO' : warns > 0 ? '⚠️ REVISAR' : '✅ TODO BIEN';
-  const allItems = typeof CHECKLIST_ITEMS !== 'undefined' ? CHECKLIST_ITEMS : [];
-  const itemLines = allItems.map(item => {
-    const val = ((cl.items || []).find(i => i.id === item.id)?.valor;
-   const e = val === 'ok' ? '✅' : val === 'warn' ? '⚠️' : val === 'bad' ? '🔴' : '➖';
+    const allItems = typeof CHECKLIST_ITEMS !== 'undefined' ? CHECKLIST_ITEMS : [];
+    const itemLines = allItems.map(item => {
+      const found = (cl.items || []).find(i => i.id === item.id);
+      const val = found ? found.valor : null;
+      const e = val === 'ok' ? '✅' : val === 'warn' ? '⚠️' : val === 'bad' ? '🔴' : '—';
       const label = val === 'ok' ? item.ok : val === 'warn' ? item.warn : val === 'bad' ? item.bad : '—';
       return `${e} **${item.label}**: ${label}`;
-  }).join('\n');
+    }).join('\n');
   const embed = {
     title: `📋 CHEQUEO PRE-VIAJE · ${vehicle?.code} · ${status}`,
     description: `**${driver?.name}** completó el chequeo de **${vehicle?.code}** (${vehicle?.plate})`,
