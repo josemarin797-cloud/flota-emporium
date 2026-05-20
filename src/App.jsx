@@ -4544,7 +4544,7 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
   const status = crits > 0 ? '🔴 CRÍTICO' : warns > 0 ? '⚠️ REVISAR' : '✅ TODO BIEN';
   const allItems = typeof CHECKLIST_ITEMS !== 'undefined' ? CHECKLIST_ITEMS : [];
   const itemLines = allItems.map(item => {
-    const val = (cl.items || {})[item.id];
+    const val = ((cl.items || []).find(i => i.id === item.id)?.value;
     const opts = item.options || item.opts || [];
     const opt = opts.find(o => o.v === val);
     const idx = opt ? opts.indexOf(opt) : -1;
@@ -4567,7 +4567,7 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
   };
   if (cl.notas || cl.notes) embed.fields.push({ name: '📝 Novedades', value: cl.notas || cl.notes });
   embed.fields.push({ name: '✍️ Firma', value: (cl.firma || cl.signature) ? '✅ Firmado por el chofer' : '❌ Sin firma' });
-  embed.fields.push({ name: '📸 Foto', value: (cl.foto || cl.photo) ? '✅ Foto tomada' : '❌ Sin foto' });
+  embed.fields.push({ name: '📸 Foto', value: (cl.finalPhoto || cl.foto || cl.photo) ? '✅ Foto tomada' : '❌ Sin foto' });
   await sendDiscordNotification(webhookUrl, embed);
 }
 
@@ -4592,7 +4592,7 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config }) {
       : `<span style="background:#d1fae5;color:#065f46;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:700">✅ TODO BIEN</span>`;
     const allItems = typeof CHECKLIST_ITEMS !== 'undefined' ? CHECKLIST_ITEMS : [];
     const rows = allItems.map(item => {
-      const val = (cl.items || {})[item.id];
+      const val = ((cl.items || []).find(i => i.id === item.id)?.value;
       const opts = item.options || item.opts || [];
       const opt = opts.find(o => o.v === val);
       const idx = opt ? opts.indexOf(opt) : -1;
@@ -4603,7 +4603,7 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config }) {
       return `<tr><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:12px">${item.label}</td><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#6b7280">${item.category || item.cat || ''}</td><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;text-align:center"><span style="background:${bg};color:${tc};padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700">${e} ${label}</span></td></tr>`;
     }).join('');
     const sig = cl.firma || cl.signature;
-    const foto = cl.foto || cl.photo;
+    const foto = cl.finalPhoto || cl.foto || cl.photo;
     const notas = cl.notas || cl.notes;
     const w = window.open('', '_blank', 'width=820,height=960');
     w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Chequeo - ${v?.code} - ${cl.date}</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#1c1917;font-size:13px}@media print{.no-print{display:none}}h1{font-size:18px;margin:0;color:#047857}.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #10b981;padding-bottom:12px;margin-bottom:16px}.info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:14px}.info label{font-size:10px;text-transform:uppercase;color:#6b7280;display:block;font-weight:700}table{width:100%;border-collapse:collapse;border:1px solid #e5e7eb;margin-bottom:14px}th{background:#f9fafb;padding:6px 10px;font-size:10px;text-transform:uppercase;color:#6b7280;text-align:left;border-bottom:1px solid #e5e7eb}.sf{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.sf-box{border:1px solid #e5e7eb;border-radius:8px;padding:10px}.sf-title{font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:700;margin-bottom:6px}.print-btn{background:#047857;color:white;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:700;margin-bottom:16px;font-size:13px}.footer{margin-top:16px;border-top:1px solid #e5e7eb;padding-top:8px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}</style></head><body><button class="no-print print-btn" onclick="window.print()">🖨️ Guardar como PDF / Imprimir</button><div class="hdr"><div><h1>Transporte Emporium</h1><div style="font-weight:700;margin-top:4px">Chequeo Pre-Viaje</div><div style="color:#6b7280">${v?.code || '—'} · ${v?.plate || '—'}</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:700">${cl.date}</div><div style="margin:4px 0">${cl.time || ''}</div>${statusBadge}</div></div><div class="info"><div><label>Chofer</label><strong>${d?.name || '—'}</strong></div><div><label>Unidad</label><strong>${v?.code || '—'}</strong></div><div><label>Placa</label><strong>${v?.plate || '—'}</strong></div><div><label>KM Odómetro</label><strong>${(cl.kmOdometer || 0).toLocaleString()}</strong></div></div><table><tr><th>Ítem</th><th>Categoría</th><th>Estado</th></tr>${rows}</table>${notas ? `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:14px"><div style="font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:700;margin-bottom:4px">Novedades reportadas</div><div>${notas}</div></div>` : ''}<div class="sf"><div class="sf-box"><div class="sf-title">Firma del chofer</div>${sig ? `<img src="${sig}" style="width:100%;max-height:90px;object-fit:contain;background:#f9fafb">` : '<div style="height:70px;background:#f9fafb;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px">Sin firma</div>'}</div><div class="sf-box"><div class="sf-title">Foto de respaldo</div>${foto ? `<img src="${foto}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px">` : '<div style="height:90px;background:#f9fafb;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px">Sin foto</div>'}</div></div><div class="footer"><span>Transporte Emporium · Sistema de Control de Flota</span><span>Generado: ${new Date().toLocaleString('es-VE')}</span></div></body></html>`);
@@ -4640,7 +4640,7 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config }) {
             const crits = cl.criticalCount || 0;
             const warns = cl.warningCount || 0;
             const sig = cl.firma || cl.signature;
-            const foto = cl.foto || cl.photo;
+            const foto = cl.finalPhoto || cl.foto || cl.photo;
             return (
               <div key={cl.id} className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4 flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
