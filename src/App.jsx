@@ -4595,11 +4595,11 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config }) {
       const opts = item.options || item.opts || [];
       const opt = opts.find(o => o.v === val);
       const idx = opt ? opts.indexOf(opt) : -1;
-      const e = idx === 0 ? '✅' : idx === 1 ? '⚠️' : idx === 2 ? '🔴' : '—';
-      const label = opt?.l || opt?.label || val || '—';
+      const e = val === 'ok' ? '✅' : val === 'warn' ? '⚠️' : val === 'bad' ? '🔴' : '—';
+      const label = val === 'ok' ? (item.ok || 'bien') : val === 'warn' ? (item.warn || 'revisar') : val === 'bad' ? (item.bad || 'mal') : (opt?.l || opt?.label || val || '—');
       const bg = idx === 0 ? '#d1fae5' : idx === 1 ? '#fef3c7' : idx === 2 ? '#fee2e2' : '#f3f4f6';
       const tc = idx === 0 ? '#065f46' : idx === 1 ? '#92400e' : idx === 2 ? '#991b1b' : '#6b7280';
-      return `<tr><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:12px">${item.label}</td><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#6b7280">${item.category || item.cat || ''}</td><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;text-align:center"><span style="background:${bg};color:${tc};padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700">${e} ${label}</span></td></tr>`;
+      return `<tr><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:12px">${item.label}</td><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;font-size:11px;color:#6b7280">${item.category || item.cat || ''}</td><td style="padding:6px 10px;border-bottom:1px solid #f3f4f6;text-align:center"><span style="background:${bg};color:${tc};padding:3px 8px;border-radius:9999px;font-size:10px;font-weight:700">${e} ${label}</span></td></tr>`;
     }).join('');
     const sig = cl.firma || cl.signature;
     const foto = cl.finalPhoto || cl.foto || cl.photo;
