@@ -1089,6 +1089,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
     saveGpsTracks(gpsTracks.filter(g => g.tripId !== currentTrip.id));
     stopGpsTracking();
+    sbFetch('active_trips?id=eq.' + (currentTrip?.id||''), { method: 'DELETE' }).catch(() => {});
+    
     setCurrentTrip(null);
     setStep('select');
   };
