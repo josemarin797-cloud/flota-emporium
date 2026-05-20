@@ -4544,7 +4544,7 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
   const status = crits > 0 ? '🔴 CRÍTICO' : warns > 0 ? '⚠️ REVISAR' : '✅ TODO BIEN';
   const allItems = typeof CHECKLIST_ITEMS !== 'undefined' ? CHECKLIST_ITEMS : [];
   const itemLines = allItems.map(item => {
-    const val = ((cl.items || []).find(i => i.id === item.id)?.value;
+    const val = ((cl.items || []).find(i => i.id === item.id)?.valor;
    const e = val === 'ok' ? '✅' : val === 'warn' ? '⚠️' : val === 'bad' ? '🔴' : '➖';
       const label = val === 'ok' ? item.ok : val === 'warn' ? item.warn : val === 'bad' ? item.bad : '—';
       return `${e} **${item.label}**: ${label}`;
