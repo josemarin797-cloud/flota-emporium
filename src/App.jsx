@@ -4545,12 +4545,9 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
   const allItems = typeof CHECKLIST_ITEMS !== 'undefined' ? CHECKLIST_ITEMS : [];
   const itemLines = allItems.map(item => {
     const val = ((cl.items || []).find(i => i.id === item.id)?.value;
-    const opts = item.options || item.opts || [];
-    const opt = opts.find(o => o.v === val);
-    const idx = opt ? opts.indexOf(opt) : -1;
-    const e = idx === 0 ? '✅' : idx === 1 ? '⚠️' : idx === 2 ? '🔴' : '⬜';
-    const label = opt?.l || opt?.label || val || '—';
-    return `${e} **${item.label}**: ${label}`;
+   const e = val === 'ok' ? '✅' : val === 'warn' ? '⚠️' : val === 'bad' ? '🔴' : '➖';
+      const label = val === 'ok' ? item.ok : val === 'warn' ? item.warn : val === 'bad' ? item.bad : '—';
+      return `${e} **${item.label}**: ${label}`;
   }).join('\n');
   const embed = {
     title: `📋 CHEQUEO PRE-VIAJE · ${vehicle?.code} · ${status}`,
