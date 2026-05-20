@@ -4670,3 +4670,5 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config }) {
     </div>
   );
 }
+
+// force rebuild
