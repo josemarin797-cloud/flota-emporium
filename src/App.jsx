@@ -4545,7 +4545,7 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
     const allItems = typeof CHECKLIST_ITEMS !== 'undefined' ? CHECKLIST_ITEMS : [];
     const itemLines = allItems.map(item => {
       const found = (cl.items || []).find(i => i.id === item.id);
-      const val = found ? found.valor : null;
+      const val = found ? found.value : null;
       const e = val === 'ok' ? '✅' : val === 'warn' ? '⚠️' : val === 'bad' ? '🔴' : '—';
       const label = val === 'ok' ? item.ok : val === 'warn' ? item.warn : val === 'bad' ? item.bad : '—';
       return `${e} **${item.label}**: ${label}`;
@@ -4591,7 +4591,7 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config }) {
     const allItems = typeof CHECKLIST_ITEMS !== 'undefined' ? CHECKLIST_ITEMS : [];
     const rows = allItems.map(item => {
       const found = (cl.items || []).find(i => i.id === item.id);
-      const val = found ? found.valor : null;
+      const val = found ? found.value : null;
       const opts = item.options || item.opts || [];
       const opt = opts.find(o => o.v === val);
       const idx = opt ? opts.indexOf(opt) : -1;
