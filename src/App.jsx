@@ -1075,6 +1075,17 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     stopGpsTracking();
     setCurrentTrip(completed);
     setStep('finish');
+    // 🎙️ Voz al cerrar el viaje
+        const mensajesCierre = [
+          'Viaje completado.',
+          'Excelente recorrido.',
+          'Buen trabajo en este viaje.',
+          'Viaje finalizado con éxito.',
+          'Recuerda registrar el kilometraje final.',
+        ];
+        const cierreRandom = mensajesCierre[Math.floor(Math.random() * mensajesCierre.length)];
+        const nombreCierre = currentDriver?.shortName || currentDriver?.name || 'chofer';
+        setTimeout(() => speakText(`¡Excelente ${nombreCierre}! ${cierreRandom}`), 600);
 
     // Beep de confirmación
     playBeep();
