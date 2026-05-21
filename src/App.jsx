@@ -2161,7 +2161,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
         {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} />}
         {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} />}
-        {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} saveChecklists={saveChecklists} sbFetch={sbFetch} />}
+        {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} />
         {tab === 'discord' && <DiscordTab config={config} saveConfig={saveConfig} vehicles={vehicles} />}
         {tab === 'settings' && <SettingsTab config={config} saveConfig={saveConfig} saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} savePhotos={savePhotos} saveGpsTracks={saveGpsTracks} saveArchived={saveArchived} vehicles={vehicles} saveVehicles={saveVehicles} />}
       </main>
@@ -4582,8 +4582,8 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config, saveChecklis
     if (!deleteUntil) return;
     if (!window.confirm(`¿Borrar checklists anteriores al ${deleteUntil}?`)) return;
     const keep = checklists.filter(c => c.date >= deleteUntil);
-    saveChecklists(keep);
-    if (sbF) sbF(`checklists?date=lt.${deleteUntil}`, { method: 'DELETE' }).catch(() => {});
+    
+    if (sbF) sbF(`checklists?date=lt.${deleteUntil}`, { method: 'DELETE' }).then(() => window.location.reload()).catch(() => {})
   };
   const filtered = (checklists || [])
     .filter(c => (!filterDate || c.date === filterDate) && (filterVehicle === 'all' || c.vehicleId === filterVehicle))
