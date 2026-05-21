@@ -2161,7 +2161,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
         {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} />}
         {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} />}
-        {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} />}
+        {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} saveChecklists={saveChecklists} sbFetch={sbFetch} />}
         {tab === 'discord' && <DiscordTab config={config} saveConfig={saveConfig} vehicles={vehicles} />}
         {tab === 'settings' && <SettingsTab config={config} saveConfig={saveConfig} saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} savePhotos={savePhotos} saveGpsTracks={saveGpsTracks} saveArchived={saveArchived} vehicles={vehicles} saveVehicles={saveVehicles} />}
       </main>
@@ -4574,9 +4574,17 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
 // ============================================================
 // ChecklistCoordTab — vista para el coordinador con PDF
 // ============================================================
-function ChecklistCoordTab({ checklists, vehicles, drivers, config }) {
+function ChecklistCoordTab({ checklists, vehicles, drivers, config, saveChecklists, sbFetch: sbF }) {
   const [filterDate, setFilterDate] = useState(new Date().toISOString().slice(0, 10));
   const [filterVehicle, setFilterVehicle] = useState('all');
+  const [deleteUntil, setDeleteUntil] = useState('');
+  const handleDeleteOld = () => {
+    if (!deleteUntil) return;
+    if (!window.confirm(`¿Borrar checklists anteriores al ${deleteUntil}?`)) return;
+    const keep = checklists.filter(c => c.date >= deleteUntil);
+    saveChecklists(keep);
+    if (sbF) sbF(`checklists?date=lt.${deleteUntil}`, { method: 'DELETE' }).catch(() => {});
+  };
   const filtered = (checklists || [])
     .filter(c => (!filterDate || c.date === filterDate) && (filterVehicle === 'all' || c.vehicleId === filterVehicle))
     .sort((a, b) => b.createdAt - a.createdAt);
@@ -4627,6 +4635,14 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config }) {
           </select>
         </div>
       </div>
+      <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
+          <input type="date" value={deleteUntil} onChange={e => setDeleteUntil(e.target.value)}
+            className="border border-rose-300 rounded-lg px-3 py-1.5 text-sm font-mono bg-white text-stone-900 outline-none focus:border-rose-500" />
+          <button onClick={handleDeleteOld}
+            className="px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold flex items-center gap-1">
+            🗑️ Borrar anteriores a esta fecha
+          </button>
+        </div>
       {filtered.length === 0 ? (
         <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center text-stone-400">
           <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
