@@ -2212,7 +2212,7 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
     return { ...d, tripCount, deliveries: deliv, successRate: tripCount > 0 ? deliv / tripCount : 0 };
   }).filter(d => d.tripCount > 0).sort((a, b) => b.successRate - a.successRate), [drivers, trips]);
 
-  const monthLabel = new Date(selectedMonth + '-01').toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
+  const monthLabel = new Date(selectedMonth + '-15').toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
 
   return (
     <div className="space-y-5">
