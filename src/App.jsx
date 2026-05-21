@@ -1121,6 +1121,45 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setStep('select');
   };
   const newTrip = () => { setCurrentTrip(null); setStep('select'); };
+  // 🌙 Finalizar Jornada del día — calcula stats + voz + Discord
+  const finalizarJornada = async () => {
+    const hoy = new Date().toISOString().slice(0, 10);
+    const viajesHoy = trips.filter(t => t.driverId === currentDriver.id && t.startDate === hoy);
+    if (viajesHoy.length === 0) {
+      speakText('No tienes viajes registrados hoy.');
+      return;
+    }
+    const totalKm = viajesHoy.reduce((sum, t) => sum + (Number(t.kmTraveled) || 0), 0);
+    const totalLitros = viajesHoy.reduce((sum, t) => sum + (Number(t.fuelLoaded) || 0), 0);
+    const totalCosto = viajesHoy.reduce((sum, t) => sum + (Number(t.cost) || 0), 0);
+    const totalEntregas = viajesHoy.reduce((sum, t) => sum + (Number(t.deliveries) || 0), 0);
+    const tiempoActivoMin = viajesHoy.reduce((sum, t) => sum + (Number(t.tripMinutes) || 0), 0);
+    const horas = Math.floor(tiempoActivoMin / 60);
+    const mins = tiempoActivoMin % 60;
+    const tiempoTxt = horas > 0 ? `${horas}h ${mins}min` : `${mins} min`;
+    // Conteo de rutas
+    const rutasCount = {};
+    viajesHoy.forEach(t => { const r = t.route || 'LOCAL'; rutasCount[r] = (rutasCount[r] || 0) + 1; });
+    const rutasTxt = Object.entries(rutasCount).map(([r, c]) => `${r} (${c})`).join(', ');
+    // Vehículo principal (el más usado hoy)
+    const vehCount = {};
+    viajesHoy.forEach(t => { vehCount[t.vehicleId] = (vehCount[t.vehicleId] || 0) + 1; });
+    const vehPrincipalId = Object.entries(vehCount).sort((a, b) => b[1] - a[1])[0][0];
+    const vehPrincipal = vehicles.find(v => v.id === vehPrincipalId);
+    const nombreCorto = currentDriver?.shortName || currentDriver?.name || 'chofer';
+    // 🔊 Voz al chofer
+    const fraseVoz = `¡Excelente jornada ${nombreCorto}! Hoy recorriste ${totalKm} kilómetros en ${viajesHoy.length} viajes. Recuerda estacionar el vehículo en lugar seguro. Hasta mañana.`;
+    setTimeout(() => speakText(fraseVoz), 400);
+    // 📊 Reporte a Discord
+    try {
+      const webhookUrl = config.discordWebhookByVehicle?.[vehPrincipalId] || config.discordWebhookGeneral;
+      if (webhookUrl) {
+        await sendDiscordNotification(webhookUrl, {
+          title: `🌙 Resumen Jornada · ${currentDriver.name} · ${hoy}`,
+          description: `🚛 **Unidad principal:** ${vehPrincipal?.code || 'N/A'}`,
+          color: 0x7c3aed,
+          fields: [
+            { name
   const markDepartedDestination = (tripId) => {
     const trip = trips.find(t => t.id === tripId);
     if (!trip) return;
@@ -1212,7 +1251,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={() => setStep('start')} onBack={() => setStep('select')} config={config} />}
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={myTrips} onBack={() => setStep('checklist')} onStart={startTrip} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} />}
-          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onNewTrip={newTrip} onLogout={onLogout} onMarkDeparted={markDepartedDestination} />}
+          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
         {tab === 'history' && <DriverHistoryView trips={myTrips} vehicles={vehicles} branches={branches} />}
@@ -1715,7 +1754,7 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }
   );
 }
 
-function TripCompleteView({ trip, driver, vehicle, branches, onNewTrip, onLogout, onMarkDeparted }) {
+function TripCompleteView({ trip, driver, vehicle, branches, onNewTrip, onLogout, onMarkDeparted, onFinishJornada }) {
   const origin = branches.find(b => b.id === trip.originBranchId);
   const destination = branches.find(b => b.id === trip.destinationBranchId);
   const [timeAtDest, setTimeAtDest] = useState('');
@@ -1831,11 +1870,14 @@ function TripCompleteView({ trip, driver, vehicle, branches, onNewTrip, onLogout
       )}
 
       <div className="grid grid-cols-2 gap-2">
-        <button onClick={onLogout} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200">Salir</button>
-        <button onClick={onNewTrip} className="py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-lg shadow-emerald-700/30 flex items-center justify-center gap-2">
-          <Plus className="w-5 h-5" /> Nuevo Viaje
+          <button onClick={onLogout} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200">Salir</button>
+          <button onClick={onNewTrip} className="py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-lg shadow-emerald-700/30 flex items-center justify-center gap-2">
+            <Plus className="w-5 h-5" /> Nuevo Viaje
+          </button>
+        </div>
+        <button onClick={() => onFinishJornada && onFinishJornada()} className="w-full mt-2 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 shadow-lg shadow-purple-700/30 flex items-center justify-center gap-2">
+          🌙 Finalizar Jornada de hoy
         </button>
-      </div>
     </div>
   );
 }
