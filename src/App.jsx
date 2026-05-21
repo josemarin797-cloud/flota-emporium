@@ -1147,6 +1147,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const nombre = currentDriver?.shortName || currentDriver?.name || 'chofer';
     const fraseVoz = '¡Excelente jornada ' + nombre + '! Hoy recorriste ' + totalKm + ' kilómetros en ' + viajesHoy.length + ' viajes. Recuerda estacionar el vehículo en lugar seguro. Hasta mañana.';
     setTimeout(() => speakText(fraseVoz), 400);
+    const wh=config.discordWebhookGeneral;
+    if(wh)sendDiscordNotification(wh,{title:'🌙 '+nombre+' '+hoy,description:'✅ '+viajesHoy.length+' viajes 📍 '+totalKm+' km 💰 $'+totalCosto.toFixed(2),color:0x7c3aed}).catch(()=>{});
+    
    alert('🌙 ¡Excelente jornada ' + nombre + '!\n\n✅ Viajes: ' + viajesHoy.length + '\n📍 Km: ' + totalKm + '\n⛽ Litros: ' + totalLitros + '\n💰 Gasto: $' + totalCosto.toFixed(2) + '\n⏱️ Tiempo: ' + tiempoTxt + '\n🛣️ Rutas: ' + rutasTxt + '\n\nDescansa, hasta mañana.');
     setCurrentTrip(null);
     setStep('select');
