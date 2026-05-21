@@ -1007,6 +1007,20 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     // Beep de confirmación
     playBeep();
+    // 🎙️ Voz de bienvenida al viaje
+        const mensajesSeguridad = [
+          'Recuerda usar el cinturón de seguridad.',
+          'Maneja con precaución y respeta las señales.',
+          'Respeta los límites de velocidad.',
+          'Mantén distancia segura con otros vehículos.',
+          'No uses el celular mientras manejas.',
+          'Revisa los espejos antes de cada maniobra.',
+          'Maneja a la defensiva.',
+          'Anticipa siempre el movimiento del tráfico.',
+        ];
+        const mensajeRandom = mensajesSeguridad[Math.floor(Math.random() * mensajesSeguridad.length)];
+        const nombreCorto = currentDriver?.shortName || currentDriver?.name || 'chofer';
+        setTimeout(() => speakText(`¡Buen viaje ${nombreCorto}! ${mensajeRandom}`), 600);
 
     // Notificación Discord
     const origin = branches.find(b => b.id === data.originBranchId);
