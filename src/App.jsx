@@ -2666,6 +2666,13 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState(null);
+  const [deleteUntil, setDeleteUntil] = useState('');
+  const handleDeleteOld = () => {
+    if (!deleteUntil) return;
+    if (!window.confirm(`¿Borrar viajes anteriores al ${deleteUntil}?`)) return;
+    const keep = allTrips.filter(t => t.startDate >= deleteUntil);
+    saveTrips(keep);
+  };
 
   // Helper: convertir un valor a celda HTML escapando caracteres
   const esc = (v) => {
@@ -2973,6 +2980,14 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'EXCEL'}
         </button>
       </div>
+      <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
+          <input type="date" value={deleteUntil} onChange={e => setDeleteUntil(e.target.value)}
+            className="border border-rose-300 rounded-lg px-3 py-1.5 text-sm font-mono bg-white text-stone-900 outline-none focus:border-rose-500" />
+          <button onClick={handleDeleteOld}
+            className="px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold flex items-center gap-1">
+            🗑️ Borrar viajes anteriores a esta fecha
+          </button>
+        </div>
 
       {exportMsg && (
         <div className={`rounded-xl p-3 text-sm font-semibold flex items-center gap-2 ${
