@@ -3016,6 +3016,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
                 <th className="text-right px-2 py-2" title="Tiempo en sucursal de origen antes de salir">T. Origen</th>
                 <th className="text-right px-2 py-2" title="Tiempo en sucursal de destino tras llegar">T. Destino</th>
                 <th className="text-right px-2 py-2">$</th>
+                <th className="text-right px-2 py-2" title="Litros surtidos antes de salir">⛽ Litros</th>
                 <th></th>
               </tr>
             </thead>
@@ -3050,6 +3051,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
                     <td className="text-right px-2 py-2 text-xs font-mono">{t.timeAtBranchPrevMinutes != null ? <span className="text-blue-700">{formatDuration(t.timeAtBranchPrevMinutes)}</span> : <span className="text-stone-300 text-[10px]">primer viaje</span>}</td>
                     <td className="text-right px-2 py-2 text-xs font-mono">{destTimeDisplay}</td>
                     <td className="text-right px-2 py-2 text-stone-900">${t.cost.toFixed(2)}</td>
+                    <td className="text-right px-2 py-2 text-xs font-mono">{t.fuelLoaded > 0 ? <span className="text-amber-700 font-bold">{t.fuelLoaded} L</span> : <span className="text-stone-300">—</span>}</td>
                     <td className="px-2 py-2"><button onClick={() => handleDelete(t.id)} className="text-stone-400 hover:text-rose-400"><Trash2 className="w-4 h-4" /></button></td>
                   </tr>
                 );
