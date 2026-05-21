@@ -1430,7 +1430,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart }) {
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.fuelLoaded > 0 || showFuel} onChange={e => { setShowFuel(e.target.checked); if (!e.target.checked) setForm({ ...form, fuelLoaded: 0 }); }}
               className="w-4 h-4 accent-emerald-600" />
-            <span className="text-sm font-semibold text-stone-700">🛢️ Surtido de hoy (cargué combustible)
+            <span className="text-sm font-semibold text-stone-700">🛢️ Surtido de hoy (cargué combustible)</span>
           </label>
           {(showFuel || form.fuelLoaded > 0) && (
             <div className="mt-2">
