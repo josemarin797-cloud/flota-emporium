@@ -1121,7 +1121,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setStep('select');
   };
   const newTrip = () => { setCurrentTrip(null); setStep('select'); };
-  // 🌙 Finalizar Jornada del día — calcula stats + voz + Discord
+ // 🌙 Finalizar Jornada del día — calcula stats + voz + Discord
   const finalizarJornada = async () => {
     const hoy = new Date().toISOString().slice(0, 10);
     const viajesHoy = trips.filter(t => t.driverId === currentDriver.id && t.startDate === hoy);
@@ -1129,37 +1129,28 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       speakText('No tienes viajes registrados hoy.');
       return;
     }
-    const totalKm = viajesHoy.reduce((sum, t) => sum + (Number(t.kmTraveled) || 0), 0);
-    const totalLitros = viajesHoy.reduce((sum, t) => sum + (Number(t.fuelLoaded) || 0), 0);
-    const totalCosto = viajesHoy.reduce((sum, t) => sum + (Number(t.cost) || 0), 0);
-    const totalEntregas = viajesHoy.reduce((sum, t) => sum + (Number(t.deliveries) || 0), 0);
-    const tiempoActivoMin = viajesHoy.reduce((sum, t) => sum + (Number(t.tripMinutes) || 0), 0);
-    const horas = Math.floor(tiempoActivoMin / 60);
-    const mins = tiempoActivoMin % 60;
-    const tiempoTxt = horas > 0 ? `${horas}h ${mins}min` : `${mins} min`;
-    // Conteo de rutas
+    const totalKm = viajesHoy.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
+    const totalLitros = viajesHoy.reduce((s, t) => s + (Number(t.fuelLoaded) || 0), 0);
+    const totalCosto = viajesHoy.reduce((s, t) => s + (Number(t.cost) || 0), 0);
+    const totalEntregas = viajesHoy.reduce((s, t) => s + (Number(t.deliveries) || 0), 0);
+    const tiempoMin = viajesHoy.reduce((s, t) => s + (Number(t.tripMinutes) || 0), 0);
+    const horas = Math.floor(tiempoMin / 60);
+    const mins = tiempoMin % 60;
+    const tiempoTxt = horas > 0 ? horas + 'h ' + mins + 'min' : mins + ' min';
     const rutasCount = {};
     viajesHoy.forEach(t => { const r = t.route || 'LOCAL'; rutasCount[r] = (rutasCount[r] || 0) + 1; });
-    const rutasTxt = Object.entries(rutasCount).map(([r, c]) => `${r} (${c})`).join(', ');
-    // Vehículo principal (el más usado hoy)
+    const rutasTxt = Object.entries(rutasCount).map(([r, c]) => r + ' (' + c + ')').join(', ');
     const vehCount = {};
     viajesHoy.forEach(t => { vehCount[t.vehicleId] = (vehCount[t.vehicleId] || 0) + 1; });
     const vehPrincipalId = Object.entries(vehCount).sort((a, b) => b[1] - a[1])[0][0];
     const vehPrincipal = vehicles.find(v => v.id === vehPrincipalId);
-    const nombreCorto = currentDriver?.shortName || currentDriver?.name || 'chofer';
-    // 🔊 Voz al chofer
-    const fraseVoz = `¡Excelente jornada ${nombreCorto}! Hoy recorriste ${totalKm} kilómetros en ${viajesHoy.length} viajes. Recuerda estacionar el vehículo en lugar seguro. Hasta mañana.`;
+    const nombre = currentDriver?.shortName || currentDriver?.name || 'chofer';
+    const fraseVoz = '¡Excelente jornada ' + nombre + '! Hoy recorriste ' + totalKm + ' kilómetros en ' + viajesHoy.length + ' viajes. Recuerda estacionar el vehículo en lugar seguro. Hasta mañana.';
     setTimeout(() => speakText(fraseVoz), 400);
-    // 📊 Reporte a Discord
-    try {
-      const webhookUrl = config.discordWebhookByVehicle?.[vehPrincipalId] || config.discordWebhookGeneral;
-      if (webhookUrl) {
-        await sendDiscordNotification(webhookUrl, {
-          title: `🌙 Resumen Jornada · ${currentDriver.name} · ${hoy}`,
-          description: `🚛 **Unidad principal:** ${vehPrincipal?.code || 'N/A'}`,
-          color: 0x7c3aed,
-          fields: [
-            { name
+   alert('🌙 ¡Excelente jornada ' + nombre + '!\n\n✅ Viajes: ' + viajesHoy.length + '\n📍 Km: ' + totalKm + '\n⛽ Litros: ' + totalLitros + '\n💰 Gasto: $' + totalCosto.toFixed(2) + '\n⏱️ Tiempo: ' + tiempoTxt + '\n🛣️ Rutas: ' + rutasTxt + '\n\nDescansa, hasta mañana.');
+    setCurrentTrip(null);
+    setStep('select');
+  };
   const markDepartedDestination = (tripId) => {
     const trip = trips.find(t => t.id === tripId);
     if (!trip) return;
