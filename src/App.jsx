@@ -2287,19 +2287,35 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
         </div>
       </div>
       {/* GRÁFICAS POR UNIDAD */}
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
-          <div className="font-bold text-stone-900 text-sm mb-4">📊 Rendimiento por unidad — {monthLabel}</div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={costByVehicle} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
-              <XAxis dataKey="code" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="realKm" name="KM" fill="#10b981" radius={[4,4,0,0]} />
-              <Bar dataKey="tripCount" name="Viajes" fill="#6366f1" radius={[4,4,0,0]} />
-              <Bar dataKey="realCost" name="Gasto $" fill="#f59e0b" radius={[4,4,0,0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
+            <div className="font-bold text-stone-900 text-sm mb-1">🚛 Volumen de trabajo — {monthLabel}</div>
+            <div className="text-xs text-stone-400 mb-3">KM recorridos y viajes por unidad</div>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={costByVehicle} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
+                <XAxis dataKey="code" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v, n) => [n === 'KM' ? `${v} km` : `${v} viajes`, n]} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="realKm" name="KM" fill="#10b981" radius={[4,4,0,0]} />
+                <Bar dataKey="tripCount" name="Viajes" fill="#6366f1" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
+            <div className="font-bold text-stone-900 text-sm mb-1">💰 Eficiencia y costo — {monthLabel}</div>
+            <div className="text-xs text-stone-400 mb-3">Gasto real ($) y costo por km por unidad</div>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={costByVehicle} margin={{ top: 4, right: 8, left: -10, bottom: 0 }}>
+                <XAxis dataKey="code" tick={{ fontSize: 10 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v, n) => [n === 'Gasto $' ? `$${Number(v).toFixed(2)}` : `$${Number(v).toFixed(3)}/km`, n]} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="realCost" name="Gasto $" fill="#f59e0b" radius={[4,4,0,0]} />
+                <Bar dataKey="costPerKm" name="$/km" fill="#ef4444" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
 
       {/* RENTABILIDAD DEL DÍA - Qué unidad fue más productiva */}
