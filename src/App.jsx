@@ -1413,6 +1413,8 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart }) {
   });
   const [timeAtBranch, setTimeAtBranch] = useState('');
   const [showFuel, setShowFuel] = useState(false);
+  const [tripNotes, setTripNotes] = useState('');
+  const [tripPhotos, setTripPhotos] = useState([]);
   const showTimeAtBranch = lastTrip && lastTrip.destinationBranchId === form.originBranchId;
 
   useEffect(() => {
