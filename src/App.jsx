@@ -1110,6 +1110,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         { name: '📦 Entregas', value: `${data.deliveries || 0}`, inline: true },
         { name: '🕐 Hora llegada', value: data.endTime, inline: true },
       ],
+      ...(data.notes ? [{ name: '📝 Notas del viaje', value: data.notes, inline: false }] : []),
       footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
     });
   };
@@ -1530,6 +1531,7 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
   const [showFinishForm, setShowFinishForm] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [tripNotes, setTripNotes] = useState('');
 
   useEffect(() => {
     const update = () => {
@@ -1547,7 +1549,7 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
   const destination = branches.find(b => b.id === trip.destinationBranchId);
 
   if (showCamera) return <PhotoCapture onCapture={(p) => { onAddPhoto(p); setShowCamera(false); }} onCancel={() => setShowCamera(false)} />;
-  if (showFinishForm) return <FinishTripForm trip={trip} vehicle={vehicle} origin={origin} destination={destination} onFinish={onFinish} onBack={() => setShowFinishForm(false)} />;
+  if (showFinishForm) return <FinishTripForm trip={trip} vehicle={vehicle} origin={origin} destination={destination} onFinish={onFinish} onBack={() => setShowFinishForm(false)} notes={tripNotes} />;
 
   // Mostrar mapa con sucursales y posición actual
   const mapMarkers = [
@@ -1658,7 +1660,12 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
         className="w-full py-3 rounded-2xl font-bold text-blue-300 bg-blue-950/40 border-2 border-blue-700/40 hover:bg-blue-900/40 flex items-center justify-center gap-2 transition">
         <Camera className="w-5 h-5" /> Tomar foto / documento
       </button>
-
+      <div className="bg-stone-900/60 rounded-xl p-3 border border-stone-700/50">
+        <label className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2 block">📝 Notas del viaje</label>
+        <textarea value={tripNotes} onChange={e => setTripNotes(e.target.value)}
+          placeholder="Escribe aquí cualquier novedad, incidencia o comentario del viaje..."
+          className="w-full bg-transparent text-stone-200 text-sm resize-none outline-none placeholder:text-stone-600" rows={3} />
+      </div>
       <button onClick={() => setShowFinishForm(true)}
         className="w-full py-5 rounded-2xl font-bold text-white bg-gradient-to-r from-rose-500 to-rose-700 hover:from-rose-400 active:scale-[0.98] shadow-xl shadow-rose-500/40 flex items-center justify-center gap-2 text-lg">
         <Square className="w-6 h-6 fill-white" /> REGISTRAR LLEGADA
@@ -1696,11 +1703,11 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
   );
 }
 
-function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }) {
+function FinishTripForm({ trip, vehicle, origin, destination, onFinish, notes, onBack }) {
   const now = new Date();
   const [form, setForm] = useState({
     kmEnd: trip.kmStart, endDate: now.toISOString().slice(0, 10), endTime: now.toTimeString().slice(0, 5),
-    deliveries: 0, tripsCount: 1, route: 'LOCAL', notes: '',
+    deliveries: 0, tripsCount: 1, route: 'LOCAL', notes: notes || '',
   });
   const kmTraveled = Math.max(0, Number(form.kmEnd) - trip.kmStart);
   const liters = (kmTraveled * (vehicle.litersPer100km || 21)) / 100;
