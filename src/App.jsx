@@ -1552,7 +1552,7 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
   const [showFinishForm, setShowFinishForm] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [tripNotes, setTripNotes] = useState('');
+  
 
   useEffect(() => {
     const update = () => {
@@ -1570,7 +1570,7 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
   const destination = branches.find(b => b.id === trip.destinationBranchId);
 
   if (showCamera) return <PhotoCapture onCapture={(p) => { onAddPhoto(p); setShowCamera(false); }} onCancel={() => setShowCamera(false)} />;
-  if (showFinishForm) return <FinishTripForm trip={trip} vehicle={vehicle} origin={origin} destination={destination} onFinish={onFinish} onBack={() => setShowFinishForm(false)} notes={tripNotes} />;
+  if (showFinishForm) return <FinishTripForm trip={trip} vehicle={vehicle} origin={origin} destination={destination} onFinish={onFinish} onBack={() => setShowFinishForm(false)} />;
 
   // Mostrar mapa con sucursales y posición actual
   const mapMarkers = [
