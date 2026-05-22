@@ -979,7 +979,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   };
   useEffect(() => () => stopGpsTracking(), []);
 
-  const startTrip = (data) => {
+  const startTrip = async (data) => {
     const realNow = new Date();
     data = { ...data, startDate: realNow.toISOString().slice(0,10), startTime: realNow.toTimeString().slice(0,5) };
     // Calcular tiempo en sucursal de destino del viaje anterior
@@ -1036,9 +1036,18 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         { name: '⏰ Hora', value: data.startTime, inline: true },
         { name: '📊 KM', value: data.kmStart.toLocaleString(), inline: true },
         { name: '⛽ Surtido', value: data.fuelLoaded ? `${data.fuelLoaded} L` : 'Sin carga', inline: true },
+...(data.tripNotes ? [{ name: '📝 Notas', value: data.tripNotes, inline: false }] : []),
       ],
       footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
     });
+    if (data.tripPhotos?.length > 0 && webhookUrl) {
+      for (const photo of data.tripPhotos) {
+        const fd = new FormData();
+        fd.append('files[0]', photo);
+        fd.append('payload_json', JSON.stringify({ content: `📸 Documento · ${selectedVehicle?.code} · ${currentDriver?.shortName || currentDriver?.name}` }));
+        await fetch(webhookUrl, { method: 'POST', body: fd }).catch(() => {});
+      }
+    }
   };
 
   const finishTrip = (data) => {
@@ -1110,7 +1119,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         { name: '📦 Entregas', value: `${data.deliveries || 0}`, inline: true },
         { name: '🕐 Hora llegada', value: data.endTime, inline: true },
       ],
-      ...(data.notes ? [{ name: '📝 Notas del viaje', value: data.notes, inline: false }] : []),
+      
       footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
     });
   };
@@ -1514,9 +1523,21 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart }) {
         </div>
       </div>
 
+<div className="space-y-3 mb-3">
+          <div className="bg-stone-900/60 rounded-xl p-3 border border-stone-700/50">
+            <label className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2 block">📝 Notas del viaje</label>
+            <textarea value={tripNotes} onChange={e => setTripNotes(e.target.value)} placeholder="Observaciones, instrucciones especiales..." className="w-full bg-transparent text-stone-200 text-sm resize-none outline-none placeholder:text-stone-600" rows={2} />
+          </div>
+          <div className="bg-stone-900/60 rounded-xl p-3 border border-stone-700/50">
+            <label className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2 block">📸 Fotos de documentos</label>
+            <input type="file" accept="image/*" capture="environment" multiple onChange={e => setTripPhotos([...tripPhotos, ...Array.from(e.target.files)])} className="hidden" id="photoInput" />
+            <label htmlFor="photoInput" className="flex items-center gap-2 py-2 px-3 bg-stone-700/50 hover:bg-stone-700 rounded-lg cursor-pointer text-stone-300 text-sm font-medium w-full justify-center">📎 Agregar fotos</label>
+            {tripPhotos.length > 0 && <div className="flex gap-2 mt-2 flex-wrap">{tripPhotos.map((f,i) => <div key={i} className="relative"><img src={URL.createObjectURL(f)} className="w-16 h-16 object-cover rounded-lg" /><button onClick={() => setTripPhotos(tripPhotos.filter((_,j)=>j!==i))} className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 text-white text-xs flex items-center justify-center">×</button></div>)}</div>}
+          </div>
+        </div>
       <div className="grid grid-cols-2 gap-2">
         <button onClick={onBack} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200 hover:bg-stone-200">← Atrás</button>
-        <button onClick={() => onStart(form)} disabled={!valid}
+        <button onClick={() => onStart({...form, tripNotes, tripPhotos})} disabled={!valid}
           className={`py-3 rounded-xl font-bold text-white transition shadow-lg flex items-center justify-center gap-2 ${valid ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-emerald-700/30 active:scale-[0.98]' : 'bg-stone-100 text-stone-300'}`}>
           <Play className="w-5 h-5" /> INICIAR
         </button>
@@ -1703,11 +1724,11 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
   );
 }
 
-function FinishTripForm({ trip, vehicle, origin, destination, onFinish, notes, onBack }) {
+function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }) {
   const now = new Date();
   const [form, setForm] = useState({
     kmEnd: trip.kmStart, endDate: now.toISOString().slice(0, 10), endTime: now.toTimeString().slice(0, 5),
-    deliveries: 0, tripsCount: 1, route: 'LOCAL', notes: notes || '',
+    deliveries: 0, tripsCount: 1, route: 'LOCAL', notes: '',
   });
   const kmTraveled = Math.max(0, Number(form.kmEnd) - trip.kmStart);
   const liters = (kmTraveled * (vehicle.litersPer100km || 21)) / 100;
