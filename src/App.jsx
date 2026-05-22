@@ -980,6 +980,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   useEffect(() => () => stopGpsTracking(), []);
 
   const startTrip = (data) => {
+    const realNow = new Date();
+    data = { ...data, startDate: realNow.toISOString().slice(0,10), startTime: realNow.toTimeString().slice(0,5) };
     // Calcular tiempo en sucursal de destino del viaje anterior
     const lastTripSameVehicle = [...trips].filter(t => t.vehicleId === selectedVehicle.id).sort((a, b) => b.createdAt - a.createdAt)[0];
     if (lastTripSameVehicle && lastTripSameVehicle.destinationBranchId === data.originBranchId) {
@@ -1040,6 +1042,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   };
 
   const finishTrip = (data) => {
+    const realNow = new Date();
+    data = { ...data, endDate: realNow.toISOString().slice(0,10), endTime: realNow.toTimeString().slice(0,5) };
     const v = vehicles.find(x => x.id === currentTrip.vehicleId);
     const kmTraveled = Math.max(0, Number(data.kmEnd) - currentTrip.kmStart);
     const liters = (kmTraveled * (v.litersPer100km || 21)) / 100;
