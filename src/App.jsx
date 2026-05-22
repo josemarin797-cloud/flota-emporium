@@ -1245,7 +1245,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={() => setStep('start')} onBack={() => setStep('select')} config={config} />}
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={myTrips} onBack={() => setStep('checklist')} onStart={startTrip} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} />}
-          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} />}
+          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
         {tab === 'history' && <DriverHistoryView trips={myTrips} vehicles={vehicles} branches={branches} />}
@@ -1748,7 +1748,7 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }
   );
 }
 
-function TripCompleteView({ trip, driver, vehicle, branches, onNewTrip, onLogout, onMarkDeparted, onFinishJornada }) {
+function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, onLogout, onMarkDeparted, onFinishJornada }) {
   const origin = branches.find(b => b.id === trip.originBranchId);
   const destination = branches.find(b => b.id === trip.destinationBranchId);
   const [timeAtDest, setTimeAtDest] = useState('');
