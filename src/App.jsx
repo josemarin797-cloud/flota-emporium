@@ -1780,6 +1780,13 @@ function TripCompleteView({ trip, driver, vehicle, branches, onNewTrip, onLogout
     onMarkDeparted(trip.id);
     setDeparted(true);
     setShowConfirmDialog(false);
+    const wh2 = config.discordWebhookByVehicle?.[trip.vehicleId] || config.discordWebhookGeneral;
+    if (wh2) sendDiscordNotification(wh2, {
+      title: `🚪 Salida de sucursal · ${vehicle?.code}`,
+      description: `⏱️ Tiempo en ${destination?.name}: ${minutes > 59 ? Math.floor(minutes / 60) + 'h ' + minutes % 60 + 'min' : minutes + ' min'}`,
+      color: 0x8b5cf6,
+      footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` }
+    }).catch(() => {});
   };
 
   return (
