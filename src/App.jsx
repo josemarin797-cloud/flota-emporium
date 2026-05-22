@@ -1681,12 +1681,8 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
         className="w-full py-3 rounded-2xl font-bold text-blue-300 bg-blue-950/40 border-2 border-blue-700/40 hover:bg-blue-900/40 flex items-center justify-center gap-2 transition">
         <Camera className="w-5 h-5" /> Tomar foto / documento
       </button>
-      <div className="bg-stone-900/60 rounded-xl p-3 border border-stone-700/50">
-        <label className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2 block">📝 Notas del viaje</label>
-        <textarea value={tripNotes} onChange={e => setTripNotes(e.target.value)}
-          placeholder="Escribe aquí cualquier novedad, incidencia o comentario del viaje..."
-          className="w-full bg-transparent text-stone-200 text-sm resize-none outline-none placeholder:text-stone-600" rows={3} />
-      </div>
+      
+
       <button onClick={() => setShowFinishForm(true)}
         className="w-full py-5 rounded-2xl font-bold text-white bg-gradient-to-r from-rose-500 to-rose-700 hover:from-rose-400 active:scale-[0.98] shadow-xl shadow-rose-500/40 flex items-center justify-center gap-2 text-lg">
         <Square className="w-6 h-6 fill-white" /> REGISTRAR LLEGADA
