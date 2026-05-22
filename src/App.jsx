@@ -1389,6 +1389,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
 function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart }) {
   const lastTrip = useMemo(() => [...trips].filter(t => t.vehicleId === vehicle.id).sort((a, b) => b.createdAt - a.createdAt)[0], [trips, vehicle]);
   const now = new Date();
+  const [formOpenedAt] = useState(() => Date.now());
   const [form, setForm] = useState({
     originBranchId: lastTrip ? lastTrip.destinationBranchId : (branches[0]?.id || ''),
     destinationBranchId: '',
@@ -1403,7 +1404,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart }) {
   useEffect(() => {
     if (!showTimeAtBranch) { setTimeAtBranch(''); return; }
     const update = () => {
-      const arrivedMs = parseDateTime(lastTrip.endDate, lastTrip.endTime);
+      const arrivedMs = formOpenedAt;
       const totalSec = Math.max(0, Math.floor((Date.now() - arrivedMs) / 1000));
       const h = Math.floor(totalSec / 3600); const m = Math.floor((totalSec % 3600) / 60); const s = totalSec % 60;
       setTimeAtBranch(h > 0 ? `${h}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s` : `${m}m ${s.toString().padStart(2,'0')}s`);
