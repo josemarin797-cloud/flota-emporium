@@ -3024,66 +3024,176 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       return;
     }
     setExporting(true);
-    setExportMsg({ type: 'info', msg: 'Generando archivo...' });
+    setExportMsg({ type: 'info', msg: 'Generando reporte mensual...' });
 
-    // Intento 1: XLSX nativo (mejor formato con hojas separadas)
+    // ============================================================
+    // REPORTE MENSUAL — 3 HOJAS:
+    //   1) DASHBOARD DEL MES   — KPIs por camión + totales flota
+    //   2) REGISTRO DIARIO     — 1 fila por día/camión trabajado
+    //   3) DETALLE DE VIAJES   — cada viaje individual del mes
+    // ============================================================
     try {
       if (XLSX && XLSX.utils && XLSX.utils.book_new) {
         const wb = XLSX.utils.book_new();
+        const round2 = (n) => Number((n || 0).toFixed(2));
+
+        // ---------- HOJA 1: DASHBOARD DEL MES ----------
+        const dashRows = [
+          ['REPORTE MENSUAL DE FLOTA — TRANSPORTE EMPORIUM'],
+          [`Generado: ${new Date().toLocaleString('es-VE')}`],
+          [],
+          ['Camión', 'Placa', 'Días operativos', 'KM total', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'KM/L'],
+        ];
+
+        let flotaKm = 0, flotaLt = 0, flotaCs = 0, flotaVj = 0, flotaEn = 0;
+        let bestKmL = 0, bestVehicle = '';
+
         vehicles.forEach(v => {
-          const vTrips = trips.filter(t => t.vehicleId === v.id);          const byDate = {};
-          vTrips.forEach(t => { (byDate[t.startDate] = byDate[t.startDate] || []).push(t); });
-          const rows = [
-            [`DEPARTAMENTO DE TRANSPORTE REGISTRO KILOMETRAJE`],
-            [`Matrícula:`, v.plate, v.code, '', '', '', '', `${v.litersPer100km} X100 aprox`],
-            ['CHOFER', 'FECHA', 'Surtido combustible', 'INICIO', 'FIN', 'KM inicio', 'KM final', 'KM rec.', 'Litros', 'Costo combustible', 'Gasto $', 'RUTA', 'VIAJES', 'Entregas', 'SALDO TANQUE']
-          ];
-          Object.entries(byDate).sort((a, b) => a[0].localeCompare(b[0])).forEach(([date, dt]) => {
-            const first = [...dt].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime))[0];
-            const last = [...dt].sort((a, b) => parseDateTime(b.endDate, b.endTime) - parseDateTime(a.endDate, a.endTime))[0];
+          const vTrips = trips.filter(t => t.vehicleId === v.id);
+          if (vTrips.length === 0) {
+            dashRows.push([v.code, v.plate, 0, 0, 0, 0, 0, 0, 0]);
+            return;
+          }
+          const dias = new Set(vTrips.map(t => t.startDate)).size;
+          const km = vTrips.reduce((s, t) => s + (t.kmTraveled || 0), 0);
+          const lt = vTrips.reduce((s, t) => s + (t.liters || 0), 0);
+          const cs = vTrips.reduce((s, t) => s + (t.cost || 0), 0);
+          const vj = vTrips.reduce((s, t) => s + (t.tripsCount || 1), 0);
+          const en = vTrips.reduce((s, t) => s + (t.deliveries || 0), 0);
+          const kmL = lt > 0 ? km / lt : 0;
+          if (kmL > bestKmL) { bestKmL = kmL; bestVehicle = v.code; }
+          flotaKm += km; flotaLt += lt; flotaCs += cs; flotaVj += vj; flotaEn += en;
+          dashRows.push([v.code, v.plate, dias, round2(km), round2(lt), round2(cs), vj, en, round2(kmL)]);
+        });
+
+        dashRows.push([]);
+        dashRows.push(['TOTAL FLOTA', '', '', round2(flotaKm), round2(flotaLt), round2(flotaCs), flotaVj, flotaEn, flotaLt > 0 ? round2(flotaKm / flotaLt) : 0]);
+        dashRows.push([]);
+        dashRows.push(['🏆 Camión más eficiente:', bestVehicle, `${round2(bestKmL)} km/L`]);
+
+        const wsDash = XLSX.utils.aoa_to_sheet(dashRows);
+        wsDash['!cols'] = [
+          { wch: 22 }, { wch: 14 }, { wch: 16 }, { wch: 12 }, { wch: 12 },
+          { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }
+        ];
+        wsDash['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } }
+        ];
+        XLSX.utils.book_append_sheet(wb, wsDash, 'Dashboard');
+
+        // ---------- HOJA 2: REGISTRO DIARIO ----------
+        const regRows = [
+          ['REGISTRO DIARIO POR CAMIÓN'],
+          [],
+          ['Camión', 'Fecha', 'Chofer', 'Hora inicio', 'Hora fin', 'KM inicio', 'KM final', 'KM rec.', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'Ruta', 'Notas']
+        ];
+
+        // Agrupar por (vehículo + fecha)
+        const grupos = {};
+        trips.forEach(t => {
+          const key = `${t.vehicleId}__${t.startDate}`;
+          (grupos[key] = grupos[key] || []).push(t);
+        });
+
+        // Ordenar por fecha y luego por camión
+        Object.entries(grupos)
+          .sort((a, b) => {
+            const [, fechaA] = a[0].split('__');
+            const [, fechaB] = b[0].split('__');
+            return fechaA.localeCompare(fechaB);
+          })
+          .forEach(([key, dt]) => {
+            const [vId, fecha] = key.split('__');
+            const v = vehicles.find(x => x.id === vId);
+            const ordenados = [...dt].sort((a, b) =>
+              parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime)
+            );
+            const first = ordenados[0];
+            const last = [...dt].sort((a, b) =>
+              parseDateTime(b.endDate, b.endTime) - parseDateTime(a.endDate, a.endTime)
+            )[0];
             const driver = drivers.find(d => d.id === first.driverId);
-            const totalKm = dt.reduce((s, t) => s + t.kmTraveled, 0);
-            const totalLiters = dt.reduce((s, t) => s + t.liters, 0);
-            const totalCost = dt.reduce((s, t) => s + t.cost, 0);
-            const totalDel = dt.reduce((s, t) => s + (t.deliveries || 0), 0);
-            const totalTr = dt.reduce((s, t) => s + (t.tripsCount || 1), 0);
-            const fl = dt.reduce((s, t) => s + (t.fuelLoaded || 0), 0);
-            rows.push([driver?.shortName || '', date, fl > 0 ? fl : '', first.startTime, last.endTime, first.kmStart, last.kmEnd, totalKm, Number(totalLiters.toFixed(2)), first.fuelPrice || 0.5, Number(totalCost.toFixed(2)), first.route || 'LOCAL', totalTr, totalDel, '']);
+            const km = dt.reduce((s, t) => s + (t.kmTraveled || 0), 0);
+            const lt = dt.reduce((s, t) => s + (t.liters || 0), 0);
+            const cs = dt.reduce((s, t) => s + (t.cost || 0), 0);
+            const vj = dt.reduce((s, t) => s + (t.tripsCount || 1), 0);
+            const en = dt.reduce((s, t) => s + (t.deliveries || 0), 0);
+            const notas = dt.map(t => t.notes).filter(Boolean).join(' | ');
+
+            regRows.push([
+              v?.code || '',
+              fecha,
+              driver?.shortName || '',
+              first.startTime || '',
+              last.endTime || '',
+              first.kmStart || 0,
+              last.kmEnd || 0,
+              round2(km),
+              round2(lt),
+              round2(cs),
+              vj,
+              en,
+              first.route || 'LOCAL',
+              notas
+            ]);
           });
-          rows.push([]);
-          rows.push(['TOTAL', '', '', '', '', '', '', vTrips.reduce((s, t) => s + t.kmTraveled, 0), Number(vTrips.reduce((s, t) => s + t.liters, 0).toFixed(2)), '', Number(vTrips.reduce((s, t) => s + t.cost, 0).toFixed(2)), '', vTrips.reduce((s, t) => s + (t.tripsCount || 1), 0), vTrips.reduce((s, t) => s + (t.deliveries || 0), 0)]);
-          const ws = XLSX.utils.aoa_to_sheet(rows);
-          ws['!cols'] = Array(15).fill({ wch: 12 });
-          XLSX.utils.book_append_sheet(wb, ws, v.code.substring(0, 31));
-        });
-        // Hoja Registro de Viaje
-        const vr = [['Fecha', 'Unidad', 'Chofer', 'Origen', 'Destino', 'Salida', 'Llegada', 'T.Viaje (min)', 'T.Origen (min)', 'T.Destino (min)', 'KM Inicio', 'KM Final', 'KM Rec.', 'Litros', 'Costo $', 'Entregas', 'Notas']];
-        [...trips].sort((a, b) => a.createdAt - b.createdAt).forEach(t => {
-          const v = vehicles.find(x => x.id === t.vehicleId);
-          const d = drivers.find(x => x.id === t.driverId);
-          const o = branches.find(x => x.id === t.originBranchId);
-          const dest = branches.find(x => x.id === t.destinationBranchId);
-          vr.push([t.startDate, v?.code, d?.shortName, o?.name, dest?.name, t.startTime, t.endTime, t.tripMinutes, t.timeAtBranchPrevMinutes ?? '', t.timeAtDestinationMinutes ?? '', t.kmStart, t.kmEnd, t.kmTraveled, t.liters, t.cost, t.deliveries, t.notes || '']);
-        });
-        const wsV = XLSX.utils.aoa_to_sheet(vr);
-        wsV['!cols'] = Array(17).fill({ wch: 12 });
-        XLSX.utils.book_append_sheet(wb, wsV, 'Registro de Viaje');
 
-        // Resumen por conductor
-        const resDriver = [['Conductor', 'Viajes', 'KM Total', 'Litros', 'Costo $', 'Entregas', 'km/L promedio']];
-        drivers.forEach(d => {
-          const dt = trips.filter(t => t.driverId === d.id);
-          if (dt.length === 0) return;
-          const km = dt.reduce((s, t) => s + t.kmTraveled, 0);
-          const lt = dt.reduce((s, t) => s + t.liters, 0);
-          const cs = dt.reduce((s, t) => s + t.cost, 0);
-          const dl = dt.reduce((s, t) => s + (t.deliveries || 0), 0);
-          resDriver.push([d.name, dt.length, km, Number(lt.toFixed(2)), Number(cs.toFixed(2)), dl, lt > 0 ? Number((km / lt).toFixed(2)) : 0]);
-        });
-        const wsD = XLSX.utils.aoa_to_sheet(resDriver);
-        XLSX.utils.book_append_sheet(wb, wsD, 'Resumen Conductores');
+        const wsReg = XLSX.utils.aoa_to_sheet(regRows);
+        wsReg['!cols'] = [
+          { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 10 },
+          { wch: 11 }, { wch: 11 }, { wch: 10 }, { wch: 10 }, { wch: 11 },
+          { wch: 8 }, { wch: 10 }, { wch: 12 }, { wch: 30 }
+        ];
+        wsReg['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }];
+        XLSX.utils.book_append_sheet(wb, wsReg, 'Registro Diario');
 
-        const fileName = `flota_emporium_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        // ---------- HOJA 3: DETALLE DE VIAJES ----------
+        const detRows = [
+          ['DETALLE DE VIAJES DEL MES'],
+          [],
+          ['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'Hora salida', 'Hora llegada', 'Duración (min)', 'KM rec.', 'Litros', 'Costo $', 'Entregas', 'Notas']
+        ];
+
+        [...trips]
+          .sort((a, b) => {
+            const fa = parseDateTime(a.startDate, a.startTime);
+            const fb = parseDateTime(b.startDate, b.startTime);
+            return fa - fb;
+          })
+          .forEach(t => {
+            const v = vehicles.find(x => x.id === t.vehicleId);
+            const d = drivers.find(x => x.id === t.driverId);
+            const o = branches.find(x => x.id === t.originBranchId);
+            const dest = branches.find(x => x.id === t.destinationBranchId);
+            detRows.push([
+              t.startDate,
+              v?.code || '',
+              d?.shortName || '',
+              o?.name || '',
+              dest?.name || '',
+              t.startTime || '',
+              t.endTime || '',
+              t.tripMinutes || 0,
+              round2(t.kmTraveled || 0),
+              round2(t.liters || 0),
+              round2(t.cost || 0),
+              t.deliveries || 0,
+              t.notes || ''
+            ]);
+          });
+
+        const wsDet = XLSX.utils.aoa_to_sheet(detRows);
+        wsDet['!cols'] = [
+          { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 18 }, { wch: 18 },
+          { wch: 11 }, { wch: 11 }, { wch: 12 }, { wch: 10 }, { wch: 10 },
+          { wch: 11 }, { wch: 10 }, { wch: 30 }
+        ];
+        wsDet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 12 } }];
+        XLSX.utils.book_append_sheet(wb, wsDet, 'Detalle de Viajes');
+
+        // ---------- DESCARGAR ----------
+        const fileName = `reporte_flota_emporium_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, fileName);
         setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado` });
         setTimeout(() => setExportMsg(null), 5000);
@@ -3094,10 +3204,10 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       console.warn('XLSX nativo falló, usando fallback HTML:', e);
     }
 
-    // Intento 2 (fallback): HTML/XLS - SIEMPRE funciona
+    // Fallback HTML (si XLSX no carga)
     try {
       const html = generarExcelHTML();
-      const fileName = `flota_emporium_${new Date().toISOString().slice(0, 10)}.xls`;
+      const fileName = `reporte_flota_emporium_${new Date().toISOString().slice(0, 10)}.xls`;
       descargarArchivo(html, fileName, 'application/vnd.ms-excel;charset=utf-8');
       setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado (formato HTML)` });
       setTimeout(() => setExportMsg(null), 5000);
@@ -3119,7 +3229,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         </div>
         <button onClick={exportToExcel} disabled={exporting}
           className={`text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition ${exporting ? 'bg-stone-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-700/30'}`}>
-          <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'EXCEL'}
+          <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'REPORTE MENSUAL'}
         </button>
       </div>
       <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
