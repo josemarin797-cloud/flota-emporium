@@ -478,6 +478,7 @@ export default function App() {
         trips={trips} activeTrips={activeTrips} archivedMonths={archivedMonths} photos={photos} gpsTracks={gpsTracks}
         config={config}
         checklists={checklists}
+        handoffs={handoffs}
         saveVehicles={saveVehicles} saveDrivers={saveDrivers} saveBranches={saveBranches}
         saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} saveGpsTracks={saveGpsTracks}
         saveArchived={saveArchived} saveConfig={saveConfig} savePhotos={savePhotos}
@@ -2375,7 +2376,7 @@ function DriverHistoryView({ trips, vehicles, branches }) {
 // ============================================================
 // COORDINADOR
 // ============================================================
-function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos }) {
+function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos }) {
   const [tab, setTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
@@ -2443,9 +2444,9 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-5">
-        {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} />}
+        {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} />}
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
-        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} />}
+        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
         {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
@@ -2471,7 +2472,7 @@ function DarkMonthSelector({ selectedMonth, setSelectedMonth }) {
   );
 }
 
-function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selectedMonth, gpsTracks, config, checklists = [] }) {
+function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selectedMonth, gpsTracks, config, checklists = [], handoffs = [] }) {
   const [selectedChecklist, setSelectedChecklist] = React.useState(null);
   const kpis = useMemo(() => {
     const totalKm = trips.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
@@ -2753,6 +2754,57 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
           </div>
         )}
       </div>
+
+      {/* TRASPASOS DE UNIDAD DEL MES */}
+      {(() => {
+        const monthHandoffs = handoffs.filter(h => h.handoffDate && h.handoffDate.startsWith(selectedMonth));
+        if (monthHandoffs.length === 0) return null;
+        return (
+          <div className="bg-white rounded-2xl border border-amber-200 overflow-hidden shadow-sm">
+            <div className="px-4 py-3 border-b border-amber-100 bg-amber-50 flex items-center gap-2">
+              <span className="text-lg">📤</span>
+              <span className="font-bold text-stone-900 text-sm">Traspasos de unidad — {monthLabel}</span>
+              <span className="ml-auto bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">{monthHandoffs.length} traspaso{monthHandoffs.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-stone-50 text-[10px] text-stone-600 uppercase tracking-wider">
+                  <tr>
+                    <th className="text-left px-3 py-2">Fecha · Hora</th>
+                    <th className="text-left px-3 py-2">Unidad</th>
+                    <th className="text-left px-3 py-2">Entregó</th>
+                    <th className="text-left px-3 py-2">Recibió</th>
+                    <th className="text-right px-2 py-2">KM</th>
+                    <th className="text-right px-2 py-2">Combustible</th>
+                    <th className="text-left px-3 py-2">Obs. entrega</th>
+                    <th className="text-left px-3 py-2">Obs. recepción</th>
+                    <th className="text-center px-2 py-2">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...monthHandoffs].sort((a, b) => b.handoffDate?.localeCompare(a.handoffDate)).map(h => (
+                    <tr key={h.id} className="border-t border-stone-100 hover:bg-amber-50/50">
+                      <td className="px-3 py-2.5 font-mono text-xs text-stone-600">{h.handoffDate}<br/>{h.handoffTime}</td>
+                      <td className="px-3 py-2.5 font-bold text-stone-900">{h.vehicleCode}</td>
+                      <td className="px-3 py-2.5 text-stone-700">{h.fromDriverName}</td>
+                      <td className="px-3 py-2.5 text-stone-700">{h.toDriverName || <span className="text-stone-400 italic">Pendiente</span>}</td>
+                      <td className="px-2 py-2.5 text-right font-mono text-stone-700">{h.kmAtHandoff?.toLocaleString() || '-'}</td>
+                      <td className="px-2 py-2.5 text-right text-stone-700">{h.fuelAtHandoff ? `${h.fuelAtHandoff}L` : '-'}</td>
+                      <td className="px-3 py-2.5 text-xs text-stone-600">{h.notes || '-'}</td>
+                      <td className="px-3 py-2.5 text-xs text-stone-600">{h.receptionNotes || '-'}</td>
+                      <td className="px-2 py-2.5 text-center">
+                        {h.status === 'confirmed'
+                          ? <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">✅ Confirmado</span>
+                          : <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full">⏳ Pendiente</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -2935,7 +2987,7 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
 // ============================================================
 // VIAJES TABLE
 // ============================================================
-function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks }) {
+function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [] }) {
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
   // Refrescar cada minuto para actualizar los cronómetros "aún ahí"
@@ -3399,10 +3451,42 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         ];
         XLSX.utils.book_append_sheet(wb, wsDet, 'Detalle de Viajes');
 
+        // ════════════════════════════════════════════════════════════════
+        // HOJA — TRASPASOS DEL MES
+        // ════════════════════════════════════════════════════════════════
+        const trasRows = [];
+        trasRows.push(['📤  TRASPASOS DE UNIDAD DEL MES — TRANSPORTE EMPORIUM']);
+        trasRows.push([`Generado: ${new Date().toLocaleString('es-VE')}`]);
+        trasRows.push([]);
+        trasRows.push(['Fecha', 'Hora', 'Unidad', 'Entregó', 'Recibió', 'KM al entregar', 'Combustible (L)', 'Obs. entrega', 'Obs. recepción', 'Estado']);
+
+        const monthStr = new Date().toISOString().slice(0, 7);
+        const monthHandoffs = (handoffs || []).filter(h => h.handoffDate?.startsWith(monthStr));
+        if (monthHandoffs.length === 0) {
+          trasRows.push(['Sin traspasos registrados este mes']);
+        } else {
+          [...monthHandoffs].sort((a, b) => (a.handoffDate || '').localeCompare(b.handoffDate || '')).forEach(h => {
+            trasRows.push([
+              h.handoffDate || '', h.handoffTime || '',
+              h.vehicleCode || '', h.fromDriverName || '',
+              h.toDriverName || 'Pendiente',
+              h.kmAtHandoff || 0, h.fuelAtHandoff || 0,
+              h.notes || '', h.receptionNotes || '',
+              h.status === 'confirmed' ? '✅ Confirmado' : '⏳ Pendiente'
+            ]);
+          });
+        }
+        const wsTras = XLSX.utils.aoa_to_sheet(trasRows);
+        wsTras['!cols'] = [
+          { wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 16 }, { wch: 16 },
+          { wch: 14 }, { wch: 14 }, { wch: 22 }, { wch: 22 }, { wch: 14 }
+        ];
+        XLSX.utils.book_append_sheet(wb, wsTras, 'Traspasos');
+
         // ── Descargar ────────────────────────────────────────────────────
         const fileName = `reporte_flota_emporium_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, fileName);
-        setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado — 8 hojas` });
+        setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado — 9 hojas` });
         setTimeout(() => setExportMsg(null), 5000);
         setExporting(false);
         return;
