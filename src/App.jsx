@@ -521,6 +521,20 @@ function WelcomeScreen({ onOk }) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricRegistered, setBiometricRegistered] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+
+  useEffect(() => {
+    const check = async () => {
+      if (window.PublicKeyCredential) {
+        const ok = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        setBiometricAvailable(ok);
+        setBiometricRegistered(!!localStorage.getItem('emp:biometric:credId'));
+      }
+    };
+    check();
+  }, []);
 
   const tryEnter = () => {
     if (password.toLowerCase().trim() === GLOBAL_PASSWORD) {
@@ -534,6 +548,33 @@ function WelcomeScreen({ onOk }) {
       setError('Contraseña incorrecta');
       setPassword('');
     }
+  };
+
+  const registerBiometric = async () => {
+    setBiometricLoading(true);
+    try {
+      const challenge = new Uint8Array(32);
+      crypto.getRandomValues(challenge);
+      const cred = await navigator.credentials.create({ publicKey: { challenge, rp: { name: 'Transporte Emporium', id: location.hostname }, user: { id: new Uint8Array(16), name: 'usuario', displayName: 'Usuario' }, pubKeyCredParams: [{ type: 'public-key', alg: -7 }], authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' }, timeout: 30000 } });
+      localStorage.setItem('emp:biometric:credId', btoa(String.fromCharCode(...new Uint8Array(cred.rawId))));
+      setBiometricRegistered(true);
+      alert('Huella registrada correctamente');
+    } catch (e) { alert('No se pudo registrar: ' + e.message); }
+    setBiometricLoading(false);
+  };
+  const loginBiometric = async () => {
+    setBiometricLoading(true);
+    try {
+      const challenge = new Uint8Array(32);
+      crypto.getRandomValues(challenge);
+      const credIdStr = localStorage.getItem('emp:biometric:credId');
+      const credIdBytes = Uint8Array.from(atob(credIdStr), c => c.charCodeAt(0));
+      await navigator.credentials.get({ publicKey: { challenge, rpId: location.hostname, allowCredentials: [{ type: 'public-key', id: credIdBytes }], userVerification: 'required', timeout: 30000 } });
+      const greeting = getGreetingByTime();
+      setTimeout(() => speakText(greeting + '. Bienvenido al Sistema de Control de Flota Emporium.'), 300);
+      onOk();
+    } catch (e) { setError('Huella no reconocida. Usa tu contrasena.'); }
+    setBiometricLoading(false);
   };
 
   return (
@@ -593,6 +634,8 @@ function WelcomeScreen({ onOk }) {
             </div>
           )}
 
+          {biometricAvailable && biometricRegistered && <button onClick={loginBiometric} disabled={biometricLoading} className="w-full py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2 mb-2">{biometricLoading ? 'Verificando...' : 'Entrar con huella'}</button>}
+          {biometricAvailable && !biometricRegistered && <button onClick={registerBiometric} disabled={biometricLoading} className="w-full py-2 rounded-xl font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center justify-center gap-2 mb-2">{biometricLoading ? 'Registrando...' : 'Activar huella dactilar'}</button>}
           <button onClick={tryEnter} disabled={!password}
             className={`w-full py-3.5 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2 ${password ? 'bg-emerald-600 hover:bg-emerald-700 shadow-lg active:scale-[0.98]' : 'bg-stone-300'}`}>
             Entrar <ChevronRight className="w-5 h-5" />
