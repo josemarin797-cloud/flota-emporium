@@ -1177,7 +1177,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setCurrentTrip(null);
     setStep('select');
   };
-  const newTrip = () => { setCurrentTrip(null); setStep('select'); };
+  const newTrip = () => { setCurrentTrip(null); setStep('start'); }; // mantiene camión seleccionado
  // 🌙 Finalizar Jornada del día — calcula stats + voz + Discord
   const finalizarJornada = async () => {
     const hoy = new Date().toISOString().slice(0, 10);
@@ -1946,10 +1946,16 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
 
       <div className="grid grid-cols-2 gap-2">
           <button onClick={onLogout} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200">Salir</button>
-          <button onClick={onNewTrip} className="py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-lg shadow-emerald-700/30 flex items-center justify-center gap-2">
+          <button onClick={departed ? onNewTrip : undefined} disabled={!departed}
+            className={`py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${departed ? 'text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-lg shadow-emerald-700/30' : 'text-stone-400 bg-stone-200 cursor-not-allowed'}`}>
             <Plus className="w-5 h-5" /> Nuevo Viaje
           </button>
         </div>
+        {!departed && (
+          <p className="text-center text-xs text-purple-600 font-semibold -mt-1">
+            ⚠️ Marca tu salida de la sucursal antes de continuar
+          </p>
+        )}
         <button onClick={() => onFinishJornada && onFinishJornada()} className="w-full mt-2 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 shadow-lg shadow-purple-700/30 flex items-center justify-center gap-2">
           🌙 Finalizar Jornada de hoy
         </button>
