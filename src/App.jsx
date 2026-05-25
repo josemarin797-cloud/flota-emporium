@@ -16,6 +16,7 @@ const KEYS = {
   CONFIG: 'emp:v4:config',
   PHOTOS: 'emp:v4:photos',
   GPS_TRACKS: 'emp:v4:gps_tracks',
+  HANDOFFS:   'emp:v4:handoffs',
   CHECKLISTS: 'emp:v4:checklists',
 };
 
@@ -334,6 +335,7 @@ export default function App() {
   const [trips, setTrips] = useState([]);
   const [activeTrips, setActiveTrips] = useState([]);
   const [archivedMonths, setArchivedMonths] = useState([]);
+  const [handoffs, setHandoffs] = useState([]);
   const [photos, setPhotos] = useState([]);
   const [gpsTracks, setGpsTracks] = useState([]);
   const [checklists, setChecklists] = useState([]);
@@ -353,6 +355,7 @@ export default function App() {
           window.storage.get(KEYS.CONFIG).catch(() => null),
           window.storage.get(KEYS.PHOTOS).catch(() => null),
           window.storage.get(KEYS.GPS_TRACKS).catch(() => null),
+          window.storage.get(KEYS.HANDOFFS).catch(() => null),
         ]);
         if (reads[0]?.value) setVehicles(JSON.parse(reads[0].value));
         if (reads[1]?.value) setDrivers(JSON.parse(reads[1].value));
@@ -363,6 +366,7 @@ export default function App() {
         if (reads[6]?.value) setConfig(JSON.parse(reads[6].value));
         if (reads[7]?.value) setPhotos(JSON.parse(reads[7].value));
         if (reads[8]?.value) setGpsTracks(JSON.parse(reads[8].value));
+        if (reads[9]?.value) setHandoffs(JSON.parse(reads[9].value));
         // Cargar checklists desde SUPABASE (sincronizados entre todos los dispositivos)
         const sbData = await loadSBChecklists();
         if (sbData !== null) {
@@ -387,6 +391,7 @@ export default function App() {
   const saveConfig = (d) => { setConfig(d); persist(KEYS.CONFIG, d); };
   const savePhotos = (d) => { setPhotos(d); persist(KEYS.PHOTOS, d); };
   const saveGpsTracks = (d) => { setGpsTracks(d); persist(KEYS.GPS_TRACKS, d); };
+  const saveHandoffs = (d) => { setHandoffs(d); persist(KEYS.HANDOFFS, d); };
   // saveChecklists: guarda LOCAL siempre + Supabase si está disponible
   const saveChecklists = async (d) => {
     setChecklists(d);
@@ -459,6 +464,7 @@ export default function App() {
         savePhotos={savePhotos} saveGpsTracks={saveGpsTracks}
         checklists={checklists} saveChecklists={saveChecklists}
         config={config}
+        handoffs={handoffs} saveHandoffs={saveHandoffs}
       />
       <InstallAppButton />
     </>;
@@ -922,7 +928,7 @@ function LeafletMap({ markers = [], polylines = [], height = '400px', center = [
 // ============================================================
 // APP DEL CHOFER
 // ============================================================
-function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config }) {
+function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs }) {
   const [tab, setTab] = useState('trip');
   const [step, setStep] = useState('select');
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -930,6 +936,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [currentPosition, setCurrentPosition] = useState(null);
   const watchIdRef = useRef(null);
+  const [showEntregarModal, setShowEntregarModal] = useState(false);
 
   const myTrips = useMemo(() => trips.filter(t => t.driverId === currentDriver.id), [trips, currentDriver]);
   const myActiveTrips = useMemo(() => activeTrips.filter(t => t.driverId === currentDriver.id), [activeTrips, currentDriver]);
@@ -1178,6 +1185,29 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setStep('select');
   };
   const newTrip = () => { setCurrentTrip(null); setStep('start'); }; // mantiene camión seleccionado
+  const handleEntregarUnidad = (formData) => {
+    const vId = selectedVehicle?.id || currentTrip?.vehicleId;
+    const vCode = selectedVehicle?.code || vehicles.find(v => v.id === vId)?.code || '';
+    const now = new Date();
+    const handoff = {
+      id: `handoff_${Date.now()}`,
+      vehicleId: vId, vehicleCode: vCode,
+      fromDriverId: currentDriver.id,
+      fromDriverName: currentDriver.shortName || currentDriver.name,
+      kmAtHandoff: formData.km,
+      fuelAtHandoff: formData.fuel,
+      notes: formData.notes,
+      handoffDate: now.toISOString().slice(0, 10),
+      handoffTime: now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
+      status: 'pending',
+    };
+    const filtered = (handoffs || []).filter(h => !(h.vehicleId === vId && h.status === 'pending'));
+    saveHandoffs && saveHandoffs([...filtered, handoff]);
+    setShowEntregarModal(false);
+    setCurrentTrip(null);
+    setSelectedVehicle(null);
+    setStep('select');
+  };
  // 🌙 Finalizar Jornada del día — calcula stats + voz + Discord
   const finalizarJornada = async () => {
     const hoy = new Date().toISOString().slice(0, 10);
@@ -1298,11 +1328,12 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
       <main className="max-w-lg mx-auto p-4 pb-24">
         {tab === 'trip' && <>
-          {step === 'select' && <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onContinue={() => setStep('checklist')} />}
+          {step === 'select' && <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onContinue={() => setStep('checklist')} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} />}
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={() => setStep('start')} onBack={() => setStep('select')} config={config} />}
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={myTrips} onBack={() => setStep('checklist')} onStart={startTrip} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} />}
-          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} />}
+          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} />}
+          {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
         {tab === 'history' && <DriverHistoryView trips={myTrips} vehicles={vehicles} branches={branches} />}
@@ -1387,7 +1418,19 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
   );
 }
 
-function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue }) {
+function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver }) {
+  const pendingHandoff = selectedVehicle
+    ? (handoffs || []).find(h => h.vehicleId === selectedVehicle.id && h.status === 'pending' && h.fromDriverId !== currentDriver?.id)
+    : null;
+  const confirmHandoff = (receptionNotes) => {
+    if (!saveHandoffs) return;
+    const updated = (handoffs || []).map(h =>
+      h.id === pendingHandoff.id
+        ? { ...h, status: 'confirmed', toDriverId: currentDriver?.id, toDriverName: currentDriver?.shortName || currentDriver?.name, confirmedAt: new Date().toISOString(), receptionNotes }
+        : h
+    );
+    saveHandoffs(updated);
+  };
   return (
     <div className="space-y-4">
       {/* Paso 1 indicador */}
@@ -1435,10 +1478,51 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
         </div>
       </div>
 
-      <button onClick={onContinue} disabled={!selectedVehicle}
-        className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400'}`}>
+      {pendingHandoff && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">📋</span>
+            <div>
+              <div className="font-bold text-amber-900 text-sm">RECEPCIÓN DE UNIDAD</div>
+              <div className="text-xs text-amber-700">Entregado por: <b>{pendingHandoff.fromDriverName}</b> · {pendingHandoff.handoffTime}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="bg-white rounded-lg p-2 border border-amber-200">
+              <div className="text-xs text-stone-500">KM al entregar</div>
+              <div className="font-bold text-stone-900">{(pendingHandoff.kmAtHandoff || 0).toLocaleString()}</div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-amber-200">
+              <div className="text-xs text-stone-500">Combustible</div>
+              <div className="font-bold text-stone-900">{pendingHandoff.fuelAtHandoff || 0} L</div>
+            </div>
+          </div>
+          {pendingHandoff.notes && (
+            <div className="bg-white rounded-lg p-2 border border-amber-200 text-sm">
+              <div className="text-xs text-stone-500">Observaciones</div>
+              <div className="text-stone-800">{pendingHandoff.notes}</div>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => confirmHandoff('sin novedad')}
+              className="py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 text-sm flex items-center justify-center gap-1">
+              ✅ Recibí conforme
+            </button>
+            <button onClick={() => {
+              const obs = prompt('¿Qué observación tienes?');
+              if (obs !== null) confirmHandoff(obs || 'con observación');
+            }}
+              className="py-2.5 rounded-xl font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 text-sm flex items-center justify-center gap-1 border border-amber-300">
+              ⚠️ Con observación
+            </button>
+          </div>
+        </div>
+      )}
+      <button onClick={onContinue} disabled={!selectedVehicle || !!pendingHandoff}
+        className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle && !pendingHandoff ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400'}`}>
         Continuar <ArrowRight className="w-5 h-5" />
       </button>
+      {pendingHandoff && <p className="text-center text-xs text-amber-600 font-semibold">⚠️ Confirma la recepción para continuar</p>}
     </div>
   );
 }
@@ -1822,7 +1906,7 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }
   );
 }
 
-function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, onLogout, onMarkDeparted, onFinishJornada }) {
+function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, onLogout, onMarkDeparted, onFinishJornada, onEntregarUnidad }) {
   const origin = branches.find(b => b.id === trip.originBranchId);
   const destination = branches.find(b => b.id === trip.destinationBranchId);
   const [timeAtDest, setTimeAtDest] = useState('');
@@ -1956,9 +2040,67 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
             ⚠️ Marca tu salida de la sucursal antes de continuar
           </p>
         )}
+        {onEntregarUnidad && (
+          <button onClick={onEntregarUnidad}
+            className="w-full mt-2 py-3 rounded-xl font-bold text-amber-700 bg-amber-50 border-2 border-amber-200 hover:bg-amber-100 flex items-center justify-center gap-2 transition-all">
+            📤 Entregar unidad a otro chofer
+          </button>
+        )}
         <button onClick={() => onFinishJornada && onFinishJornada()} className="w-full mt-2 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 shadow-lg shadow-purple-700/30 flex items-center justify-center gap-2">
           🌙 Finalizar Jornada de hoy
         </button>
+    </div>
+  );
+}
+
+
+// ============================================================
+// MODAL ENTREGAR UNIDAD — Daniel llena y entrega a otro chofer
+// ============================================================
+function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose }) {
+  const [km, setKm] = React.useState('');
+  const [fuel, setFuel] = React.useState('');
+  const [notes, setNotes] = React.useState('sin novedad');
+  const canSubmit = km !== '' && Number(km) > 0;
+  return (
+    <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-2xl">📤</div>
+          <div>
+            <div className="font-bold text-stone-900 text-lg">Entregar unidad</div>
+            <div className="text-xs text-stone-500">{vehicle?.code} · {driver?.shortName || driver?.name}</div>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">KM actual *</label>
+            <input type="number" value={km} onChange={e => setKm(e.target.value)} placeholder="ej: 142168"
+              className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-amber-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Combustible (litros)</label>
+            <input type="number" value={fuel} onChange={e => setFuel(e.target.value)} placeholder="ej: 45"
+              className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-amber-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Observaciones</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+              className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-400 resize-none" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <button onClick={onClose}
+            className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">
+            Cancelar
+          </button>
+          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel: Number(fuel) || 0, notes })}
+            disabled={!canSubmit}
+            className={`py-3 rounded-xl font-bold text-white transition-all ${canSubmit ? 'bg-amber-500 hover:bg-amber-600' : 'bg-stone-200 text-stone-400'}`}>
+            Entregar ✅
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
