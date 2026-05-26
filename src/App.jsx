@@ -3386,7 +3386,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 
           // Sección: detalle por viaje
           rows.push(['DETALLE DE VIAJES', ...Array(14).fill('')]);
-          rows.push(['Fecha', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje', 'T.Origen', 'T.Destino', 'H.Salida Suc.', 'KM rec.', 'Litros', 'Costo $', 'Entregas', 'Notas']);
+          rows.push(['Fecha', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'KM Salida', 'KM Llegada', 'T.Viaje', 'Espera Origen', 'Tiempo en Destino', 'Salida Destino', 'KM rec.', 'Litros', 'Costo $', 'Entregas', 'Notas']);
 
           const sortedTrips = [...vt].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime));
           const detStartR = rows.length;
@@ -3399,6 +3399,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               t.startDate, d?.shortName || '',
               o?.name || '', dest?.name || '',
               t.startTime || '', t.endTime || '',
+              t.kmStart || 0, t.kmEnd || 0,
               fmtMin(t.tripMinutes),
               fmtMin(t.timeAtBranchPrevMinutes),
               fmtMin(tDest),
@@ -3438,7 +3439,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           rows.push([`Eficiencia: ${totLt > 0 ? r2(totKm / totLt) + ' km/L' : 'Sin datos'}     ${kmLText(totLt > 0 ? totKm / totLt : 0)}`]);
 
           const ws = XLSX.utils.aoa_to_sheet(rows);
-          const NCV = 15;
+          const NCV = 17;
           ws['!merges'] = [
             { s: { r: 0, c: 0 }, e: { r: 0, c: NCV - 1 } },
             { s: { r: 1, c: 0 }, e: { r: 1, c: NCV - 1 } },
@@ -3452,8 +3453,10 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           sortedTrips.forEach((_, i) => {
             const ri = detStartR + i; const e = i % 2 === 0;
             for (let c = 0; c < NCV; c++) {
-              if (c >= 4 && c <= 9) sc(ws, ri, c, ST.timeCell(e));
-              else if (c >= 10 && c <= 13) sc(ws, ri, c, ST.dataRight(e));
+              if (c === 4 || c === 5) sc(ws, ri, c, ST.timeCell(e));        // H.Salida, H.Llegada
+              else if (c === 6 || c === 7) sc(ws, ri, c, ST.dataRight(e));  // KM Salida, KM Llegada
+              else if (c >= 8 && c <= 11) sc(ws, ri, c, ST.timeCell(e));    // T.Viaje, Espera, T.Destino, Salida Destino
+              else if (c >= 12 && c <= 15) sc(ws, ri, c, ST.dataRight(e));  // KM rec, Litros, Costo, Entregas
               else sc(ws, ri, c, e ? ST.dataEven : ST.dataOdd);
             }
           });
@@ -3464,7 +3467,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
             for (let c = 0; c < 12; c++) sc(ws, ri, c, c >= 2 && c <= 10 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
           });
           for (let c = 0; c < 12; c++) sc(ws, totalR, c, c >= 6 ? ST.totalRight : ST.totalRow);
-          ws['!cols'] = [{ wch: 12 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 9 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 22 }];
+          ws['!cols'] = [{ wch: 12 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 13 }, { wch: 14 }, { wch: 13 }, { wch: 9 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 22 }];
           ws['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
           XLSX.utils.book_append_sheet(wb, ws, v.code.substring(0, 31));
         });
