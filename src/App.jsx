@@ -442,6 +442,29 @@ export default function App() {
       }
     } catch (e) {}
 
+    // Subir fotos pendientes de IndexedDB
+    try {
+      const photoQueue = await idbGetAll();
+      for (const item of photoQueue) {
+        try {
+          if (item.type === 'discord') {
+            const blob = base64ToBlob(item.photoData);
+            const fd = new FormData();
+            fd.append('files[0]', blob, item.filename || 'photo.jpg');
+            if (item.embed) {
+              fd.append('payload_json', JSON.stringify({ embeds: [item.embed] }));
+            } else {
+              fd.append('payload_json', JSON.stringify({ content: item.content }));
+            }
+            const res = await fetch(item.webhookUrl, { method: 'POST', body: fd });
+            if (res.ok || res.status === 204) {
+              await idbDelete(item.id);
+            }
+          }
+        } catch(e) { break; } // Sin internet → parar
+      }
+    } catch(e) {}
+
     // Enviar notificaciones Discord pendientes
     try {
       const queue = JSON.parse(localStorage.getItem(KEYS.DISC_QUEUE) || '[]');
@@ -624,6 +647,64 @@ function formatDuration(min) {
 }
 
 // Discord webhook - devuelve resultado detallado
+
+// ============================================================
+// INDEXEDDB — Cola de fotos offline
+// ============================================================
+const openPhotoDB = () => new Promise((resolve, reject) => {
+  const req = indexedDB.open('flotaPhotosDB', 1);
+  req.onupgradeneeded = e => {
+    const db = e.target.result;
+    if (!db.objectStoreNames.contains('photoQueue'))
+      db.createObjectStore('photoQueue', { keyPath: 'id', autoIncrement: true });
+  };
+  req.onsuccess = e => resolve(e.target.result);
+  req.onerror = () => reject(req.error);
+});
+const idbAdd = async (data) => {
+  try {
+    const db = await openPhotoDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('photoQueue', 'readwrite');
+      const req = tx.objectStore('photoQueue').add(data);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  } catch(e) {}
+};
+const idbGetAll = async () => {
+  try {
+    const db = await openPhotoDB();
+    return new Promise(resolve => {
+      const tx = db.transaction('photoQueue', 'readonly');
+      const req = tx.objectStore('photoQueue').getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    });
+  } catch(e) { return []; }
+};
+const idbDelete = async (id) => {
+  try {
+    const db = await openPhotoDB();
+    const tx = db.transaction('photoQueue', 'readwrite');
+    tx.objectStore('photoQueue').delete(id);
+  } catch(e) {}
+};
+const fileToBase64 = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
+const base64ToBlob = (base64) => {
+  const arr = base64.split(','), mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while(n--) u8arr[n] = bstr.charCodeAt(n);
+  return new Blob([u8arr], { type: mime });
+};
+
 async function sendDiscordNotification(webhookUrl, embed) {
   if (!webhookUrl || !webhookUrl.trim()) return { ok: false, error: 'Sin webhook configurado' };
   if (!webhookUrl.includes('discord.com/api/webhooks/')) return { ok: false, error: 'URL inválida (no parece de Discord)' };
@@ -1231,10 +1312,31 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     });
     if (data.tripPhotos?.length > 0 && webhookUrl) {
       for (const photo of data.tripPhotos) {
-        const fd = new FormData();
-        fd.append('files[0]', photo);
-        fd.append('payload_json', JSON.stringify({ content: `📸 Documento · ${selectedVehicle?.code} · ${currentDriver?.shortName || currentDriver?.name}` }));
-        await fetch(webhookUrl, { method: 'POST', body: fd }).catch(() => {});
+        const content = `📸 Documento · ${selectedVehicle?.code} · ${currentDriver?.shortName || currentDriver?.name}`;
+        if (!navigator.onLine) {
+          // Sin internet → guardar en IndexedDB para subir después
+          try {
+            const base64 = await fileToBase64(photo);
+            await idbAdd({ type: 'discord', webhookUrl, content, photoData: base64, filename: photo.name || 'photo.jpg', queuedAt: new Date().toISOString() });
+          } catch(e) {}
+        } else {
+          try {
+            const fd = new FormData();
+            fd.append('files[0]', photo);
+            fd.append('payload_json', JSON.stringify({ content }));
+            const res = await fetch(webhookUrl, { method: 'POST', body: fd });
+            if (!res.ok) {
+              // Fallo de red → guardar en cola
+              const base64 = await fileToBase64(photo);
+              await idbAdd({ type: 'discord', webhookUrl, content, photoData: base64, filename: photo.name || 'photo.jpg', queuedAt: new Date().toISOString() });
+            }
+          } catch(e) {
+            try {
+              const base64 = await fileToBase64(photo);
+              await idbAdd({ type: 'discord', webhookUrl, content, photoData: base64, filename: photo.name || 'photo.jpg', queuedAt: new Date().toISOString() });
+            } catch(e2) {}
+          }
+        }
       }
     }
   };
@@ -5560,8 +5662,32 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
   };
   if (cl.notas || cl.notes) embed.fields.push({ name: '📝 Novedades', value: cl.notas || cl.notes });
   embed.fields.push({ name: '✍️ Firma', value: (cl.firma || cl.signature) ? '✅ Firmado por el chofer' : '❌ Sin firma' });
-  embed.fields.push({ name: '📸 Foto', value: (cl.finalPhoto || cl.foto || cl.photo) ? '✅ Foto tomada' : '❌ Sin foto' });
-  await sendDiscordNotification(webhookUrl, embed);
+  const fotoData = cl.finalPhoto || cl.foto || cl.photo;
+  if (fotoData) {
+    embed.image = { url: 'attachment://foto_checklist.jpg' };
+    embed.fields.push({ name: '📸 Foto', value: '✅ Foto adjunta ↓' });
+  } else {
+    embed.fields.push({ name: '📸 Foto', value: '❌ Sin foto' });
+  }
+  // Enviar embed + foto adjunta en un solo mensaje
+  if (fotoData && webhookUrl) {
+    try {
+      if (!navigator.onLine) throw new Error('offline');
+      const blob = base64ToBlob(fotoData);
+      const fd = new FormData();
+      fd.append('files[0]', blob, 'foto_checklist.jpg');
+      fd.append('payload_json', JSON.stringify({ embeds: [embed] }));
+      const res = await fetch(webhookUrl, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error('http ' + res.status);
+    } catch(e) {
+      // Offline o error → guardar en cola
+      await idbAdd({ type: 'discord', webhookUrl, content: '📸 Foto checklist', photoData: fotoData, filename: 'foto_checklist.jpg', embed, queuedAt: new Date().toISOString() });
+      // Enviar solo embed sin foto (notificación inmediata)
+      await sendDiscordNotification(webhookUrl, { ...embed, image: undefined });
+    }
+  } else {
+    await sendDiscordNotification(webhookUrl, embed);
+  }
 }
 
 // ============================================================
