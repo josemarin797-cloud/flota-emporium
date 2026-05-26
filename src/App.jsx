@@ -3010,10 +3010,22 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
   const [exportMsg, setExportMsg] = useState(null);
   const [deleteUntil, setDeleteUntil] = useState('');
   const handleDeleteOld = () => {
-    if (!deleteUntil) return;
-    if (!window.confirm(`¿Borrar viajes anteriores al ${deleteUntil}?`)) return;
+    if (!deleteUntil) {
+      setExportMsg({ type: 'error', msg: '⚠️ Selecciona una fecha primero' });
+      setTimeout(() => setExportMsg(null), 3000);
+      return;
+    }
+    const toDelete = allTrips.filter(t => t.startDate < deleteUntil).length;
+    if (toDelete === 0) {
+      setExportMsg({ type: 'info', msg: `No hay viajes anteriores al ${deleteUntil}` });
+      setTimeout(() => setExportMsg(null), 3000);
+      return;
+    }
+    if (!window.confirm(`¿Borrar ${toDelete} viaje(s) anteriores al ${deleteUntil}? Esta acción no se puede deshacer.`)) return;
     const keep = allTrips.filter(t => t.startDate >= deleteUntil);
     saveTrips(keep);
+    setExportMsg({ type: 'success', msg: `✅ ${toDelete} viaje(s) eliminados` });
+    setTimeout(() => setExportMsg(null), 4000);
   };
 
   // Helper: convertir un valor a celda HTML escapando caracteres
@@ -3308,47 +3320,73 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         const periodoStr = periodo.length > 0 ? `${periodo[0]}  →  ${periodo[periodo.length - 1]}` : '';
 
         // ════════════════════════════════════════════════════════════════
-        // HOJA 1 — DASHBOARD (expresivo)
+        // HOJA 1 — DASHBOARD PROFESIONAL con barras visuales
         // ════════════════════════════════════════════════════════════════
+        const bar = (val, max, len = 18) => {
+          if (!max) return '░'.repeat(len);
+          const f = Math.min(Math.round((val / max) * len), len);
+          return '█'.repeat(f) + '░'.repeat(len - f);
+        };
+        const maxKm  = Math.max(...vMetrics.map(m => m.km), 1);
+        const maxLt  = Math.max(...vMetrics.map(m => m.lt), 1);
+        const maxEn  = Math.max(...vMetrics.map(m => m.en), 1);
+        const maxKml = Math.max(...vMetrics.map(m => m.kml), 1);
+        const medals = ['1° 🥇', '2° 🥈', '3° 🥉', '4°', '5°', '6°'];
+        const NC = 8;
+
         const dd = [];
-        // Título + subtítulo
-        dd.push(['REPORTE MENSUAL DE FLOTA — TRANSPORTE EMPORIUM', ...Array(9).fill('')]);
-        dd.push([`Período: ${periodoStr}     ·     Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(9).fill('')]);
-        dd.push(Array(10).fill(''));
+        // Fila 0: título principal
+        dd.push(['REPORTE MENSUAL DE FLOTA — TRANSPORTE EMPORIUM', ...Array(NC-1).fill('')]);
+        // Fila 1: subtítulo
+        dd.push([`Período: ${periodoStr}     ·     Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(NC-1).fill('')]);
+        dd.push(Array(NC).fill(''));
 
-        // Sección KPIs (labels en fila 3, valores en fila 4)
-        dd.push(['KM TOTAL', 'LITROS CONSUMIDOS', 'COSTO COMBUSTIBLE', 'VIAJES REALIZADOS', 'ENTREGAS', 'EFICIENCIA FLOTA', '', '', '', '']);
-        dd.push([r2(flotaKm), r2(flotaLt), `$ ${r2(flotaCs)}`, flotaVj, flotaEn, `${flotaLt > 0 ? r2(flotaKm / flotaLt) : 0} km/L`, '', '', '', '']);
-        dd.push(['km', 'litros', '', 'viajes', 'entregas', '', '', '', '', '']);
-        dd.push(Array(10).fill(''));
+        // Filas 3-5: KPIs (label, valor, unidad)
+        dd.push(['KM TOTAL', 'LITROS', 'COSTO $', 'VIAJES', 'ENTREGAS', 'EFICIENCIA', '', '']);
+        dd.push([r2(flotaKm), r2(flotaLt), `$ ${r2(flotaCs)}`, flotaVj, flotaEn, `${flotaLt > 0 ? r2(flotaKm/flotaLt) : 0} km/L`, '', '']);
+        dd.push(['kilómetros', 'litros consumidos', 'combustible', 'viajes realizados', 'entregas completadas', 'promedio flota', '', '']);
+        dd.push(Array(NC).fill(''));
 
-        // Tabla rendimiento
-        dd.push(['RENDIMIENTO POR CAMIÓN', ...Array(9).fill('')]);
-        dd.push(['Camión', 'Placa', 'Días op.', 'KM Total', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'km/L', 'Estado']);
-        vMetrics.forEach(({ v, dias, km, lt, cs, vj, en, kml }) => {
-          dd.push([v.code, v.plate, dias, r2(km), r2(lt), r2(cs), vj, en, r2(kml), kmLText(kml)]);
+        // Sección: barras KM
+        const kmBarR = dd.length;
+        dd.push(['KILÓMETROS RECORRIDOS POR UNIDAD', ...Array(NC-1).fill('')]);
+        dd.push(['Unidad', 'Gráfico', '', 'KM', 'Estado', '', '', '']);
+        vMetrics.forEach(({ v, km, kml }) => {
+          dd.push([v.code, bar(km, maxKm), '', r2(km), kmLText(kml), '', '', '']);
+        });
+        dd.push(Array(NC).fill(''));
+
+        // Sección: barras EFICIENCIA
+        const kmlBarR = dd.length;
+        dd.push(['EFICIENCIA DE COMBUSTIBLE (km/L)', ...Array(NC-1).fill('')]);
+        dd.push(['Unidad', 'Gráfico', '', 'km/L', 'Estado', '', '', '']);
+        ranked.forEach(({ v, kml }, i) => {
+          dd.push([`${medals[i]||`${i+1}°`} ${v.code}`, bar(kml, maxKml), '', r2(kml), kmLText(kml), '', '', '']);
+        });
+        dd.push(Array(NC).fill(''));
+
+        // Sección: tabla resumen
+        const tblR = dd.length;
+        dd.push(['RESUMEN POR UNIDAD', ...Array(NC-1).fill('')]);
+        dd.push(['Camión', 'Placa', 'Días op.', 'KM', 'Litros', 'Costo $', 'Viajes', 'Entregas']);
+        vMetrics.forEach(({ v, dias, km, lt, cs, vj, en }) => {
+          dd.push([v.code, v.plate, dias, r2(km), r2(lt), r2(cs), vj, en]);
         });
         const dashTotalR = dd.length;
-        dd.push(['TOTAL FLOTA', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn, flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, '']);
-        dd.push(Array(10).fill(''));
-
-        // Ranking
-        const rankR = dd.length;
-        dd.push(['RANKING DE EFICIENCIA', ...Array(9).fill('')]);
-        dd.push(['#', 'Camión', 'Placa', 'km/L', 'Estado', 'KM recorridos', 'Litros', '', '', '']);
-        const medals = ['1° 🥇', '2° 🥈', '3° 🥉', '4°', '5°', '6°'];
-        ranked.forEach(({ v, km, lt, kml }, i) => {
-          dd.push([medals[i] || `${i + 1}°`, v.code, v.plate, r2(kml), kmLText(kml), r2(km), r2(lt), '', '', '']);
-        });
+        dd.push(['TOTAL FLOTA', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn]);
 
         const wsDash = XLSX.utils.aoa_to_sheet(dd);
-        const NC = 10;
-        wsDash['!merges'] = [
-          { s: { r: 0, c: 0 }, e: { r: 0, c: NC - 1 } },
-          { s: { r: 1, c: 0 }, e: { r: 1, c: NC - 1 } },
-          { s: { r: 7, c: 0 }, e: { r: 7, c: NC - 1 } },
-          { s: { r: rankR, c: 0 }, e: { r: rankR, c: NC - 1 } },
+        const merges = [
+          { s:{r:0,c:0}, e:{r:0,c:NC-1} }, { s:{r:1,c:0}, e:{r:1,c:NC-1} },
+          { s:{r:kmBarR,c:0}, e:{r:kmBarR,c:NC-1} },
+          { s:{r:kmlBarR,c:0}, e:{r:kmlBarR,c:NC-1} },
+          { s:{r:tblR,c:0}, e:{r:tblR,c:NC-1} },
         ];
+        // Merge columna de barras (col 1-2) en cada fila de datos
+        vMetrics.forEach((_, i) => merges.push({ s:{r:kmBarR+2+i,c:1}, e:{r:kmBarR+2+i,c:2} }));
+        ranked.forEach((_, i) => merges.push({ s:{r:kmlBarR+2+i,c:1}, e:{r:kmlBarR+2+i,c:2} }));
+        wsDash['!merges'] = merges;
+
         sr(wsDash, 0, NC, ST.title);
         sr(wsDash, 1, NC, ST.subtitle);
         // KPI labels (fila 3)
@@ -3356,23 +3394,44 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         // KPI values (fila 4)
         for (let c = 0; c < 6; c++) sc(wsDash, 4, c, ST.kpiBox);
         // KPI units (fila 5)
-        for (let c = 0; c < 6; c++) sc(wsDash, 5, c, { ...ST.statusSinDatos, font: { color: { rgb: C.midGray }, sz: 8, italic: true } });
-        sr(wsDash, 7, NC, ST.secHeader);
-        for (let c = 0; c < NC; c++) sc(wsDash, 8, c, ST.colHeader);
-        vMetrics.forEach(({ kml }, i) => {
-          const ri = 9 + i; const e = i % 2 === 0;
-          for (let c = 0; c < 9; c++) sc(wsDash, ri, c, c >= 3 && c <= 8 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
-          sc(wsDash, ri, 9, kmLST(kml));
+        for (let c = 0; c < 6; c++) sc(wsDash, 5, c, { font:{color:{rgb:C.midGray},sz:8,italic:true,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'F0FDF4'}}, alignment:{horizontal:'center'} });
+
+        // Barras KM
+        sr(wsDash, kmBarR, NC, ST.secHeader);
+        for (let c2 = 0; c2 < 5; c2++) sc(wsDash, kmBarR+1, c2, ST.colHeader);
+        vMetrics.forEach(({ km, kml }, i) => {
+          const ri = kmBarR+2+i; const e = i%2===0;
+          sc(wsDash, ri, 0, e ? ST.dataEven : ST.dataOdd);
+          // Celda de barra con color según eficiencia
+          const barColor = kml >= 5 ? {rgb:C.lightGreen} : kml >= 3 ? {rgb:C.amber} : kml > 0 ? {rgb:C.red} : {rgb:C.lightGray};
+          sc(wsDash, ri, 1, { font:{color:{rgb:kml>=5?C.tealGreen:kml>=3?C.amberDark:kml>0?C.redDark:C.midGray},sz:9,name:'Courier New'}, fill:{patternType:'solid',fgColor:barColor}, border:bdr(), alignment:{horizontal:'left'} });
+          sc(wsDash, ri, 3, ST.dataRight(e));
+          sc(wsDash, ri, 4, kmLST(kml));
         });
-        for (let c = 0; c < NC; c++) sc(wsDash, dashTotalR, c, c >= 3 ? ST.totalRight : ST.totalRow);
-        sr(wsDash, rankR, NC, ST.secHeader);
-        for (let c = 0; c < 7; c++) sc(wsDash, rankR + 1, c, ST.colHeader);
+
+        // Barras eficiencia
+        sr(wsDash, kmlBarR, NC, ST.secHeader);
+        for (let c2 = 0; c2 < 5; c2++) sc(wsDash, kmlBarR+1, c2, ST.colHeader);
         ranked.forEach(({ kml }, i) => {
-          const ri = rankR + 2 + i; const e = i % 2 === 0;
-          for (let c = 0; c < 7; c++) sc(wsDash, ri, c, c === 0 ? { font: { bold: true, color: { rgb: C.white }, sz: 10 }, fill: { patternType: 'solid', fgColor: { rgb: '92400E' } }, alignment: { horizontal: 'center' } } : c === 4 ? kmLST(kml) : c >= 3 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
+          const ri = kmlBarR+2+i; const e = i%2===0;
+          sc(wsDash, ri, 0, { font:{bold:true,color:{rgb:C.white},sz:9,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:kml>=5?C.medGreen:kml>=3?'B45309':'9B1C1C'}}, alignment:{horizontal:'left'} });
+          const barColor2 = kml>=5?{rgb:C.lightGreen}:kml>=3?{rgb:C.amber}:{rgb:C.lightGray};
+          sc(wsDash, ri, 1, { font:{color:{rgb:kml>=5?C.tealGreen:kml>=3?C.amberDark:C.midGray},sz:9,name:'Courier New'}, fill:{patternType:'solid',fgColor:barColor2}, border:bdr(), alignment:{horizontal:'left'} });
+          sc(wsDash, ri, 3, ST.dataRight(e));
+          sc(wsDash, ri, 4, kmLST(kml));
         });
-        wsDash['!cols'] = [{ wch: 20 }, { wch: 13 }, { wch: 10 }, { wch: 11 }, { wch: 11 }, { wch: 14 }, { wch: 8 }, { wch: 10 }, { wch: 9 }, { wch: 14 }];
-        wsDash['!rows'] = [{ hpt: 30 }, { hpt: 16 }, { hpt: 8 }, { hpt: 22 }, { hpt: 28 }, { hpt: 14 }];
+
+        // Tabla resumen
+        sr(wsDash, tblR, NC, ST.secHeader);
+        for (let c2 = 0; c2 < NC; c2++) sc(wsDash, tblR+1, c2, ST.colHeader);
+        vMetrics.forEach((_, i) => {
+          const ri = tblR+2+i; const e = i%2===0;
+          for (let c2 = 0; c2 < NC; c2++) sc(wsDash, ri, c2, c2>=3?ST.dataRight(e):(e?ST.dataEven:ST.dataOdd));
+        });
+        for (let c2 = 0; c2 < NC; c2++) sc(wsDash, dashTotalR, c2, c2>=3?ST.totalRight:ST.totalRow);
+
+        wsDash['!cols'] = [{wch:22},{wch:22},{wch:4},{wch:10},{wch:14},{wch:12},{wch:8},{wch:9}];
+        wsDash['!rows'] = [{hpt:30},{hpt:16},{hpt:8},{hpt:22},{hpt:30},{hpt:14},{hpt:8}];
         XLSX.utils.book_append_sheet(wb, wsDash, 'Dashboard');
 
         // ════════════════════════════════════════════════════════════════
