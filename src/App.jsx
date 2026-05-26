@@ -1935,7 +1935,16 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     return () => clearInterval(id);
   }, [isWaiting, waitStart]);
 
-  const startWaiting = () => { setIsWaiting(true); setWaitStart(Date.now()); };
+  const startWaiting = () => {
+    // Guardar tiempo en destino hasta este momento
+    const arrivedMs = parseDateTime(trip.endDate, trip.endTime);
+    const minutesAtDest = Math.max(0, Math.round((Date.now() - arrivedMs) / 60000));
+    setConfirmedMinutes(minutesAtDest);
+    onMarkDeparted(trip.id); // guarda T.Destino hasta ahora
+    setDeparted(true);       // detiene el timer morado
+    setIsWaiting(true);
+    setWaitStart(Date.now());
+  };
   const endWaiting = (goToNewTrip) => {
     const waitMin = waitStart ? Math.max(0, Math.round((Date.now() - waitStart) / 60000)) : 0;
     if (onWaitEnd) onWaitEnd(trip.id, waitMin);
@@ -2020,9 +2029,14 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
             </div>
             <Timer className="w-12 h-12 opacity-40" />
           </div>
-          <button onClick={handleDeparted} className="w-full mt-4 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur rounded-lg font-semibold text-sm flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4" /> Marcar salida de sucursal
-          </button>
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            <button onClick={handleDeparted} className="py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur rounded-lg font-semibold text-sm flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4" /> Marcar salida
+            </button>
+            <button onClick={startWaiting} className="py-2.5 bg-blue-400/30 hover:bg-blue-400/50 backdrop-blur rounded-lg font-semibold text-sm flex items-center justify-center gap-2">
+              ⏸️ Sin viajes por ahora
+            </button>
+          </div>
         </div>
       ) : (
         <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4">
@@ -2030,13 +2044,6 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
           <div className="text-3xl font-bold text-stone-900 mt-1 font-mono">{formatDuration(confirmedMinutes ?? trip.timeAtDestinationMinutes ?? 0)}</div>
           <div className="text-xs text-stone-500 mt-1 font-mono">Salida registrada · Permanencia guardada</div>
         </div>
-      )}
-
-      {departed && !isWaiting && (
-        <button onClick={startWaiting}
-          className="w-full py-3 rounded-xl font-bold text-blue-700 bg-blue-50 border-2 border-blue-200 hover:bg-blue-100 flex items-center justify-center gap-2 transition-all">
-          ⏸️ Sin viajes por ahora — quedarme en espera
-        </button>
       )}
 
       {isWaiting && (
