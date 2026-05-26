@@ -3231,135 +3231,69 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         const wb = XLSX.utils.book_new();
         const r2 = (n) => Number((n || 0).toFixed(2));
 
-        // ── Paleta de colores ────────────────────────────────────────────
-        const C = {
-          darkGreen:  '1B4332', medGreen:   '2D6A4F', lightGreen: 'D1FAE5',
-          tealGreen:  '065F46', mintGreen:  'A7F3D0',
-          darkGray:   '1F2937', midGray:    '6B7280',  lightGray:  'F3F4F6',
-          borderGray: 'E5E7EB', white:      'FFFFFF',  black:      '111827',
-          amber:      'FEF3C7', amberDark:  '92400E',  amberBg:    'FFFBEB',
-          red:        'FEE2E2', redDark:    '991B1B',
-          blue:       'EFF6FF', blueDark:   '1E40AF',
+        // ── Helpers de tiempo ────────────────────────────────────────────
+        const fmtMin = (min) => {
+          if (!min || min <= 0) return '';
+          if (min > 2880) return '--';   // > 48h = dato incorrecto
+          if (min >= 60) return `${Math.floor(min / 60)}h ${min % 60}m`;
+          return `${min} min`;
+        };
+        const addMin = (timeStr, minutes) => {
+          if (!timeStr || !minutes || minutes <= 0 || minutes > 2880) return '';
+          const [h, m] = timeStr.split(':').map(Number);
+          const tot = h * 60 + m + minutes;
+          return `${String(Math.floor(tot / 60) % 24).padStart(2, '0')}:${String(tot % 60).padStart(2, '0')}`;
         };
 
-        // ── Fábrica de estilos ───────────────────────────────────────────
+        // ── Paleta ───────────────────────────────────────────────────────
+        const C = {
+          darkGreen: '1B4332', medGreen: '2D6A4F', lightGreen: 'D1FAE5',
+          tealGreen: '065F46', mintGreen: 'A7F3D0',
+          darkGray: '1F2937', midGray: '6B7280', lightGray: 'F3F4F6',
+          borderGray: 'E5E7EB', white: 'FFFFFF', black: '111827',
+          amber: 'FEF3C7', amberDark: '92400E',
+          red: 'FEE2E2', redDark: '991B1B',
+          blue: 'EFF6FF', blueDark: '1E3A8A',
+        };
+
         const bdr = (color = C.borderGray) => ({
-          top:    { style: 'thin', color: { rgb: color } },
-          bottom: { style: 'thin', color: { rgb: color } },
-          left:   { style: 'thin', color: { rgb: color } },
-          right:  { style: 'thin', color: { rgb: color } },
-        });
-        const bdrMedBottom = (color = C.medGreen) => ({
-          ...bdr(C.borderGray),
-          bottom: { style: 'medium', color: { rgb: color } },
+          top: { style: 'thin', color: { rgb: color } }, bottom: { style: 'thin', color: { rgb: color } },
+          left: { style: 'thin', color: { rgb: color } }, right: { style: 'thin', color: { rgb: color } },
         });
 
         const ST = {
-          title: {
-            font: { bold: true, color: { rgb: C.white }, sz: 14, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: C.darkGreen } },
-            alignment: { horizontal: 'center', vertical: 'center' },
-          },
-          subtitle: {
-            font: { italic: true, color: { rgb: 'A7F3D0' }, sz: 9, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: C.darkGreen } },
-            alignment: { horizontal: 'center' },
-          },
-          secHeader: {
-            font: { bold: true, color: { rgb: C.white }, sz: 10, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: C.medGreen } },
-            alignment: { horizontal: 'left', vertical: 'center' },
-          },
-          colHeader: {
-            font: { bold: true, color: { rgb: C.white }, sz: 9, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: C.darkGray } },
-            alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-            border: bdrMedBottom(),
-          },
-          dataEven: {
-            font: { color: { rgb: C.black }, sz: 9, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: 'F9FAFB' } },
-            border: bdr(),
-            alignment: { vertical: 'center' },
-          },
-          dataOdd: {
-            font: { color: { rgb: C.black }, sz: 9, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: C.white } },
-            border: bdr(),
-            alignment: { vertical: 'center' },
-          },
-          dataRight: (isEven) => ({
-            font: { color: { rgb: C.black }, sz: 9, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: isEven ? 'F9FAFB' : C.white } },
-            border: bdr(),
-            alignment: { horizontal: 'right', vertical: 'center' },
-          }),
-          totalRow: {
-            font: { bold: true, color: { rgb: C.tealGreen }, sz: 9, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: C.lightGreen } },
-            border: { ...bdr(C.mintGreen), top: { style: 'medium', color: { rgb: '059669' } } },
-            alignment: { vertical: 'center' },
-          },
-          totalRight: {
-            font: { bold: true, color: { rgb: C.tealGreen }, sz: 9, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: C.lightGreen } },
-            border: { ...bdr(C.mintGreen), top: { style: 'medium', color: { rgb: '059669' } } },
-            alignment: { horizontal: 'right', vertical: 'center' },
-          },
-          kpiLabel: {
-            font: { bold: true, color: { rgb: C.darkGray }, sz: 10, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: 'F9FAFB' } },
-            alignment: { vertical: 'center' },
-            border: bdr('D1FAE5'),
-          },
-          kpiValue: {
-            font: { bold: true, color: { rgb: C.tealGreen }, sz: 14, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: C.lightGreen } },
-            alignment: { horizontal: 'center', vertical: 'center' },
-            border: bdr(C.mintGreen),
-          },
-          kpiUnit: {
-            font: { color: { rgb: C.midGray }, sz: 9, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: C.lightGreen } },
-            alignment: { vertical: 'center' },
-            border: bdr(C.mintGreen),
-          },
-          green: { font: { bold: true, color: { rgb: '065F46' }, sz: 9 } },
-          yellow: { font: { bold: true, color: { rgb: C.amberDark }, sz: 9 } },
-          red: { font: { bold: true, color: { rgb: C.redDark }, sz: 9 } },
-          rankMedal: {
-            font: { bold: true, color: { rgb: C.white }, sz: 10, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: 'F59E0B' } },
-            alignment: { horizontal: 'center' },
-          },
-          amberRow: {
-            font: { color: { rgb: C.amberDark }, sz: 9, name: 'Calibri' },
-            fill: { patternType: 'solid', fgColor: { rgb: C.amberBg } },
-            border: bdr('FDE68A'),
-            alignment: { vertical: 'center' },
-          },
+          title: { font: { bold: true, color: { rgb: C.white }, sz: 14, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.darkGreen } }, alignment: { horizontal: 'center', vertical: 'center' } },
+          subtitle: { font: { italic: true, color: { rgb: 'A7F3D0' }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.darkGreen } }, alignment: { horizontal: 'center' } },
+          secHeader: { font: { bold: true, color: { rgb: C.white }, sz: 10, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.medGreen } } },
+          colHeader: { font: { bold: true, color: { rgb: C.white }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.darkGray } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: { ...bdr(C.midGray), bottom: { style: 'medium', color: { rgb: C.medGreen } } } },
+          dataEven: { font: { color: { rgb: C.black }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: 'F9FAFB' } }, border: bdr(), alignment: { vertical: 'center' } },
+          dataOdd: { font: { color: { rgb: C.black }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.white } }, border: bdr(), alignment: { vertical: 'center' } },
+          dataRight: (e) => ({ font: { color: { rgb: C.black }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: e ? 'F9FAFB' : C.white } }, border: bdr(), alignment: { horizontal: 'right', vertical: 'center' } }),
+          dataCenter: (e) => ({ font: { color: { rgb: C.black }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: e ? 'F9FAFB' : C.white } }, border: bdr(), alignment: { horizontal: 'center', vertical: 'center' } }),
+          totalRow: { font: { bold: true, color: { rgb: C.tealGreen }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.lightGreen } }, border: { ...bdr(C.mintGreen), top: { style: 'medium', color: { rgb: '059669' } } }, alignment: { vertical: 'center' } },
+          totalRight: { font: { bold: true, color: { rgb: C.tealGreen }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.lightGreen } }, border: { ...bdr(C.mintGreen), top: { style: 'medium', color: { rgb: '059669' } } }, alignment: { horizontal: 'right', vertical: 'center' } },
+          kpiBox: { font: { bold: true, color: { rgb: C.tealGreen }, sz: 16, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.lightGreen } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { ...bdr(C.mintGreen), bottom: { style: 'medium', color: { rgb: '059669' } } } },
+          kpiLabel: { font: { bold: true, color: { rgb: C.white }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.medGreen } }, alignment: { horizontal: 'center', vertical: 'center' }, border: bdr(C.mintGreen) },
+          statusEficiente: { font: { bold: true, color: { rgb: C.tealGreen }, sz: 9 }, fill: { patternType: 'solid', fgColor: { rgb: C.lightGreen } }, alignment: { horizontal: 'center' }, border: bdr(C.mintGreen) },
+          statusNormal: { font: { bold: true, color: { rgb: C.amberDark }, sz: 9 }, fill: { patternType: 'solid', fgColor: { rgb: C.amber } }, alignment: { horizontal: 'center' }, border: bdr('FDE68A') },
+          statusRevisar: { font: { bold: true, color: { rgb: C.redDark }, sz: 9 }, fill: { patternType: 'solid', fgColor: { rgb: C.red } }, alignment: { horizontal: 'center' }, border: bdr('FECACA') },
+          statusSinDatos: { font: { color: { rgb: C.midGray }, sz: 9 }, fill: { patternType: 'solid', fgColor: { rgb: C.lightGray } }, alignment: { horizontal: 'center' }, border: bdr() },
+          timeCell: (e) => ({ font: { color: { rgb: '1D4ED8' }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: e ? 'EFF6FF' : C.white } }, border: bdr('BFDBFE'), alignment: { horizontal: 'center', vertical: 'center' } }),
         };
 
-        // ── Helpers ──────────────────────────────────────────────────────
-        const sc = (ws, r, c, style) => {
-          const addr = XLSX.utils.encode_cell({ r, c });
-          if (!ws[addr]) ws[addr] = { v: '', t: 's' };
-          ws[addr].s = style;
-        };
-        const sr = (ws, rowIdx, numCols, style) => {
-          for (let c = 0; c < numCols; c++) sc(ws, rowIdx, c, style);
-        };
-        const kmLStyle = (kml) => kml >= 5 ? ST.green : kml >= 3 ? ST.yellow : kml > 0 ? ST.red : ST.dataEven;
-        const medals = ['🥇', '🥈', '🥉', '4°', '5°', '6°'];
+        const sc = (ws, r, c, style) => { const a = XLSX.utils.encode_cell({ r, c }); if (!ws[a]) ws[a] = { v: '', t: 's' }; ws[a].s = style; };
+        const sr = (ws, r, n, style) => { for (let c = 0; c < n; c++) sc(ws, r, c, style); };
+        const kmLText = (k) => k === 0 ? 'SIN DATOS' : k >= 5 ? 'EFICIENTE' : k >= 3 ? 'NORMAL' : 'REVISAR';
+        const kmLST = (k) => k === 0 ? ST.statusSinDatos : k >= 5 ? ST.statusEficiente : k >= 3 ? ST.statusNormal : ST.statusRevisar;
 
         // ── Pre-cálculos ─────────────────────────────────────────────────
         const vMetrics = vehicles.map(v => {
           const vt = trips.filter(t => t.vehicleId === v.id);
-          const km  = vt.reduce((s, t) => s + (t.kmTraveled || 0), 0);
-          const lt  = vt.reduce((s, t) => s + (t.liters || 0), 0);
-          const cs  = vt.reduce((s, t) => s + (t.cost || 0), 0);
-          const vj  = vt.reduce((s, t) => s + (t.tripsCount || 1), 0);
-          const en  = vt.reduce((s, t) => s + (t.deliveries || 0), 0);
+          const km = vt.reduce((s, t) => s + (t.kmTraveled || 0), 0);
+          const lt = vt.reduce((s, t) => s + (t.liters || 0), 0);
+          const cs = vt.reduce((s, t) => s + (t.cost || 0), 0);
+          const vj = vt.reduce((s, t) => s + (t.tripsCount || 1), 0);
+          const en = vt.reduce((s, t) => s + (t.deliveries || 0), 0);
           const dias = new Set(vt.map(t => t.startDate)).size;
           const kml = lt > 0 ? km / lt : 0;
           return { v, vt, km, lt, cs, vj, en, dias, kml };
@@ -3370,110 +3304,125 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         const flotaVj = vMetrics.reduce((s, m) => s + m.vj, 0);
         const flotaEn = vMetrics.reduce((s, m) => s + m.en, 0);
         const ranked  = [...vMetrics].sort((a, b) => b.kml - a.kml);
-        const kmLIndicador = (kml) => kml === 0 ? '⚪ Sin datos' : kml >= 5 ? '🟢 Eficiente' : kml >= 3 ? '🟡 Normal' : '🔴 Revisar';
         const periodo = [...new Set(trips.map(t => t.startDate))].sort();
-        const periodoStr = periodo.length > 0 ? `${periodo[0]} → ${periodo[periodo.length - 1]}` : '';
+        const periodoStr = periodo.length > 0 ? `${periodo[0]}  →  ${periodo[periodo.length - 1]}` : '';
 
         // ════════════════════════════════════════════════════════════════
-        // HOJA 1 — DASHBOARD
+        // HOJA 1 — DASHBOARD (expresivo)
         // ════════════════════════════════════════════════════════════════
-        const dashData = [];
-        // Fila 0: título
-        dashData.push(['REPORTE MENSUAL DE FLOTA — TRANSPORTE EMPORIUM', '', '', '', '', '', '', '', '']);
-        // Fila 1: subtítulo
-        dashData.push([`Período: ${periodoStr}   ·   Generado: ${new Date().toLocaleString('es-VE')}`, '', '', '', '', '', '', '', '']);
-        dashData.push(['', '', '', '', '', '', '', '', '']);
-        // Fila 3: sección KPIs
-        dashData.push(['KPIs GLOBALES DE LA FLOTA', '', '', '', '', '', '', '', '']);
-        // Fila 4: headers KPI
-        dashData.push(['KM Total', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'km/L Promedio', '', '', '']);
-        // Fila 5: valores KPI
-        dashData.push([r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn, flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, '', '', '']);
-        dashData.push(['', '', '', '', '', '', '', '', '']);
-        // Fila 7: sección rendimiento
-        dashData.push(['RENDIMIENTO POR CAMIÓN', '', '', '', '', '', '', '', '']);
-        // Fila 8: headers tabla
-        dashData.push(['Camión', 'Placa', 'Días op.', 'KM Total', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'km/L', 'Estado']);
-        // Filas 9+: datos vehículos
+        const dd = [];
+        // Título + subtítulo
+        dd.push(['REPORTE MENSUAL DE FLOTA — TRANSPORTE EMPORIUM', ...Array(9).fill('')]);
+        dd.push([`Período: ${periodoStr}     ·     Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(9).fill('')]);
+        dd.push(Array(10).fill(''));
+
+        // Sección KPIs (labels en fila 3, valores en fila 4)
+        dd.push(['KM TOTAL', 'LITROS CONSUMIDOS', 'COSTO COMBUSTIBLE', 'VIAJES REALIZADOS', 'ENTREGAS', 'EFICIENCIA FLOTA', '', '', '', '']);
+        dd.push([r2(flotaKm), r2(flotaLt), `$ ${r2(flotaCs)}`, flotaVj, flotaEn, `${flotaLt > 0 ? r2(flotaKm / flotaLt) : 0} km/L`, '', '', '', '']);
+        dd.push(['km', 'litros', '', 'viajes', 'entregas', '', '', '', '', '']);
+        dd.push(Array(10).fill(''));
+
+        // Tabla rendimiento
+        dd.push(['RENDIMIENTO POR CAMIÓN', ...Array(9).fill('')]);
+        dd.push(['Camión', 'Placa', 'Días op.', 'KM Total', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'km/L', 'Estado']);
         vMetrics.forEach(({ v, dias, km, lt, cs, vj, en, kml }) => {
-          dashData.push([v.code, v.plate, dias, r2(km), r2(lt), r2(cs), vj, en, r2(kml), kmLIndicador(kml)]);
+          dd.push([v.code, v.plate, dias, r2(km), r2(lt), r2(cs), vj, en, r2(kml), kmLText(kml)]);
         });
-        // Fila total
-        const totalRowIdx = dashData.length;
-        dashData.push(['TOTAL FLOTA', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn, flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, '']);
-        dashData.push(['', '', '', '', '', '', '', '', '']);
-        // Sección ranking
-        const rankSecIdx = dashData.length;
-        dashData.push(['RANKING DE EFICIENCIA', '', '', '', '', '', '', '', '']);
-        dashData.push(['Pos.', 'Camión', 'Placa', 'km/L', 'Estado', 'KM', 'Litros', '', '']);
-        ranked.forEach(({ v, km, lt, kml }, i) => {
-          dashData.push([medals[i] || `${i+1}°`, v.code, v.plate, r2(kml), kmLIndicador(kml), r2(km), r2(lt), '', '']);
-        });
+        const dashTotalR = dd.length;
+        dd.push(['TOTAL FLOTA', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn, flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, '']);
+        dd.push(Array(10).fill(''));
 
-        const wsDash = XLSX.utils.aoa_to_sheet(dashData);
-        const NUM_COLS_DASH = 10;
-
-        // Aplicar estilos Dashboard
-        sr(wsDash, 0, NUM_COLS_DASH, ST.title);
-        wsDash['!merges'] = [
-          { s: { r: 0, c: 0 }, e: { r: 0, c: NUM_COLS_DASH - 1 } },
-          { s: { r: 1, c: 0 }, e: { r: 1, c: NUM_COLS_DASH - 1 } },
-          { s: { r: 3, c: 0 }, e: { r: 3, c: NUM_COLS_DASH - 1 } },
-          { s: { r: 7, c: 0 }, e: { r: 7, c: NUM_COLS_DASH - 1 } },
-          { s: { r: rankSecIdx, c: 0 }, e: { r: rankSecIdx, c: NUM_COLS_DASH - 1 } },
-        ];
-        sr(wsDash, 1, NUM_COLS_DASH, ST.subtitle);
-        sr(wsDash, 3, NUM_COLS_DASH, ST.secHeader);
-        // KPI headers
-        for (let c = 0; c < 6; c++) sc(wsDash, 4, c, ST.colHeader);
-        // KPI values
-        for (let c = 0; c < 6; c++) sc(wsDash, 5, c, ST.kpiValue);
-        sr(wsDash, 7, NUM_COLS_DASH, ST.secHeader);
-        // Tabla rendimiento - headers (fila 8)
-        for (let c = 0; c < 10; c++) sc(wsDash, 8, c, ST.colHeader);
-        // Datos vehículos (fila 9 en adelante)
-        vMetrics.forEach(({ kml }, i) => {
-          const rowIdx = 9 + i;
-          const isEven = i % 2 === 0;
-          const baseStyle = isEven ? ST.dataEven : ST.dataOdd;
-          for (let c = 0; c < 9; c++) sc(wsDash, rowIdx, c, c >= 3 ? ST.dataRight(isEven) : baseStyle);
-          // Columna estado con color según eficiencia
-          const kmlS = kml >= 5 ? { ...ST.dataEven, font: { ...ST.green.font } } : kml >= 3 ? { ...ST.dataEven, font: { ...ST.yellow.font } } : kml > 0 ? { ...ST.dataEven, font: { ...ST.red.font } } : ST.dataEven;
-          sc(wsDash, rowIdx, 9, kmlS);
-        });
-        // Fila total
-        for (let c = 0; c < 10; c++) sc(wsDash, totalRowIdx, c, c >= 3 ? ST.totalRight : ST.totalRow);
         // Ranking
-        sr(wsDash, rankSecIdx, NUM_COLS_DASH, ST.secHeader);
-        for (let c = 0; c < 8; c++) sc(wsDash, rankSecIdx + 1, c, ST.colHeader);
-        ranked.forEach((_, i) => {
-          const rowIdx = rankSecIdx + 2 + i;
-          const isEven = i % 2 === 0;
-          for (let c = 0; c < 8; c++) sc(wsDash, rowIdx, c, c === 0 ? ST.rankMedal : c >= 3 ? ST.dataRight(isEven) : (isEven ? ST.dataEven : ST.dataOdd));
+        const rankR = dd.length;
+        dd.push(['RANKING DE EFICIENCIA', ...Array(9).fill('')]);
+        dd.push(['#', 'Camión', 'Placa', 'km/L', 'Estado', 'KM recorridos', 'Litros', '', '', '']);
+        const medals = ['1° 🥇', '2° 🥈', '3° 🥉', '4°', '5°', '6°'];
+        ranked.forEach(({ v, km, lt, kml }, i) => {
+          dd.push([medals[i] || `${i + 1}°`, v.code, v.plate, r2(kml), kmLText(kml), r2(km), r2(lt), '', '', '']);
         });
 
-        wsDash['!cols'] = [{ wch: 22 }, { wch: 13 }, { wch: 10 }, { wch: 11 }, { wch: 10 }, { wch: 11 }, { wch: 8 }, { wch: 10 }, { wch: 8 }, { wch: 16 }];
-        wsDash['!rows'] = [{ hpt: 28 }, { hpt: 16 }, { hpt: 8 }, { hpt: 20 }, { hpt: 20 }, { hpt: 22 }];
+        const wsDash = XLSX.utils.aoa_to_sheet(dd);
+        const NC = 10;
+        wsDash['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: NC - 1 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: NC - 1 } },
+          { s: { r: 7, c: 0 }, e: { r: 7, c: NC - 1 } },
+          { s: { r: rankR, c: 0 }, e: { r: rankR, c: NC - 1 } },
+        ];
+        sr(wsDash, 0, NC, ST.title);
+        sr(wsDash, 1, NC, ST.subtitle);
+        // KPI labels (fila 3)
+        for (let c = 0; c < 6; c++) sc(wsDash, 3, c, ST.kpiLabel);
+        // KPI values (fila 4)
+        for (let c = 0; c < 6; c++) sc(wsDash, 4, c, ST.kpiBox);
+        // KPI units (fila 5)
+        for (let c = 0; c < 6; c++) sc(wsDash, 5, c, { ...ST.statusSinDatos, font: { color: { rgb: C.midGray }, sz: 8, italic: true } });
+        sr(wsDash, 7, NC, ST.secHeader);
+        for (let c = 0; c < NC; c++) sc(wsDash, 8, c, ST.colHeader);
+        vMetrics.forEach(({ kml }, i) => {
+          const ri = 9 + i; const e = i % 2 === 0;
+          for (let c = 0; c < 9; c++) sc(wsDash, ri, c, c >= 3 && c <= 8 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
+          sc(wsDash, ri, 9, kmLST(kml));
+        });
+        for (let c = 0; c < NC; c++) sc(wsDash, dashTotalR, c, c >= 3 ? ST.totalRight : ST.totalRow);
+        sr(wsDash, rankR, NC, ST.secHeader);
+        for (let c = 0; c < 7; c++) sc(wsDash, rankR + 1, c, ST.colHeader);
+        ranked.forEach(({ kml }, i) => {
+          const ri = rankR + 2 + i; const e = i % 2 === 0;
+          for (let c = 0; c < 7; c++) sc(wsDash, ri, c, c === 0 ? { font: { bold: true, color: { rgb: C.white }, sz: 10 }, fill: { patternType: 'solid', fgColor: { rgb: '92400E' } }, alignment: { horizontal: 'center' } } : c === 4 ? kmLST(kml) : c >= 3 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
+        });
+        wsDash['!cols'] = [{ wch: 20 }, { wch: 13 }, { wch: 10 }, { wch: 11 }, { wch: 11 }, { wch: 14 }, { wch: 8 }, { wch: 10 }, { wch: 9 }, { wch: 14 }];
+        wsDash['!rows'] = [{ hpt: 30 }, { hpt: 16 }, { hpt: 8 }, { hpt: 22 }, { hpt: 28 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsDash, 'Dashboard');
 
         // ════════════════════════════════════════════════════════════════
-        // HOJAS POR CAMIÓN — Registro diario
+        // HOJAS POR CAMIÓN — Detalle por viaje + Resumen diario
         // ════════════════════════════════════════════════════════════════
         vMetrics.forEach(({ v, vt }) => {
           const rows = [];
-          rows.push([`REGISTRO DIARIO DEL MES — ${v.code}  (${v.plate})`, '', '', '', '', '', '', '', '', '', '', '', '']);
-          rows.push([`Referencia: ${v.litersPer100km} L/100km`, '', '', '', '', '', '', '', '', '', '', '', '']);
-          rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '']);
-          rows.push(['CHOFER', 'FECHA', 'INICIO', 'FIN', 'KM INICIO', 'KM FINAL', 'KM REC.', 'LITROS', 'COSTO $', 'VIAJES', 'ENTREGAS', 'RUTA', 'NOTAS']);
+          rows.push([`REGISTRO DEL MES — ${v.code}  (${v.plate})`, ...Array(14).fill('')]);
+          rows.push([`Referencia consumo: ${v.litersPer100km} L/100km`, ...Array(14).fill('')]);
+          rows.push(Array(15).fill(''));
+
+          // Sección: detalle por viaje
+          rows.push(['DETALLE DE VIAJES', ...Array(14).fill('')]);
+          rows.push(['Fecha', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje', 'T.Origen', 'T.Destino', 'H.Salida Suc.', 'KM rec.', 'Litros', 'Costo $', 'Entregas', 'Notas']);
+
+          const sortedTrips = [...vt].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime));
+          const detStartR = rows.length;
+          sortedTrips.forEach(t => {
+            const d = drivers.find(x => x.id === t.driverId);
+            const o = branches.find(x => x.id === t.originBranchId);
+            const dest = branches.find(x => x.id === t.destinationBranchId);
+            const tDest = t.timeAtDestinationMinutes;
+            rows.push([
+              t.startDate, d?.shortName || '',
+              o?.name || '', dest?.name || '',
+              t.startTime || '', t.endTime || '',
+              fmtMin(t.tripMinutes),
+              fmtMin(t.timeAtBranchPrevMinutes),
+              fmtMin(tDest),
+              addMin(t.endTime, tDest),
+              r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
+              t.deliveries || 0, t.notes || ''
+            ]);
+          });
+          const detEndR = rows.length;
+          rows.push(Array(15).fill(''));
+
+          // Sección: resumen diario
+          const resDiarR = rows.length;
+          rows.push(['RESUMEN DIARIO', ...Array(14).fill('')]);
+          rows.push(['Fecha', 'Chofer', 'H.Inicio', 'H.Fin', 'KM Inicio', 'KM Final', 'KM Rec.', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'Ruta', '', '', '']);
 
           const byDate = {};
           vt.forEach(t => { (byDate[t.startDate] = byDate[t.startDate] || []).push(t); });
-
           let totKm = 0, totLt = 0, totCs = 0, totVj = 0, totEn = 0;
+          const dailyStartR = rows.length;
           Object.entries(byDate).sort((a, b) => a[0].localeCompare(b[0])).forEach(([date, dt]) => {
             const sorted = [...dt].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime));
-            const first  = sorted[0];
-            const last   = [...dt].sort((a, b) => parseDateTime(b.endDate, b.endTime) - parseDateTime(a.endDate, a.endTime))[0];
+            const first = sorted[0];
+            const last = [...dt].sort((a, b) => parseDateTime(b.endDate, b.endTime) - parseDateTime(a.endDate, a.endTime))[0];
             const driver = drivers.find(d => d.id === first.driverId);
             const km = dt.reduce((s, t) => s + (t.kmTraveled || 0), 0);
             const lt = dt.reduce((s, t) => s + (t.liters || 0), 0);
@@ -3481,151 +3430,181 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
             const vj = dt.reduce((s, t) => s + (t.tripsCount || 1), 0);
             const en = dt.reduce((s, t) => s + (t.deliveries || 0), 0);
             totKm += km; totLt += lt; totCs += cs; totVj += vj; totEn += en;
-            rows.push([driver?.shortName || '', date, first.startTime || '', last.endTime || '', first.kmStart || 0, last.kmEnd || 0, r2(km), r2(lt), r2(cs), vj, en, first.route || 'LOCAL', dt.map(t => t.notes).filter(Boolean).join(' | ')]);
+            rows.push([date, driver?.shortName || '', first.startTime || '', last.endTime || '', first.kmStart || 0, last.kmEnd || 0, r2(km), r2(lt), r2(cs), vj, en, first.route || 'LOCAL', '', '', '']);
           });
-
           const totalR = rows.length;
-          rows.push(['TOTAL MES', '', '', '', '', '', r2(totKm), r2(totLt), r2(totCs), totVj, totEn, '', '']);
-          rows.push(['']);
-          rows.push([`Eficiencia del mes: ${totLt > 0 ? r2(totKm / totLt) + ' km/L' : 'Sin datos'} · ${kmLIndicador(totLt > 0 ? totKm / totLt : 0)}`]);
+          rows.push(['TOTAL DEL MES', '', '', '', '', '', r2(totKm), r2(totLt), r2(totCs), totVj, totEn, '', '', '', '']);
+          rows.push(Array(15).fill(''));
+          rows.push([`Eficiencia: ${totLt > 0 ? r2(totKm / totLt) + ' km/L' : 'Sin datos'}     ${kmLText(totLt > 0 ? totKm / totLt : 0)}`]);
 
           const ws = XLSX.utils.aoa_to_sheet(rows);
-          const NC = 13;
+          const NCV = 15;
           ws['!merges'] = [
-            { s: { r: 0, c: 0 }, e: { r: 0, c: NC - 1 } },
-            { s: { r: 1, c: 0 }, e: { r: 1, c: NC - 1 } },
-            { s: { r: totalR + 1, c: 0 }, e: { r: totalR + 1, c: NC - 1 } },
+            { s: { r: 0, c: 0 }, e: { r: 0, c: NCV - 1 } },
+            { s: { r: 1, c: 0 }, e: { r: 1, c: NCV - 1 } },
+            { s: { r: 3, c: 0 }, e: { r: 3, c: NCV - 1 } },
+            { s: { r: resDiarR, c: 0 }, e: { r: resDiarR, c: NCV - 1 } },
           ];
-          sr(ws, 0, NC, ST.title);
-          sr(ws, 1, NC, ST.subtitle);
-          for (let c = 0; c < NC; c++) sc(ws, 3, c, ST.colHeader);
-          for (let i = 0; i < Object.keys(byDate).length; i++) {
-            const rowIdx = 4 + i;
-            const isEven = i % 2 === 0;
-            for (let c = 0; c < NC; c++) sc(ws, rowIdx, c, c >= 4 && c <= 10 ? ST.dataRight(isEven) : (isEven ? ST.dataEven : ST.dataOdd));
-          }
-          for (let c = 0; c < NC; c++) sc(ws, totalR, c, c >= 6 ? ST.totalRight : ST.totalRow);
-          ws['!cols'] = [{ wch: 14 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 7 }, { wch: 9 }, { wch: 12 }, { wch: 30 }];
-          ws['!rows'] = [{ hpt: 24 }, { hpt: 14 }];
+          sr(ws, 0, NCV, ST.title);
+          sr(ws, 1, NCV, ST.subtitle);
+          sr(ws, 3, NCV, ST.secHeader);
+          for (let c = 0; c < NCV; c++) sc(ws, 4, c, ST.colHeader);
+          sortedTrips.forEach((_, i) => {
+            const ri = detStartR + i; const e = i % 2 === 0;
+            for (let c = 0; c < NCV; c++) {
+              if (c >= 4 && c <= 9) sc(ws, ri, c, ST.timeCell(e));
+              else if (c >= 10 && c <= 13) sc(ws, ri, c, ST.dataRight(e));
+              else sc(ws, ri, c, e ? ST.dataEven : ST.dataOdd);
+            }
+          });
+          sr(ws, resDiarR, NCV, ST.secHeader);
+          for (let c = 0; c < 12; c++) sc(ws, resDiarR + 1, c, ST.colHeader);
+          Object.keys(byDate).forEach((_, i) => {
+            const ri = dailyStartR + i; const e = i % 2 === 0;
+            for (let c = 0; c < 12; c++) sc(ws, ri, c, c >= 2 && c <= 10 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
+          });
+          for (let c = 0; c < 12; c++) sc(ws, totalR, c, c >= 6 ? ST.totalRight : ST.totalRow);
+          ws['!cols'] = [{ wch: 12 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 9 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 22 }];
+          ws['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
           XLSX.utils.book_append_sheet(wb, ws, v.code.substring(0, 31));
         });
 
         // ════════════════════════════════════════════════════════════════
-        // HOJA — RESUMEN FLOTA
+        // HOJA — RESUMEN FLOTA (simplificado)
         // ════════════════════════════════════════════════════════════════
-        const resData = [];
-        resData.push(['RESUMEN COMPARATIVO DE FLOTA — TRANSPORTE EMPORIUM', '', '', '', '', '', '', '', '', '', '']);
-        resData.push([`Generado: ${new Date().toLocaleString('es-VE')}`, '', '', '', '', '', '', '', '', '', '']);
-        resData.push(['', '', '', '', '', '', '', '', '', '', '']);
-        resData.push(['COMPARATIVO POR UNIDAD', '', '', '', '', '', '', '', '', '', '']);
-        resData.push(['Camión', 'Placa', 'Chofer(es)', 'Días op.', 'KM total', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'km/L', 'Estado']);
+        const rd = [];
+        rd.push(['RESUMEN DE FLOTA — TRANSPORTE EMPORIUM', ...Array(9).fill('')]);
+        rd.push([`Período: ${periodoStr}     ·     Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(9).fill('')]);
+        rd.push(Array(10).fill(''));
+        rd.push(['COMPARATIVO POR UNIDAD', ...Array(9).fill('')]);
+        rd.push(['Camión', 'Placa', 'Chofer(es)', 'Días op.', 'KM', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'km/L', 'Estado']);
         vMetrics.forEach(({ v, vt, dias, km, lt, cs, vj, en, kml }) => {
           const names = [...new Set(vt.map(t => drivers.find(d => d.id === t.driverId)?.shortName).filter(Boolean))].join(' / ');
-          resData.push([v.code, v.plate, names, dias, r2(km), r2(lt), r2(cs), vj, en, r2(kml), kmLIndicador(kml)]);
+          rd.push([v.code, v.plate, names, dias, r2(km), r2(lt), r2(cs), vj, en, r2(kml), kmLText(kml)]);
         });
-        const resTotalIdx = resData.length;
-        resData.push(['TOTAL FLOTA', '', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn, flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, '']);
-        resData.push(['']);
-        const resConductorIdx = resData.length;
-        resData.push(['RESUMEN POR CONDUCTOR', '', '', '', '', '', '', '', '', '', '']);
-        resData.push(['Conductor', 'Camión(es)', 'Viajes', 'KM', 'Litros', 'Costo $', 'Entregas', 'km/L', '', '', '']);
-        const driverRows = [];
+        const resTotR = rd.length;
+        rd.push(['TOTAL', '', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn, flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, '']);
+        rd.push(Array(11).fill(''));
+        const condR = rd.length;
+        rd.push(['RESUMEN POR CONDUCTOR', ...Array(9).fill('')]);
+        rd.push(['Conductor', 'Camión(es)', 'Días op.', 'Viajes', 'KM', 'Litros', 'Costo $', 'Entregas', 'km/L', '', '']);
         drivers.forEach(d => {
           const dt = trips.filter(t => t.driverId === d.id);
-          if (dt.length === 0) return;
-          const camiones = [...new Set(dt.map(t => vehicles.find(x => x.id === t.vehicleId)?.code).filter(Boolean))].join(' / ');
+          if (!dt.length) return;
+          const camiones = [...new Set(dt.map(t => vehicles.find(v => v.id === t.vehicleId)?.code).filter(Boolean))].join(' / ');
+          const dias = new Set(dt.map(t => t.startDate)).size;
           const km = dt.reduce((s, t) => s + (t.kmTraveled || 0), 0);
           const lt = dt.reduce((s, t) => s + (t.liters || 0), 0);
-          driverRows.push([d.name, camiones, dt.reduce((s,t)=>s+(t.tripsCount||1),0), r2(km), r2(lt), r2(dt.reduce((s,t)=>s+(t.cost||0),0)), dt.reduce((s,t)=>s+(t.deliveries||0),0), lt > 0 ? r2(km/lt) : 0, '', '', '']);
+          rd.push([d.name, camiones, dias, dt.reduce((s,t)=>s+(t.tripsCount||1),0), r2(km), r2(lt), r2(dt.reduce((s,t)=>s+(t.cost||0),0)), dt.reduce((s,t)=>s+(t.deliveries||0),0), lt > 0 ? r2(km/lt) : 0, '', '']);
         });
-        driverRows.forEach(r => resData.push(r));
 
-        const wsRes = XLSX.utils.aoa_to_sheet(resData);
-        const NC_R = 11;
+        const wsRes = XLSX.utils.aoa_to_sheet(rd);
+        const NCR = 11;
         wsRes['!merges'] = [
-          { s: { r: 0, c: 0 }, e: { r: 0, c: NC_R - 1 } },
-          { s: { r: 1, c: 0 }, e: { r: 1, c: NC_R - 1 } },
-          { s: { r: 3, c: 0 }, e: { r: 3, c: NC_R - 1 } },
-          { s: { r: resConductorIdx, c: 0 }, e: { r: resConductorIdx, c: NC_R - 1 } },
+          { s: { r: 0, c: 0 }, e: { r: 0, c: NCR - 1 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: NCR - 1 } },
+          { s: { r: 3, c: 0 }, e: { r: 3, c: NCR - 1 } },
+          { s: { r: condR, c: 0 }, e: { r: condR, c: NCR - 1 } },
         ];
-        sr(wsRes, 0, NC_R, ST.title);
-        sr(wsRes, 1, NC_R, ST.subtitle);
-        sr(wsRes, 3, NC_R, ST.secHeader);
-        for (let c = 0; c < NC_R; c++) sc(wsRes, 4, c, ST.colHeader);
-        vMetrics.forEach((_, i) => {
-          const ri = 5 + i; const isEven = i % 2 === 0;
-          for (let c = 0; c < NC_R; c++) sc(wsRes, ri, c, c >= 4 ? ST.dataRight(isEven) : (isEven ? ST.dataEven : ST.dataOdd));
+        sr(wsRes, 0, NCR, ST.title);
+        sr(wsRes, 1, NCR, ST.subtitle);
+        sr(wsRes, 3, NCR, ST.secHeader);
+        for (let c = 0; c < NCR; c++) sc(wsRes, 4, c, ST.colHeader);
+        vMetrics.forEach(({ kml }, i) => {
+          const ri = 5 + i; const e = i % 2 === 0;
+          for (let c = 0; c < NCR; c++) sc(wsRes, ri, c, c === NCR-1 ? kmLST(kml) : c >= 4 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
         });
-        for (let c = 0; c < NC_R; c++) sc(wsRes, resTotalIdx, c, c >= 4 ? ST.totalRight : ST.totalRow);
-        sr(wsRes, resConductorIdx, NC_R, ST.secHeader);
-        for (let c = 0; c < 8; c++) sc(wsRes, resConductorIdx + 1, c, ST.colHeader);
-        driverRows.forEach((_, i) => {
-          const ri = resConductorIdx + 2 + i; const isEven = i % 2 === 0;
-          for (let c = 0; c < 8; c++) sc(wsRes, ri, c, c >= 2 ? ST.dataRight(isEven) : (isEven ? ST.dataEven : ST.dataOdd));
+        for (let c = 0; c < NCR; c++) sc(wsRes, resTotR, c, c >= 4 ? ST.totalRight : ST.totalRow);
+        sr(wsRes, condR, NCR, ST.secHeader);
+        for (let c = 0; c < 9; c++) sc(wsRes, condR + 1, c, ST.colHeader);
+        drivers.filter(d => trips.some(t => t.driverId === d.id)).forEach((_, i) => {
+          const ri = condR + 2 + i; const e = i % 2 === 0;
+          for (let c = 0; c < 9; c++) sc(wsRes, ri, c, c >= 2 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
         });
-        wsRes['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 20 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 16 }];
-        wsRes['!rows'] = [{ hpt: 24 }, { hpt: 14 }];
+        wsRes['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 24 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 9 }, { wch: 14 }];
+        wsRes['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen Flota');
 
         // ════════════════════════════════════════════════════════════════
-        // HOJA — DETALLE DE VIAJES
+        // HOJA — DETALLE DE VIAJES (limpio)
         // ════════════════════════════════════════════════════════════════
-        const detData = [];
-        detData.push(['DETALLE DE VIAJES DEL MES — TRANSPORTE EMPORIUM', '', '', '', '', '', '', '', '', '', '', '', '']);
-        detData.push([`Total: ${trips.length} viajes · ${periodoStr}`, '', '', '', '', '', '', '', '', '', '', '', '']);
-        detData.push(['', '', '', '', '', '', '', '', '', '', '', '', '']);
-        detData.push(['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje (min)', 'T.Origen (min)', 'T.Destino (min)', 'KM rec.', 'Litros', 'Costo $', 'Entregas', 'Notas']);
+        const detD = [];
+        detD.push(['DETALLE DE VIAJES DEL MES — TRANSPORTE EMPORIUM', ...Array(12).fill('')]);
+        detD.push([`Total: ${trips.length} viajes  ·  ${periodoStr}`, ...Array(12).fill('')]);
+        detD.push(Array(13).fill(''));
+        detD.push(['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje', 'T.Origen', 'T.Destino', 'H.Salida Suc.', 'KM', 'Litros', 'Costo $', 'Entregas']);
+
+        let prevDate = '';
         [...trips].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime)).forEach(t => {
           const v = vehicles.find(x => x.id === t.vehicleId);
           const d = drivers.find(x => x.id === t.driverId);
           const o = branches.find(x => x.id === t.originBranchId);
           const dest = branches.find(x => x.id === t.destinationBranchId);
-          detData.push([t.startDate, v?.code||'', d?.shortName||'', o?.name||'', dest?.name||'', t.startTime||'', t.endTime||'', t.tripMinutes||0, t.timeAtBranchPrevMinutes??'', t.timeAtDestinationMinutes??'', r2(t.kmTraveled||0), r2(t.liters||0), r2(t.cost||0), t.deliveries||0, t.notes||'']);
+          const tDest = t.timeAtDestinationMinutes;
+          detD.push([
+            t.startDate, v?.code || '', d?.shortName || '',
+            o?.name || '', dest?.name || '',
+            t.startTime || '', t.endTime || '',
+            fmtMin(t.tripMinutes),
+            fmtMin(t.timeAtBranchPrevMinutes),
+            fmtMin(tDest),
+            addMin(t.endTime, tDest),
+            r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
+            t.deliveries || 0
+          ]);
         });
-        const wsDet = XLSX.utils.aoa_to_sheet(detData);
-        const NC_D = 15;
-        wsDet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: NC_D - 1 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: NC_D - 1 } }];
-        sr(wsDet, 0, NC_D, ST.title);
-        sr(wsDet, 1, NC_D, ST.subtitle);
-        for (let c = 0; c < NC_D; c++) sc(wsDet, 3, c, ST.colHeader);
+
+        const wsDet = XLSX.utils.aoa_to_sheet(detD);
+        const NCD = 15;
+        wsDet['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: NCD - 1 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: NCD - 1 } },
+        ];
+        sr(wsDet, 0, NCD, ST.title);
+        sr(wsDet, 1, NCD, ST.subtitle);
+        for (let c = 0; c < NCD; c++) sc(wsDet, 3, c, ST.colHeader);
         trips.forEach((_, i) => {
-          const ri = 4 + i; const isEven = i % 2 === 0;
-          for (let c = 0; c < NC_D; c++) sc(wsDet, ri, c, c >= 7 ? ST.dataRight(isEven) : (isEven ? ST.dataEven : ST.dataOdd));
+          const ri = 4 + i; const e = i % 2 === 0;
+          for (let c = 0; c < NCD; c++) {
+            if (c >= 5 && c <= 10) sc(wsDet, ri, c, ST.timeCell(e));
+            else if (c >= 11) sc(wsDet, ri, c, ST.dataRight(e));
+            else sc(wsDet, ri, c, e ? ST.dataEven : ST.dataOdd);
+          }
         });
-        wsDet['!cols'] = [{ wch: 12 }, { wch: 9 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 9 }, { wch: 8 }, { wch: 9 }, { wch: 10 }, { wch: 28 }];
-        wsDet['!rows'] = [{ hpt: 24 }, { hpt: 14 }];
+        wsDet['!cols'] = [{ wch: 12 }, { wch: 9 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 9 }];
+        wsDet['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsDet, 'Detalle de Viajes');
 
         // ════════════════════════════════════════════════════════════════
         // HOJA — TRASPASOS
         // ════════════════════════════════════════════════════════════════
         const monthStr = new Date().toISOString().slice(0, 7);
-        const monthHandoffs = (handoffs || []).filter(h => h.handoffDate?.startsWith(monthStr));
-        const trasData = [];
-        trasData.push(['TRASPASOS DE UNIDAD DEL MES — TRANSPORTE EMPORIUM', '', '', '', '', '', '', '', '']);
-        trasData.push([`${monthHandoffs.length} traspaso(s) registrado(s)`, '', '', '', '', '', '', '', '']);
-        trasData.push(['', '', '', '', '', '', '', '', '']);
-        trasData.push(['Fecha', 'Hora', 'Unidad', 'Entregó', 'Recibió', 'KM', 'Combustible (L)', 'Obs. entrega', 'Obs. recepción', 'Estado']);
-        if (monthHandoffs.length === 0) {
-          trasData.push(['Sin traspasos registrados este mes', '', '', '', '', '', '', '', '']);
+        const mHandoffs = (handoffs || []).filter(h => h.handoffDate?.startsWith(monthStr));
+        const td = [];
+        td.push(['TRASPASOS DE UNIDAD DEL MES', ...Array(9).fill('')]);
+        td.push([`${mHandoffs.length} traspaso(s) registrado(s)  ·  ${periodoStr}`, ...Array(9).fill('')]);
+        td.push(Array(10).fill(''));
+        td.push(['Fecha', 'Hora', 'Unidad', 'Entregó', 'Recibió', 'KM', 'Combustible', 'Obs. entrega', 'Obs. recepción', 'Estado']);
+        if (!mHandoffs.length) {
+          td.push(['Sin traspasos registrados este mes', ...Array(9).fill('')]);
         } else {
-          [...monthHandoffs].sort((a, b) => (a.handoffDate||'').localeCompare(b.handoffDate||'')).forEach(h => {
-            trasData.push([h.handoffDate||'', h.handoffTime||'', h.vehicleCode||'', h.fromDriverName||'', h.toDriverName||'Pendiente', h.kmAtHandoff||0, h.fuelAtHandoff||0, h.notes||'', h.receptionNotes||'', h.status==='confirmed'?'✅ Confirmado':'⏳ Pendiente']);
+          [...mHandoffs].sort((a, b) => (a.handoffDate||'').localeCompare(b.handoffDate||'')).forEach(h => {
+            td.push([h.handoffDate||'', h.handoffTime||'', h.vehicleCode||'', h.fromDriverName||'', h.toDriverName||'Pendiente', h.kmAtHandoff||0, h.fuelAtHandoff ? `${h.fuelAtHandoff} L` : '', h.notes||'', h.receptionNotes||'', h.status==='confirmed'?'CONFIRMADO':'PENDIENTE']);
           });
         }
-        const wsTras = XLSX.utils.aoa_to_sheet(trasData);
-        const NC_T = 10;
-        wsTras['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: NC_T - 1 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: NC_T - 1 } }];
-        sr(wsTras, 0, NC_T, ST.title);
-        sr(wsTras, 1, NC_T, ST.subtitle);
-        for (let c = 0; c < NC_T; c++) sc(wsTras, 3, c, ST.colHeader);
-        monthHandoffs.forEach((h, i) => {
-          const ri = 4 + i; const isEven = i % 2 === 0;
-          const rowSt = h.status === 'confirmed' ? ST.dataEven : ST.amberRow;
-          for (let c = 0; c < NC_T; c++) sc(wsTras, ri, c, c >= 5 ? ST.dataRight(isEven) : rowSt);
+        const wsTras = XLSX.utils.aoa_to_sheet(td);
+        const NCT = 10;
+        wsTras['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: NCT - 1 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: NCT - 1 } }];
+        sr(wsTras, 0, NCT, ST.title);
+        sr(wsTras, 1, NCT, ST.subtitle);
+        for (let c = 0; c < NCT; c++) sc(wsTras, 3, c, ST.colHeader);
+        mHandoffs.forEach((h, i) => {
+          const ri = 4 + i; const e = i % 2 === 0;
+          for (let c = 0; c < NCT; c++) sc(wsTras, ri, c, c >= 5 && c <= 6 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
+          sc(wsTras, ri, 9, h.status === 'confirmed' ? ST.statusEficiente : ST.statusNormal);
         });
-        wsTras['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 14 }, { wch: 22 }, { wch: 22 }, { wch: 14 }];
-        wsTras['!rows'] = [{ hpt: 24 }, { hpt: 14 }];
+        wsTras['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 13 }];
+        wsTras['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsTras, 'Traspasos');
 
         // ── Descargar ────────────────────────────────────────────────────
@@ -3645,7 +3624,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       const html = generarExcelHTML();
       const fileName = `reporte_flota_emporium_${new Date().toISOString().slice(0, 10)}.xls`;
       descargarArchivo(html, fileName, 'application/vnd.ms-excel;charset=utf-8');
-      setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado (formato HTML)` });
+      setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado (HTML)` });
       setTimeout(() => setExportMsg(null), 5000);
     } catch (e) {
       console.error('Excel HTML failed:', e);
