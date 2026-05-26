@@ -3345,7 +3345,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
     }
     if (!window.confirm(`¿Borrar ${toDelete} viaje(s) anteriores al ${deleteUntil}? Esta acción no se puede deshacer.`)) return;
     const keep = allTrips.filter(t => t.startDate >= deleteUntil);
-    const idsToDelete = allTrips.filter(t => t.startDate < deleteUntil).map(t => t.id);       saveTrips(keep);       if (idsToDelete.length > 0) {         try {           await fetch(`${SB_URL}/rest/v1/viajes?id=in.(${idsToDelete.join(',')})`, {             method: 'DELETE', headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }           });         } catch(e) { console.error('SB delete viajes:', e); }       }
+    const idsToDelete = allTrips.filter(t => t.startDate < deleteUntil).map(t => t.id);       saveTrips(keep);       if (idsToDelete.length > 0) {         try {           await fetch(`${SB_URL}/rest/v1/trips?id=in.(${idsToDelete.join(',')})`, {             method: 'DELETE', headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }           });         } catch(e) { console.error('SB delete viajes:', e); }       }
     setExportMsg({ type: 'success', msg: `✅ ${toDelete} viaje(s) eliminados` });
     setTimeout(() => setExportMsg(null), 4000);
   };
