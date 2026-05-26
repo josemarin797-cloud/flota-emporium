@@ -5708,10 +5708,17 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config, saveChecklis
   const [filterDate, setFilterDate] = useState(new Date().toISOString().slice(0, 10));
   const [filterVehicle, setFilterVehicle] = useState('all');
   const [deleteUntil, setDeleteUntil] = useState('');
+  const [deleteVehicle, setDeleteVehicle] = useState('all');
   const handleDeleteOld = () => {
-    if (!deleteUntil) return;
-    if (!window.confirm(`¿Borrar checklists anteriores al ${deleteUntil}?`)) return;
-    const keep = checklists.filter(c => c.date >= deleteUntil);
+    if (!deleteUntil) {
+      alert('Selecciona una fecha primero');
+      return;
+    }
+    const vehicleName = deleteVehicle === 'all' ? 'todas las unidades' : (vehicles.find(v => v.id === deleteVehicle)?.code || deleteVehicle);
+    const toDelete = checklists.filter(c => c.date < deleteUntil && (deleteVehicle === 'all' || c.vehicleId === deleteVehicle)).length;
+    if (toDelete === 0) { alert(`No hay checklists de ${vehicleName} anteriores al ${deleteUntil}`); return; }
+    if (!window.confirm(`¿Borrar ${toDelete} checklist(s) de ${vehicleName} anteriores al ${deleteUntil}?`)) return;
+    const keep = checklists.filter(c => !(c.date < deleteUntil && (deleteVehicle === 'all' || c.vehicleId === deleteVehicle)));
     
     if (sbF) sbF(`checklists?date=lt.${deleteUntil}`, { method: 'DELETE' }).then(() => window.location.reload()).catch(() => {})
   };
@@ -5765,12 +5772,17 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config, saveChecklis
           </select>
         </div>
       </div>
-      <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
+      <div className="flex items-center gap-2 flex-wrap bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
           <input type="date" value={deleteUntil} onChange={e => setDeleteUntil(e.target.value)}
             className="border border-rose-300 rounded-lg px-3 py-1.5 text-sm font-mono bg-white text-stone-900 outline-none focus:border-rose-500" />
+          <select value={deleteVehicle} onChange={e => setDeleteVehicle(e.target.value)}
+            className="border border-rose-300 rounded-lg px-3 py-1.5 text-sm bg-white text-stone-900 outline-none focus:border-rose-500">
+            <option value="all">🚛 Todas las unidades</option>
+            {vehicles.map(v => <option key={v.id} value={v.id}>{v.code} · {v.plate}</option>)}
+          </select>
           <button onClick={handleDeleteOld}
             className="px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold flex items-center gap-1">
-            🗑️ Borrar anteriores a esta fecha
+            🗑️ Borrar anteriores
           </button>
         </div>
       {filtered.length === 0 ? (
