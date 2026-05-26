@@ -18,6 +18,7 @@ const KEYS = {
   GPS_TRACKS: 'emp:v4:gps_tracks',
   HANDOFFS:   'emp:v4:handoffs',
   PENDING:    '__emp:pendingSync',
+  DISC_QUEUE: '__emp:discordQueue',
   CHECKLISTS: 'emp:v4:checklists',
 };
 
@@ -423,23 +424,43 @@ export default function App() {
   };
 
   const syncPendingData = async () => {
+    // Sync datos al cloud storage
     try {
       const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
-      if (!pending.length) return;
-      let synced = 0;
-      for (const key of [...pending]) {
-        const data = localStorage.getItem(key);
-        if (data) {
-          try {
-            await window.storage.set(key, data);
-            synced++;
-          } catch (e) { break; }
+      if (pending.length) {
+        let synced = 0;
+        for (const key of [...pending]) {
+          const data = localStorage.getItem(key);
+          if (data) {
+            try { await window.storage.set(key, data); synced++; } catch (e) { break; }
+          }
+        }
+        if (synced > 0) {
+          const remaining = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+          localStorage.setItem(KEYS.PENDING, JSON.stringify(remaining.slice(synced)));
         }
       }
-      if (synced > 0) {
-        const remaining = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
-        localStorage.setItem(KEYS.PENDING, JSON.stringify(remaining.slice(synced)));
+    } catch (e) {}
+
+    // Enviar notificaciones Discord pendientes
+    try {
+      const queue = JSON.parse(localStorage.getItem(KEYS.DISC_QUEUE) || '[]');
+      if (!queue.length) return;
+      const failed = [];
+      for (const item of queue) {
+        try {
+          const res = await fetch(item.webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ embeds: [item.embed] }),
+          });
+          if (!res.ok) failed.push(item); // reintentar después
+        } catch (e) {
+          failed.push(item);
+          break; // sin internet, parar
+        }
       }
+      localStorage.setItem(KEYS.DISC_QUEUE, JSON.stringify(failed));
     } catch (e) {}
   };
   const saveVehicles = (d) => { setVehicles(d); persist(KEYS.VEHICLES, d); };
@@ -606,6 +627,15 @@ function formatDuration(min) {
 async function sendDiscordNotification(webhookUrl, embed) {
   if (!webhookUrl || !webhookUrl.trim()) return { ok: false, error: 'Sin webhook configurado' };
   if (!webhookUrl.includes('discord.com/api/webhooks/')) return { ok: false, error: 'URL inválida (no parece de Discord)' };
+  // Si no hay internet → guardar en cola para enviar al reconectar
+  if (!navigator.onLine) {
+    try {
+      const queue = JSON.parse(localStorage.getItem('__emp:discordQueue') || '[]');
+      queue.push({ id: Date.now(), webhookUrl, embed, queuedAt: new Date().toISOString() });
+      localStorage.setItem('__emp:discordQueue', JSON.stringify(queue));
+    } catch(e) {}
+    return { ok: false, error: 'Sin conexión — notificación guardada para enviar luego' };
+  }
   try {
     const response = await fetch(webhookUrl, {
       method: 'POST',
@@ -616,7 +646,13 @@ async function sendDiscordNotification(webhookUrl, embed) {
     const text = await response.text().catch(() => '');
     return { ok: false, error: `HTTP ${response.status}: ${text.slice(0, 100) || 'sin detalle'}` };
   } catch (e) {
-    return { ok: false, error: e.message || 'Error de red' };
+    // Error de red → guardar en cola para enviar al reconectar
+    try {
+      const queue = JSON.parse(localStorage.getItem('__emp:discordQueue') || '[]');
+      queue.push({ id: Date.now(), webhookUrl, embed, queuedAt: new Date().toISOString() });
+      localStorage.setItem('__emp:discordQueue', JSON.stringify(queue));
+    } catch(e2) {}
+    return { ok: false, error: e.message || 'Error de red — guardado para reenvío' };
   }
 }
 
