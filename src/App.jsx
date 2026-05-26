@@ -2698,7 +2698,7 @@ function DriverHistoryView({ trips, vehicles, branches }) {
 // ============================================================
 // COORDINADOR
 // ============================================================
-function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos }) {
+function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists }) {
   const [tab, setTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
