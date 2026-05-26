@@ -1186,6 +1186,11 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setStep('select');
   };
   const newTrip = () => { setCurrentTrip(null); setStep('start'); }; // mantiene camión seleccionado
+  const handleWaitEnd = (tripId, waitMin) => {
+    if (!waitMin || waitMin <= 0) return;
+    const updated = trips.map(t => t.id === tripId ? { ...t, waitMinutes: waitMin } : t);
+    saveTrips(updated);
+  };
   const handleEntregarUnidad = (formData) => {
     const vId = selectedVehicle?.id || currentTrip?.vehicleId;
     const vCode = selectedVehicle?.code || vehicles.find(v => v.id === vId)?.code || '';
@@ -1333,7 +1338,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={() => setStep('start')} onBack={() => setStep('select')} config={config} />}
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={myTrips} onBack={() => setStep('checklist')} onStart={startTrip} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} />}
-          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} />}
+          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} />}
           {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
@@ -1907,13 +1912,37 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }
   );
 }
 
-function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, onLogout, onMarkDeparted, onFinishJornada, onEntregarUnidad }) {
+function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, onLogout, onMarkDeparted, onFinishJornada, onEntregarUnidad, onWaitEnd }) {
   const origin = branches.find(b => b.id === trip.originBranchId);
   const destination = branches.find(b => b.id === trip.destinationBranchId);
   const [timeAtDest, setTimeAtDest] = useState('');
   const [departed, setDeparted] = useState(!!trip.timeAtDestinationMinutes);
   const [confirmedMinutes, setConfirmedMinutes] = useState(trip.timeAtDestinationMinutes || null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isWaiting, setIsWaiting] = useState(false);
+  const [waitStart, setWaitStart] = useState(null);
+  const [waitDisplay, setWaitDisplay] = useState('0m 00s');
+
+  useEffect(() => {
+    if (!isWaiting || !waitStart) return;
+    const update = () => {
+      const sec = Math.max(0, Math.floor((Date.now() - waitStart) / 1000));
+      const h = Math.floor(sec / 3600); const m = Math.floor((sec % 3600) / 60); const s = sec % 60;
+      setWaitDisplay(h > 0 ? `${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s` : `${m}m ${String(s).padStart(2,'0')}s`);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [isWaiting, waitStart]);
+
+  const startWaiting = () => { setIsWaiting(true); setWaitStart(Date.now()); };
+  const endWaiting = (goToNewTrip) => {
+    const waitMin = waitStart ? Math.max(0, Math.round((Date.now() - waitStart) / 60000)) : 0;
+    if (onWaitEnd) onWaitEnd(trip.id, waitMin);
+    setIsWaiting(false);
+    setWaitStart(null);
+    if (goToNewTrip) onNewTrip(); else if (onFinishJornada) onFinishJornada();
+  };
 
   useEffect(() => {
     if (departed) return;
@@ -2003,6 +2032,37 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
         </div>
       )}
 
+      {departed && !isWaiting && (
+        <button onClick={startWaiting}
+          className="w-full py-3 rounded-xl font-bold text-blue-700 bg-blue-50 border-2 border-blue-200 hover:bg-blue-100 flex items-center justify-center gap-2 transition-all">
+          ⏸️ Sin viajes por ahora — quedarme en espera
+        </button>
+      )}
+
+      {isWaiting && (
+        <div className="bg-gradient-to-br from-blue-600 to-blue-900 text-white rounded-2xl p-5 shadow-xl border border-blue-400/30">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            <span className="text-xs font-bold uppercase tracking-widest font-mono">⏸️ En espera · {destination?.name}</span>
+          </div>
+          <div className="text-center my-4">
+            <div className="text-xs text-blue-200 font-mono uppercase mb-1">Tiempo de espera</div>
+            <div className="text-4xl font-bold tabular-nums font-mono">{waitDisplay}</div>
+            <div className="text-xs text-blue-300 mt-1 font-mono">desde las {new Date(waitStart).toLocaleTimeString('es-VE', {hour:'2-digit',minute:'2-digit'})}</div>
+          </div>
+          <div className="space-y-2">
+            <button onClick={() => endWaiting(true)}
+              className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold flex items-center justify-center gap-2">
+              ▶️ Hay viajes disponibles
+            </button>
+            <button onClick={() => endWaiting(false)}
+              className="w-full py-3 bg-white/20 hover:bg-white/30 rounded-xl font-bold flex items-center justify-center gap-2">
+              🌙 Finalizar Jornada de hoy
+            </button>
+          </div>
+        </div>
+      )}
+
       {showConfirmDialog && (
         <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4" onClick={() => setShowConfirmDialog(false)}>
           <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -2029,27 +2089,31 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
-          <button onClick={onLogout} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200">Salir</button>
-          <button onClick={departed ? onNewTrip : undefined} disabled={!departed}
-            className={`py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${departed ? 'text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-lg shadow-emerald-700/30' : 'text-stone-400 bg-stone-200 cursor-not-allowed'}`}>
-            <Plus className="w-5 h-5" /> Nuevo Viaje
+      {!isWaiting && (
+        <div>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={onLogout} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200">Salir</button>
+            <button onClick={departed ? onNewTrip : undefined} disabled={!departed}
+              className={`py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${departed ? 'text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-lg shadow-emerald-700/30' : 'text-stone-400 bg-stone-200 cursor-not-allowed'}`}>
+              <Plus className="w-5 h-5" /> Nuevo Viaje
+            </button>
+          </div>
+          {!departed && (
+            <p className="text-center text-xs text-purple-600 font-semibold mt-1">
+              ⚠️ Marca tu salida de la sucursal antes de continuar
+            </p>
+          )}
+          {onEntregarUnidad && (
+            <button onClick={onEntregarUnidad}
+              className="w-full mt-2 py-3 rounded-xl font-bold text-amber-700 bg-amber-50 border-2 border-amber-200 hover:bg-amber-100 flex items-center justify-center gap-2 transition-all">
+              📤 Entregar unidad a otro chofer
+            </button>
+          )}
+          <button onClick={() => onFinishJornada && onFinishJornada()} className="w-full mt-2 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 shadow-lg shadow-purple-700/30 flex items-center justify-center gap-2">
+            🌙 Finalizar Jornada de hoy
           </button>
         </div>
-        {!departed && (
-          <p className="text-center text-xs text-purple-600 font-semibold -mt-1">
-            ⚠️ Marca tu salida de la sucursal antes de continuar
-          </p>
-        )}
-        {onEntregarUnidad && (
-          <button onClick={onEntregarUnidad}
-            className="w-full mt-2 py-3 rounded-xl font-bold text-amber-700 bg-amber-50 border-2 border-amber-200 hover:bg-amber-100 flex items-center justify-center gap-2 transition-all">
-            📤 Entregar unidad a otro chofer
-          </button>
-        )}
-        <button onClick={() => onFinishJornada && onFinishJornada()} className="w-full mt-2 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 shadow-lg shadow-purple-700/30 flex items-center justify-center gap-2">
-          🌙 Finalizar Jornada de hoy
-        </button>
+      )}
     </div>
   );
 }
@@ -3346,6 +3410,11 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         dd.push([r2(flotaKm), r2(flotaLt), `$ ${r2(flotaCs)}`, flotaVj, flotaEn, `${flotaLt > 0 ? r2(flotaKm/flotaLt) : 0} km/L`, '', '']);
         dd.push(['kilómetros', 'litros consumidos', 'combustible', 'viajes realizados', 'entregas completadas', 'promedio flota', '', '']);
         dd.push(Array(NC).fill(''));
+        // Fila 7: campeones
+        const mostActive = vMetrics.reduce((a, b) => b.vj > a.vj ? b : a, vMetrics[0]);
+        const bestEff = vMetrics.filter(m => m.kml > 0).reduce((a, b) => b.kml > a.kml ? b : a, vMetrics.find(m => m.kml > 0) || vMetrics[0]);
+        dd.push([`🏆 Más activo: ${mostActive?.v.code} (${mostActive?.vj} viajes)   ·   ⚡ Más eficiente: ${bestEff?.v.code} (${r2(bestEff?.kml || 0)} km/L)`, ...Array(NC-1).fill('')]);
+        dd.push(Array(NC).fill(''));
 
         // Sección: barras KM
         const kmBarR = dd.length;
@@ -3445,7 +3514,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 
           // Sección: detalle por viaje
           rows.push(['DETALLE DE VIAJES', ...Array(14).fill('')]);
-          rows.push(['Fecha', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'KM Salida', 'KM Llegada', 'T.Viaje', 'Espera Origen', 'Tiempo en Destino', 'Salida Destino', 'KM rec.', 'Litros', 'Costo $', 'Entregas', 'Notas']);
+          rows.push(['Fecha', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'KM Salida', 'KM Llegada', 'T.Viaje', 'Espera Origen', 'Tiempo en Destino', 'Salida Destino', 'T.Espera Suc.', 'KM rec.', 'Litros', 'Costo $', 'Entregas', 'Notas']);
 
           const sortedTrips = [...vt].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime));
           const detStartR = rows.length;
@@ -3463,6 +3532,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               fmtMin(t.timeAtBranchPrevMinutes),
               fmtMin(tDest),
               addMin(t.endTime, tDest),
+              t.waitMinutes ? fmtMin(t.waitMinutes) : '',
               r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
               t.deliveries || 0, t.notes || ''
             ]);
@@ -3498,7 +3568,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           rows.push([`Eficiencia: ${totLt > 0 ? r2(totKm / totLt) + ' km/L' : 'Sin datos'}     ${kmLText(totLt > 0 ? totKm / totLt : 0)}`]);
 
           const ws = XLSX.utils.aoa_to_sheet(rows);
-          const NCV = 17;
+          const NCV = 18;
           ws['!merges'] = [
             { s: { r: 0, c: 0 }, e: { r: 0, c: NCV - 1 } },
             { s: { r: 1, c: 0 }, e: { r: 1, c: NCV - 1 } },
@@ -3526,7 +3596,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
             for (let c = 0; c < 12; c++) sc(ws, ri, c, c >= 2 && c <= 10 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
           });
           for (let c = 0; c < 12; c++) sc(ws, totalR, c, c >= 6 ? ST.totalRight : ST.totalRow);
-          ws['!cols'] = [{ wch: 12 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 13 }, { wch: 14 }, { wch: 13 }, { wch: 9 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 22 }];
+          ws['!cols'] = [{ wch: 12 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 13 }, { wch: 14 }, { wch: 13 }, { wch: 13 }, { wch: 9 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 22 }];
           ws['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
           XLSX.utils.book_append_sheet(wb, ws, v.code.substring(0, 31));
         });
