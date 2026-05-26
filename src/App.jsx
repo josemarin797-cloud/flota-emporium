@@ -3331,7 +3331,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState(null);
   const [deleteUntil, setDeleteUntil] = useState('');
-  const handleDeleteOld = () => {
+  const handleDeleteOld = async () => {
     if (!deleteUntil) {
       setExportMsg({ type: 'error', msg: '⚠️ Selecciona una fecha primero' });
       setTimeout(() => setExportMsg(null), 3000);
@@ -3345,7 +3345,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
     }
     if (!window.confirm(`¿Borrar ${toDelete} viaje(s) anteriores al ${deleteUntil}? Esta acción no se puede deshacer.`)) return;
     const keep = allTrips.filter(t => t.startDate >= deleteUntil);
-    saveTrips(keep);
+    const idsToDelete = allTrips.filter(t => t.startDate < deleteUntil).map(t => t.id);       saveTrips(keep);       if (idsToDelete.length > 0) {         try {           await fetch(`${SB_URL}/rest/v1/viajes?id=in.(${idsToDelete.join(',')})`, {             method: 'DELETE', headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }           });         } catch(e) { console.error('SB delete viajes:', e); }       }
     setExportMsg({ type: 'success', msg: `✅ ${toDelete} viaje(s) eliminados` });
     setTimeout(() => setExportMsg(null), 4000);
   };
@@ -5719,8 +5719,8 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config, saveChecklis
     if (toDelete === 0) { alert(`No hay checklists de ${vehicleName} anteriores al ${deleteUntil}`); return; }
     if (!window.confirm(`¿Borrar ${toDelete} checklist(s) de ${vehicleName} anteriores al ${deleteUntil}?`)) return;
     const keep = checklists.filter(c => !(c.date < deleteUntil && (deleteVehicle === 'all' || c.vehicleId === deleteVehicle)));
-    
-    if (sbF) sbF(`checklists?date=lt.${deleteUntil}`, { method: 'DELETE' }).then(() => window.location.reload()).catch(() => {})
+    saveChecklists(keep);
+    if (sbF) { const q = deleteVehicle === 'all' ? `checklists?date=lt.${deleteUntil}` : `checklists?date=lt.${deleteUntil}&vehicle_id=eq.${deleteVehicle}`; sbF(q, { method: 'DELETE' }).catch(() => {}); }
   };
   const filtered = (checklists || [])
     .filter(c => (!filterDate || c.date === filterDate) && (filterVehicle === 'all' || c.vehicleId === filterVehicle))
