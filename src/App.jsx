@@ -5709,7 +5709,7 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config, saveChecklis
   const [filterVehicle, setFilterVehicle] = useState('all');
   const [deleteUntil, setDeleteUntil] = useState('');
   const [deleteVehicle, setDeleteVehicle] = useState('all');
-  const handleDeleteOld = () => {
+  const handleDeleteOld = async () => {
     if (!deleteUntil) {
       alert('Selecciona una fecha primero');
       return;
