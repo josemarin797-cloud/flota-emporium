@@ -1157,6 +1157,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   const [currentPosition, setCurrentPosition] = useState(null);
   const watchIdRef = useRef(null);
   const [showEntregarModal, setShowEntregarModal] = useState(false);
+  const [checklistKm, setChecklistKm] = useState(null);
 
   const myTrips = useMemo(() => trips.filter(t => t.driverId === currentDriver.id), [trips, currentDriver]);
   const myActiveTrips = useMemo(() => activeTrips.filter(t => t.driverId === currentDriver.id), [activeTrips, currentDriver]);
@@ -1250,6 +1251,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   useEffect(() => () => stopGpsTracking(), []);
 
   const startTrip = async (data) => {
+    setChecklistKm(null); // limpiar para que el siguiente viaje use kmEnd del anterior
     const realNow = new Date();
     data = { ...data, startDate: realNow.toISOString().slice(0,10), startTime: realNow.toTimeString().slice(0,5) };
     // Calcular tiempo en sucursal de destino del viaje anterior
@@ -1575,8 +1577,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       <main className="max-w-lg mx-auto p-4 pb-24">
         {tab === 'trip' && <>
           {step === 'select' && <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onContinue={() => setStep('checklist')} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} />}
-          {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={() => setStep('start')} onBack={() => setStep('select')} config={config} />}
-          {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={myTrips} onBack={() => setStep('checklist')} onStart={startTrip} />}
+          {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) setChecklistKm(Number(km)); setStep('start'); }} onBack={() => setStep('select')} config={config} />}
+          {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} />}
           {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
@@ -1773,14 +1775,23 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
   );
 }
 
-function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart }) {
+function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, initialKm }) {
   const lastTrip = useMemo(() => [...trips].filter(t => t.vehicleId === vehicle.id).sort((a, b) => b.createdAt - a.createdAt)[0], [trips, vehicle]);
   const now = new Date();
   const [formOpenedAt] = useState(() => Date.now());
   const [form, setForm] = useState({
     originBranchId: lastTrip ? lastTrip.destinationBranchId : (branches[0]?.id || ''),
     destinationBranchId: '',
-    kmStart: lastTrip ? lastTrip.kmEnd : vehicle.currentKm,
+    kmStart: (() => {
+      // Prioridad: 1) último viaje de HOY, 2) KM del checklist, 3) último viaje histórico, 4) KM actual del vehículo
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const todayTrips = trips.filter(t => t.vehicleId === vehicle.id && t.endDate === todayStr)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      if (todayTrips.length > 0) return todayTrips[0].kmEnd;
+      if (initialKm) return Number(initialKm);
+      if (lastTrip) return lastTrip.kmEnd;
+      return vehicle.currentKm;
+    })(),
     startDate: now.toISOString().slice(0, 10), startTime: now.toTimeString().slice(0, 5),
     fuelLoaded: 0,
   });
@@ -4997,7 +5008,7 @@ function ChecklistAlreadyDone({ checklist, vehicle, driver, onProceed, onBack })
         </button>
       ) : (
         <button
-          onClick={onProceed}
+          onClick={() => onProceed(checklist.kmInicial || checklist.kmOdometer || '')}
           className="w-full py-4 rounded-2xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-lg active:scale-[0.98]">
           <CheckCircle className="w-5 h-5" /> Iniciar viaje
         </button>
@@ -5158,7 +5169,7 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
         await sendChecklistDiscord(checklist, vehicle, driver, config);
 
     setSubmitting(false);
-    onDone();
+    onDone(kmInicial || '');
   };
 
   const groupColors = {
