@@ -627,7 +627,7 @@ export default function App() {
         handoffs={handoffs}
         saveVehicles={saveVehicles} saveDrivers={saveDrivers} saveBranches={saveBranches}
         saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} saveGpsTracks={saveGpsTracks}
-        saveArchived={saveArchived} saveConfig={saveConfig} savePhotos={savePhotos}
+        saveArchived={saveArchived} saveConfig={saveConfig} savePhotos={savePhotos} saveChecklists={saveChecklists}
       />
       <InstallAppButton />
     </>;
