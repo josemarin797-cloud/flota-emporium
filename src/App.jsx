@@ -17,6 +17,7 @@ const KEYS = {
   PHOTOS: 'emp:v4:photos',
   GPS_TRACKS: 'emp:v4:gps_tracks',
   HANDOFFS:   'emp:v4:handoffs',
+  PENDING:    '__emp:pendingSync',
   CHECKLISTS: 'emp:v4:checklists',
 };
 
@@ -336,6 +337,9 @@ export default function App() {
   const [activeTrips, setActiveTrips] = useState([]);
   const [archivedMonths, setArchivedMonths] = useState([]);
   const [handoffs, setHandoffs] = useState([]);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [syncMsg, setSyncMsg] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [gpsTracks, setGpsTracks] = useState([]);
   const [checklists, setChecklists] = useState([]);
@@ -346,27 +350,27 @@ export default function App() {
     const load = async () => {
       try {
         const reads = await Promise.all([
-          window.storage.get(KEYS.VEHICLES).catch(() => null),
-          window.storage.get(KEYS.DRIVERS).catch(() => null),
-          window.storage.get(KEYS.BRANCHES).catch(() => null),
-          window.storage.get(KEYS.TRIPS).catch(() => null),
-          window.storage.get(KEYS.ACTIVE_TRIPS).catch(() => null),
-          window.storage.get(KEYS.ARCHIVED_MONTHS).catch(() => null),
-          window.storage.get(KEYS.CONFIG).catch(() => null),
-          window.storage.get(KEYS.PHOTOS).catch(() => null),
-          window.storage.get(KEYS.GPS_TRACKS).catch(() => null),
-          window.storage.get(KEYS.HANDOFFS).catch(() => null),
+          loadFromStorage(KEYS.VEHICLES),
+          loadFromStorage(KEYS.DRIVERS),
+          loadFromStorage(KEYS.BRANCHES),
+          loadFromStorage(KEYS.TRIPS),
+          loadFromStorage(KEYS.ACTIVE_TRIPS),
+          loadFromStorage(KEYS.ARCHIVED_MONTHS),
+          loadFromStorage(KEYS.CONFIG),
+          loadFromStorage(KEYS.PHOTOS),
+          loadFromStorage(KEYS.GPS_TRACKS),
+          loadFromStorage(KEYS.HANDOFFS),
         ]);
-        if (reads[0]?.value) setVehicles(JSON.parse(reads[0].value));
-        if (reads[1]?.value) setDrivers(JSON.parse(reads[1].value));
-        if (reads[2]?.value) setBranches(JSON.parse(reads[2].value));
-        if (reads[3]?.value) setTrips(JSON.parse(reads[3].value));
-        if (reads[4]?.value) setActiveTrips(JSON.parse(reads[4].value));
-        if (reads[5]?.value) setArchivedMonths(JSON.parse(reads[5].value));
-        if (reads[6]?.value) setConfig(JSON.parse(reads[6].value));
-        if (reads[7]?.value) setPhotos(JSON.parse(reads[7].value));
-        if (reads[8]?.value) setGpsTracks(JSON.parse(reads[8].value));
-        if (reads[9]?.value) setHandoffs(JSON.parse(reads[9].value));
+        if (reads[0]) setVehicles(reads[0]);
+        if (reads[1]) setDrivers(reads[1]);
+        if (reads[2]) setBranches(reads[2]);
+        if (reads[3]) setTrips(reads[3]);
+        if (reads[4]) setActiveTrips(reads[4]);
+        if (reads[5]) setArchivedMonths(reads[5]);
+        if (reads[6]) setConfig(reads[6]);
+        if (reads[7]) setPhotos(reads[7]);
+        if (reads[8]) setGpsTracks(reads[8]);
+        if (reads[9]) setHandoffs(reads[9]);
         // Cargar checklists desde SUPABASE (sincronizados entre todos los dispositivos)
         const sbData = await loadSBChecklists();
         if (sbData !== null) {
@@ -381,7 +385,63 @@ export default function App() {
     load();
   }, []);
 
-  const persist = async (key, data) => { try { await window.storage.set(key, JSON.stringify(data)); } catch (e) {} };
+  // ── Offline-first storage ──────────────────────────────────────────
+  const persist = async (key, data) => {
+    const serialized = JSON.stringify(data);
+    // 1. Guardar en localStorage PRIMERO (siempre funciona, offline o no)
+    try { localStorage.setItem(key, serialized); } catch (e) {}
+    // 2. Intentar sincronizar con cloud storage
+    try {
+      await window.storage.set(key, serialized);
+      // Éxito: quitar de pendientes
+      try {
+        const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+        localStorage.setItem(KEYS.PENDING, JSON.stringify(pending.filter(k => k !== key)));
+      } catch (e) {}
+    } catch (e) {
+      // Sin internet: marcar como pendiente de sync
+      try {
+        const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+        if (!pending.includes(key)) localStorage.setItem(KEYS.PENDING, JSON.stringify([...pending, key]));
+      } catch (e2) {}
+    }
+  };
+
+  const loadFromStorage = async (key) => {
+    try {
+      const result = await window.storage.get(key);
+      if (result?.value) {
+        try { localStorage.setItem(key, result.value); } catch (e) {}
+        return JSON.parse(result.value);
+      }
+    } catch (e) {}
+    // Fallback: localStorage
+    try {
+      const local = localStorage.getItem(key);
+      return local ? JSON.parse(local) : null;
+    } catch (e) { return null; }
+  };
+
+  const syncPendingData = async () => {
+    try {
+      const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+      if (!pending.length) return;
+      let synced = 0;
+      for (const key of [...pending]) {
+        const data = localStorage.getItem(key);
+        if (data) {
+          try {
+            await window.storage.set(key, data);
+            synced++;
+          } catch (e) { break; }
+        }
+      }
+      if (synced > 0) {
+        const remaining = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+        localStorage.setItem(KEYS.PENDING, JSON.stringify(remaining.slice(synced)));
+      }
+    } catch (e) {}
+  };
   const saveVehicles = (d) => { setVehicles(d); persist(KEYS.VEHICLES, d); };
   const saveDrivers = (d) => { setDrivers(d); persist(KEYS.DRIVERS, d); };
   const saveBranches = (d) => { setBranches(d); persist(KEYS.BRANCHES, d); };
@@ -403,6 +463,28 @@ export default function App() {
   };
 
   // Refrescar checklists desde Supabase cada 30 segundos (para el coordinador)
+  // ── Detección online/offline + sync ────────────────────────────────
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setSyncMsg('🔄 Reconectado — sincronizando...');
+      syncPendingData().then(() => {
+        const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+        setPendingSyncCount(pending.length);
+        setSyncMsg(null);
+      });
+    };
+    const handleOffline = () => { setIsOnline(false); setSyncMsg(null); };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+    setPendingSyncCount(pending.length);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   useEffect(() => {
     const poll = async () => {
       const fresh = await loadSBChecklists();
@@ -451,11 +533,31 @@ export default function App() {
     );
   }
 
-  if (view === 'welcome') return <><WelcomeScreen onOk={handleWelcomeOk} /><InstallAppButton /></>;
+  const OfflineBanner = () => (
+    <>
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-[999] bg-amber-500 text-white text-center text-xs py-1.5 font-bold shadow-lg">
+          📡 Sin conexión — datos guardados localmente, se sincronizarán al reconectar
+        </div>
+      )}
+      {isOnline && syncMsg && (
+        <div className="fixed top-0 left-0 right-0 z-[999] bg-blue-600 text-white text-center text-xs py-1.5 font-bold shadow-lg animate-pulse">
+          {syncMsg}
+        </div>
+      )}
+      {isOnline && !syncMsg && pendingSyncCount > 0 && (
+        <div className="fixed top-0 left-0 right-0 z-[999] bg-emerald-600 text-white text-center text-xs py-1.5 font-bold shadow-lg">
+          ✅ Sincronizado — {pendingSyncCount === 0 ? 'todo al día' : `${pendingSyncCount} cambios pendientes`}
+        </div>
+      )}
+    </>
+  );
+
+  if (view === 'welcome') return <><OfflineBanner /><WelcomeScreen onOk={handleWelcomeOk} /><InstallAppButton /></>;
   if (view === 'login') return <><LoginScreen drivers={drivers} onLogin={handleLogin} /><InstallAppButton /></>;
 
   if (view === 'driver') {
-    return <>
+    return <><OfflineBanner />
       <DriverApp
         currentDriver={currentUser} onLogout={handleLogout}
         vehicles={vehicles} drivers={drivers} branches={branches}
@@ -471,7 +573,7 @@ export default function App() {
   }
 
   if (view === 'coordinator') {
-    return <>
+    return <><OfflineBanner />
       <CoordinatorApp
         onLogout={handleLogout}
         vehicles={vehicles} drivers={drivers} branches={branches}
