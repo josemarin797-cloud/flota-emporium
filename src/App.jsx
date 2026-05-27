@@ -1334,8 +1334,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         setTimeout(() => speakText(`¡Buen viaje ${nombreCorto}! ${mensajeRandom}`), 600);
 
     // Notificación Discord
-    const origin = branches.find(b => b.id === data.originBranchId);
-    const dest = branches.find(b => b.id === data.destinationBranchId);
+    const origin = branches.find(b => b.id === data.originBranchId) || (data.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
+    const dest = branches.find(b => b.id === data.destinationBranchId) || (data.destinationBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
     const webhookUrl = config.discordWebhookByVehicle?.[selectedVehicle.id] || config.discordWebhookGeneral;
     sendDiscordNotification(webhookUrl, {
       title: `🚛 VIAJE INICIADO · ${selectedVehicle.code}`,
@@ -1434,8 +1434,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     playBeep();
 
     // Notificación Discord
-    const origin = branches.find(b => b.id === currentTrip.originBranchId);
-    const dest = branches.find(b => b.id === currentTrip.destinationBranchId);
+    const origin = branches.find(b => b.id === currentTrip.originBranchId) || (currentTrip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
+    const dest = branches.find(b => b.id === currentTrip.destinationBranchId) || (currentTrip.destinationBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
     const webhookUrl = config.discordWebhookByVehicle?.[v.id] || config.discordWebhookGeneral;
     sendDiscordNotification(webhookUrl, {
       title: `✅ VIAJE COMPLETADO · ${v.code}`,
@@ -1934,6 +1934,10 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
                 {b.name}
               </button>
             ))}
+            <button onClick={() => setForm({ ...form, originBranchId: 'taller' })}
+              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'taller' ? 'border-rose-400 bg-rose-100 text-rose-800' : 'border-rose-200 text-rose-600 hover:border-rose-400 bg-rose-50'}`}>
+              🔧 Taller
+            </button>
           </div>
         </div>
 
@@ -1946,6 +1950,12 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
                 {b.name}
               </button>
             ))}
+            {form.originBranchId !== 'taller' && (
+              <button onClick={() => setForm({ ...form, destinationBranchId: 'taller' })}
+                className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.destinationBranchId === 'taller' ? 'border-rose-400 bg-rose-100 text-rose-800' : 'border-rose-200 text-rose-600 hover:border-rose-400 bg-rose-50'}`}>
+                🔧 Taller
+              </button>
+            )}
           </div>
         </div>
 
@@ -2031,8 +2041,8 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
     return () => clearInterval(id);
   }, [trip]);
 
-  const origin = branches.find(b => b.id === trip.originBranchId);
-  const destination = branches.find(b => b.id === trip.destinationBranchId);
+  const origin = branches.find(b => b.id === trip.originBranchId) || (trip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
+  const destination = branches.find(b => b.id === trip.destinationBranchId) || (trip.destinationBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
 
   if (showCamera) return <PhotoCapture onCapture={(p) => { onAddPhoto(p); setShowCamera(false); }} onCancel={() => setShowCamera(false)} />;
   if (showFinishForm) return <FinishTripForm trip={trip} vehicle={vehicle} origin={origin} destination={destination} onFinish={onFinish} onBack={() => setShowFinishForm(false)} />;
@@ -2243,8 +2253,8 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }
 }
 
 function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, onLogout, onMarkDeparted, onFinishJornada, onEntregarUnidad, onWaitEnd }) {
-  const origin = branches.find(b => b.id === trip.originBranchId);
-  const destination = branches.find(b => b.id === trip.destinationBranchId);
+  const origin = branches.find(b => b.id === trip.originBranchId) || (trip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
+  const destination = branches.find(b => b.id === trip.destinationBranchId) || (trip.destinationBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
   const [timeAtDest, setTimeAtDest] = useState('');
   const [departed, setDeparted] = useState(!!trip.timeAtDestinationMinutes);
   const [confirmedMinutes, setConfirmedMinutes] = useState(trip.timeAtDestinationMinutes || null);
@@ -2745,7 +2755,7 @@ function DriverHistoryView({ trips, vehicles, branches }) {
       </div>
       {sorted.map(t => {
         const v = vehicles.find(x => x.id === t.vehicleId);
-        const o = branches.find(x => x.id === t.originBranchId);
+        const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
         const d = branches.find(x => x.id === t.destinationBranchId);
         return (
           <div key={t.id} className="bg-white rounded-xl border border-stone-200 shadow-sm p-3 text-sm">
@@ -3154,7 +3164,7 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
             {activeTrips.map(t => {
               const d = drivers.find(x => x.id === t.driverId);
               const v = vehicles.find(x => x.id === t.vehicleId);
-              const o = branches.find(x => x.id === t.originBranchId);
+              const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
               const dest = branches.find(x => x.id === t.destinationBranchId);
               return (
                 <div key={t.id} className="bg-white border border-stone-200 rounded-lg p-3 text-sm flex items-center justify-between flex-wrap gap-2">
@@ -3366,7 +3376,7 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
             {activeTrips.map(t => {
               const v = vehicles.find(x => x.id === t.vehicleId);
               const d = drivers.find(x => x.id === t.driverId);
-              const o = branches.find(x => x.id === t.originBranchId);
+              const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
               const dest = branches.find(x => x.id === t.destinationBranchId);
               const track = gpsTracks.find(g => g.tripId === t.id);
               const points = track?.points?.length || 0;
@@ -3398,7 +3408,7 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
             {completedTrips.map(t => {
               const v = vehicles.find(x => x.id === t.vehicleId);
               const d = drivers.find(x => x.id === t.driverId);
-              const o = branches.find(x => x.id === t.originBranchId);
+              const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
               const dest = branches.find(x => x.id === t.destinationBranchId);
               const isSelected = selectedTripId === t.id;
               return (
@@ -3447,7 +3457,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
     if (!search) return true;
     const v = vehicles.find(x => x.id === t.vehicleId);
     const d = drivers.find(x => x.id === t.driverId);
-    const o = branches.find(x => x.id === t.originBranchId);
+    const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
     const dest = branches.find(x => x.id === t.destinationBranchId);
     return `${t.startDate} ${v?.code} ${d?.name} ${o?.name} ${dest?.name}`.toLowerCase().includes(search.toLowerCase());
   }).sort((a, b) => b.createdAt - a.createdAt);
@@ -3532,7 +3542,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       let totKm = 0, totL = 0, totC = 0, totD = 0;
       vTrips.forEach(t => {
         const d = drivers.find(x => x.id === t.driverId);
-        const o = branches.find(x => x.id === t.originBranchId);
+        const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
         const dest = branches.find(x => x.id === t.destinationBranchId);
         totKm += Number(t.kmTraveled) || 0;
         totL += Number(t.liters) || 0;
@@ -3904,7 +3914,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           const detStartR = rows.length;
           sortedTrips.forEach(t => {
             const d = drivers.find(x => x.id === t.driverId);
-            const o = branches.find(x => x.id === t.originBranchId);
+            const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
             const dest = branches.find(x => x.id === t.destinationBranchId);
             const tDest = t.timeAtDestinationMinutes;
             rows.push([
@@ -4055,7 +4065,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         [...trips].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime)).forEach(t => {
           const v = vehicles.find(x => x.id === t.vehicleId);
           const d = drivers.find(x => x.id === t.driverId);
-          const o = branches.find(x => x.id === t.originBranchId);
+          const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
           const dest = branches.find(x => x.id === t.destinationBranchId);
           const tDest = t.timeAtDestinationMinutes;
           detD.push([
@@ -4124,10 +4134,44 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         wsTras['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsTras, 'Traspasos');
 
+        // ════════════════════════════════════════════════════════════════
+        // HOJA — TALLER
+        // ════════════════════════════════════════════════════════════════
+        const tallerVehicles = vehicles.filter(v => v.tallerSalida || v.status === 'EN TALLER');
+        const tt = [];
+        tt.push(['HISTORIAL DE TALLER — TRANSPORTE EMPORIUM', ...Array(8).fill('')]);
+        tt.push([`Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(8).fill('')]);
+        tt.push(Array(9).fill(''));
+        tt.push(['Unidad', 'Placa', 'Chofer', 'Motivo', 'Trabajo Realizado', 'KM Entrada', 'KM Salida', 'Tiempo en Taller', 'Estado']);
+        vehicles.forEach(v => {
+          const entrada = v.tallerEntrada ? new Date(v.tallerEntrada).toLocaleString('es-VE') : '—';
+          const salida = v.tallerSalida ? new Date(v.tallerSalida).toLocaleString('es-VE') : '—';
+          const tiempoMs = v.tallerEntrada && v.tallerSalida ? v.tallerSalida - v.tallerEntrada : v.tallerEntrada ? Date.now() - v.tallerEntrada : 0;
+          const tiempoH = tiempoMs > 0 ? `${Math.floor(tiempoMs/3600000)}h ${Math.floor((tiempoMs%3600000)/60000)}m` : '—';
+          if (v.tallerMotivo || v.status === 'EN TALLER') {
+            tt.push([v.code, v.plate, v.tallerChofer||'—', v.tallerMotivo||'—', v.tallerTrabajo||'En curso', v.tallerKmEntrada||'—', v.currentKm||'—', tiempoH, v.status === 'EN TALLER' ? 'EN TALLER' : 'COMPLETADO']);
+          }
+        });
+        if (tt.length === 4) tt.push(['Sin registros de taller', ...Array(8).fill('')]);
+        tt.push(Array(9).fill(''));
+        tt.push(['ESTADO MANTENIMIENTO ACTUAL', ...Array(8).fill('')]);
+        tt.push(['Unidad', 'Placa', 'KM Actual', 'Último Aceite', 'Próximo Aceite', 'KM Rest. Aceite', 'Último Engrase', 'Próximo Engrase', 'KM Rest. Engrase']);
+        vehicles.forEach(v => {
+          const nextOil = (v.lastMaintKm||0) + (v.maintFreq||6000);
+          const remOil = nextOil - (v.currentKm||0);
+          const nextGrease = (v.lastGreaseKm||0) + (v.greaseFreq||3000);
+          const remGrease = nextGrease - (v.currentKm||0);
+          tt.push([v.code, v.plate, v.currentKm||0, v.lastMaintKm||0, nextOil, remOil, v.lastGreaseKm||0, nextGrease, v.greaseFreq > 0 ? remGrease : 'N/A']);
+        });
+        const wsTaller = XLSX.utils.aoa_to_sheet(tt);
+        wsTaller['!cols'] = [{ wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 22 }, { wch: 28 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }];
+        wsTaller['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
+        XLSX.utils.book_append_sheet(wb, wsTaller, 'Taller');
+
         // ── Descargar ────────────────────────────────────────────────────
         const fileName = `reporte_flota_emporium_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, fileName);
-        setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado — 9 hojas` });
+        setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado — 10 hojas` });
         setTimeout(() => setExportMsg(null), 5000);
         setExporting(false);
         return;
@@ -4209,7 +4253,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               {filtered.map(t => {
                 const v = vehicles.find(x => x.id === t.vehicleId);
                 const d = drivers.find(x => x.id === t.driverId);
-                const o = branches.find(x => x.id === t.originBranchId);
+                const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
                 const dest = branches.find(x => x.id === t.destinationBranchId);
                 // Cálculo en vivo si todavía está en destino
                 let destTimeDisplay = null;
