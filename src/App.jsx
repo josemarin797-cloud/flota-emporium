@@ -1345,7 +1345,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       color: 0x10b981,
       fields: [
         { name: '⏰ Hora', value: data.startTime, inline: true },
-        { name: '📊 KM', value: data.kmStart.toLocaleString(), inline: true },
+        { name: '📍 KM Salida', value: data.kmStart.toLocaleString(), inline: true },
         { name: '⛽ Surtido', value: data.fuelLoaded ? `${data.fuelLoaded} L` : 'Sin carga', inline: true },
 ...(data.tripNotes ? [{ name: '📝 Notas', value: data.tripNotes, inline: false }] : []),
       ],
@@ -1444,6 +1444,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       description: `**${currentDriver.name}** llegó a **${dest?.name}** desde **${origin?.name}**`,
       color: 0x059669,
       fields: [
+        { name: '📍 KM Salida', value: currentTrip.kmStart.toLocaleString(), inline: true },
+        { name: '📍 KM Llegada', value: Number(data.kmEnd).toLocaleString(), inline: true },
         { name: '🛣️ KM Recorridos', value: `${kmTraveled} km`, inline: true },
         { name: '⏱️ Duración', value: formatDuration(tripMinutes), inline: true },
         { name: '⛽ Combustible', value: `${liters.toFixed(2)} L`, inline: true },
