@@ -1195,6 +1195,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   const [showEntregarModal, setShowEntregarModal] = useState(false);
   const [checklistKm, setChecklistKm] = useState(null);
 
+  // Al seleccionar vehículo, detectar si está EN TALLER
   const myTrips = useMemo(() => trips.filter(t => t.driverId === currentDriver.id), [trips, currentDriver]);
   const myActiveTrips = useMemo(() => activeTrips.filter(t => t.driverId === currentDriver.id), [activeTrips, currentDriver]);
   const myPhotos = useMemo(() => photos.filter(p => p.driverId === currentDriver.id), [photos, currentDriver]);
@@ -1612,7 +1613,37 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
       <main className="max-w-lg mx-auto p-4 pb-24">
         {tab === 'trip' && <>
-          {step === 'select' && <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onContinue={() => setStep('checklist')} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} />}
+          {step === 'select' && <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onContinue={(accion, motivo, km) => {
+            if (accion === 'taller') {
+              // Marcar vehículo EN TALLER
+              const updatedVehicles = vehicles.map(v => v.id === selectedVehicle.id ? {
+                ...v, status: 'EN TALLER',
+                tallerEntrada: Date.now(),
+                tallerMotivo: motivo,
+                tallerKmEntrada: km,
+                tallerChofer: currentDriver.name,
+              } : v);
+              saveVehicles(updatedVehicles);
+              // Discord
+              const wh = config?.discordWebhookByVehicle?.[selectedVehicle.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+              if (wh) sendDiscordNotification(wh, {
+                title: `🔧 EN TALLER · ${selectedVehicle.code}`,
+                description: `**${currentDriver.name}** dejó **${selectedVehicle.code}** (${selectedVehicle.plate}) en taller`,
+                color: 0xEF4444,
+                fields: [
+                  { name: '🔧 Motivo', value: motivo, inline: false },
+                  { name: '📍 KM entrada', value: `${km.toLocaleString()} km`, inline: true },
+                  { name: '📅 Fecha', value: new Date().toLocaleString('es-VE'), inline: true },
+                ],
+              }).catch(() => {});
+              setStep('taller');
+            } else if (selectedVehicle?.status === 'EN TALLER' && selectedVehicle?.tallerEntrada) {
+              setStep('taller');
+            } else {
+              setStep('checklist');
+            }
+          }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} />}
+          {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) setChecklistKm(Number(km)); setStep('start'); }} onBack={() => setStep('select')} config={config} />}
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} />}
@@ -1806,6 +1837,18 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
         className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle && !pendingHandoff ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400'}`}>
         Continuar <ArrowRight className="w-5 h-5" />
       </button>
+      {selectedVehicle && !pendingHandoff && selectedVehicle.status !== 'EN TALLER' && (
+        <button onClick={() => {
+          const motivo = prompt('¿Motivo del taller?\n(ej: cambio aceite, revisión frenos, falla mecánica...)');
+          if (!motivo) return;
+          const km = prompt('KM actual del odómetro:', selectedVehicle.currentKm?.toString() || '0');
+          if (!km || isNaN(Number(km))) return;
+          onContinue('taller', motivo, Number(km));
+        }}
+          className="w-full py-3 rounded-2xl font-bold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition flex items-center justify-center gap-2">
+          🔧 Dejar en taller
+        </button>
+      )}
       {pendingHandoff && <p className="text-center text-xs text-amber-600 font-semibold">⚠️ Confirma la recepción para continuar</p>}
     </div>
   );
@@ -2885,6 +2928,53 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
       {/* SEMÁFORO DE CHEQUEOS HOY */}
       <FleetChecklistWidget vehicles={vehicles} checklists={checklists} drivers={drivers} onSelect={setSelectedChecklist} />
       {selectedChecklist && <ChecklistDetailModal checklist={selectedChecklist} vehicles={vehicles} onClose={() => setSelectedChecklist(null)} />}
+
+      {/* ALERTAS MANTENIMIENTO Y TALLER */}
+      {(() => {
+        const enTaller = vehicles.filter(v => v.status === 'EN TALLER');
+        const alertaAceite = vehicles.filter(v => v.status !== 'EN TALLER' && ((v.lastMaintKm||0) + (v.maintFreq||6000) - (v.currentKm||0)) < 500);
+        const alertaEngrase = vehicles.filter(v => v.status !== 'EN TALLER' && v.greaseFreq > 0 && ((v.lastGreaseKm||0) + (v.greaseFreq||3000) - (v.currentKm||0)) < 500);
+        if (enTaller.length === 0 && alertaAceite.length === 0 && alertaEngrase.length === 0) return null;
+        const fmt = (s) => { const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60); return d>0?`${d}d ${h}h`:`${h}h ${m}m`; };
+        return (
+          <div className="space-y-2">
+            {enTaller.map(v => (
+              <div key={v.id} className="bg-rose-50 border border-rose-300 rounded-xl p-3 flex items-center gap-3">
+                <div className="text-2xl">🔧</div>
+                <div className="flex-1">
+                  <div className="font-bold text-rose-800">{v.code} — EN TALLER</div>
+                  <div className="text-xs text-rose-600">{v.tallerMotivo || 'En servicio'} · {v.tallerChofer || '—'}</div>
+                  {v.tallerEntrada && <div className="text-xs text-rose-500 font-mono">{fmt(Math.floor((Date.now()-v.tallerEntrada)/1000))} en taller</div>}
+                </div>
+              </div>
+            ))}
+            {alertaAceite.map(v => {
+              const rem = (v.lastMaintKm||0) + (v.maintFreq||6000) - (v.currentKm||0);
+              return (
+                <div key={v.id} className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center gap-3">
+                  <div className="text-2xl">🛢️</div>
+                  <div className="flex-1">
+                    <div className="font-bold text-amber-800">{v.code} — {rem < 0 ? '⚠️ CAMBIO VENCIDO' : '⚠️ CAMBIO PRÓXIMO'}</div>
+                    <div className="text-xs text-amber-600">Aceite · {rem < 0 ? `${Math.abs(rem)} km pasado` : `${rem} km restantes`}</div>
+                  </div>
+                </div>
+              );
+            })}
+            {alertaEngrase.map(v => {
+              const rem = (v.lastGreaseKm||0) + (v.greaseFreq||3000) - (v.currentKm||0);
+              return (
+                <div key={v.id} className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
+                  <div className="text-2xl">⚙️</div>
+                  <div className="flex-1">
+                    <div className="font-bold text-amber-700">{v.code} — {rem < 0 ? '⚠️ ENGRASE VENCIDO' : '⚠️ ENGRASE PRÓXIMO'}</div>
+                    <div className="text-xs text-amber-600">Engrase · {rem < 0 ? `${Math.abs(rem)} km pasado` : `${rem} km restantes`}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* COSTO POR KM POR VEHÍCULO */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
@@ -4478,47 +4568,232 @@ function BranchesTab({ branches, saveBranches }) {
   );
 }
 
+// ============================================================
+// TALLER VIEW — pantalla del chofer cuando el camión está en taller
+// ============================================================
+function TallerView({ vehicle, driver, vehicles, saveVehicles, config, onSalir }) {
+  const [elapsed, setElapsed] = useState(0);
+  const [trabajoRealizado, setTrabajoRealizado] = useState('');
+  const [kmSalida, setKmSalida] = useState(vehicle.tallerKmEntrada?.toString() || '');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const entrada = vehicle.tallerEntrada || Date.now();
+    const tick = () => setElapsed(Math.floor((Date.now() - entrada) / 1000));
+    tick();
+    const id = setInterval(tick, 10000);
+    return () => clearInterval(id);
+  }, [vehicle.tallerEntrada]);
+
+  const fmt = (s) => {
+    const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
+
+  const handleSalir = async () => {
+    if (!trabajoRealizado.trim()) { alert('Describe el trabajo realizado antes de salir.'); return; }
+    if (!kmSalida || isNaN(Number(kmSalida))) { alert('Ingresa el KM de salida.'); return; }
+    setSubmitting(true);
+    const diasEnTaller = Math.max(1, Math.round(elapsed / 86400));
+    const updatedVehicles = vehicles.map(v => v.id === vehicle.id ? {
+      ...v,
+      status: 'AL DIA',
+      currentKm: Number(kmSalida),
+      tallerSalida: Date.now(),
+      tallerTrabajo: trabajoRealizado,
+      tallerDias: diasEnTaller,
+      tallerEntrada: null,
+      tallerMotivo: null,
+      tallerChofer: null,
+    } : v);
+    saveVehicles(updatedVehicles);
+    // Discord
+    const wh = config?.discordWebhookByVehicle?.[vehicle.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    if (wh) await sendDiscordNotification(wh, {
+      title: `✅ SALIÓ DE TALLER · ${vehicle.code}`,
+      description: `**${driver.name}** reporta salida de taller de **${vehicle.code}** (${vehicle.plate})`,
+      color: 0x10B981,
+      fields: [
+        { name: '🔧 Motivo entrada', value: vehicle.tallerMotivo || '—', inline: false },
+        { name: '🛠️ Trabajo realizado', value: trabajoRealizado, inline: false },
+        { name: '⏱️ Tiempo en taller', value: fmt(elapsed), inline: true },
+        { name: '📍 KM salida', value: `${Number(kmSalida).toLocaleString()} km`, inline: true },
+        { name: '📅 Fecha salida', value: new Date().toLocaleString('es-VE'), inline: true },
+      ],
+    }).catch(() => {});
+    setSubmitting(false);
+    onSalir();
+  };
+
+  return (
+    <div className="space-y-4 pb-8">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <h2 className="font-bold text-stone-900 text-lg">🔧 En taller</h2>
+          <p className="text-stone-500 text-xs">{vehicle.code} · {vehicle.plate}</p>
+        </div>
+      </div>
+
+      {/* Timer */}
+      <div className="rounded-2xl p-5 text-center" style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}>
+        <div className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Tiempo en taller</div>
+        <div className="text-white font-black text-5xl tracking-tight mb-1">{fmt(elapsed)}</div>
+        <div className="text-white/60 text-xs">Entró: {vehicle.tallerEntrada ? new Date(vehicle.tallerEntrada).toLocaleString('es-VE') : '—'}</div>
+      </div>
+
+      {/* Motivo */}
+      <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
+        <div className="text-xs font-bold text-rose-700 uppercase tracking-wider mb-1">🔧 Motivo de entrada</div>
+        <div className="text-sm text-rose-900 font-medium">{vehicle.tallerMotivo || '—'}</div>
+      </div>
+
+      {/* Trabajo realizado */}
+      <div>
+        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">
+          🛠️ Trabajo realizado <span className="text-red-500">*</span>
+        </label>
+        <textarea rows={3} value={trabajoRealizado} onChange={e => setTrabajoRealizado(e.target.value)}
+          placeholder="Describe el trabajo que se realizó (cambio aceite, reparación frenos, etc.)..."
+          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-400 resize-none" />
+      </div>
+
+      {/* KM salida */}
+      <div>
+        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">📍 KM odómetro al salir</label>
+        <input type="number" value={kmSalida} onChange={e => setKmSalida(e.target.value)}
+          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:border-emerald-400" />
+      </div>
+
+      {/* Botón salir */}
+      <button onClick={handleSalir} disabled={submitting}
+        className="w-full py-4 rounded-2xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-50">
+        {submitting ? 'Registrando...' : '✅ Salir del taller'}
+      </button>
+    </div>
+  );
+}
+
 function MaintenanceTab({ vehicles, saveVehicles }) {
   const alerts = vehicles.map(v => {
-    const next = v.lastMaintKm + v.maintFreq;
-    const rem = next - v.currentKm;
+    const nextOil = (v.lastMaintKm || 0) + (v.maintFreq || 6000);
+    const remOil = nextOil - (v.currentKm || 0);
+    const nextGrease = (v.lastGreaseKm || 0) + (v.greaseFreq || 3000);
+    const remGrease = nextGrease - (v.currentKm || 0);
     let level = 'ok';
-    if (rem < 0) level = 'critical'; else if (rem < 500) level = 'warning';
-    return { ...v, kmRemaining: rem, nextMaint: next, level };
+    if (remOil < 0 || remGrease < 0) level = 'critical';
+    else if (remOil < 500 || remGrease < 500) level = 'warning';
+    return { ...v, remOil, nextOil, remGrease, nextGrease, level };
   });
+
+  const enTaller = alerts.filter(v => v.status === 'EN TALLER');
+  const operativos = alerts.filter(v => v.status !== 'EN TALLER');
+
   const reg = (v) => {
-    const km = prompt(`KM del ${v.code}:`, v.currentKm.toString());
-    if (km && !isNaN(Number(km))) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, lastMaintKm: Number(km), lastGreaseKm: Number(km) } : x));
+    const km = prompt(`KM del servicio de aceite para ${v.code}:`, v.currentKm?.toString() || '0');
+    if (km && !isNaN(Number(km))) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, lastMaintKm: Number(km) } : x));
   };
+  const regGrease = (v) => {
+    const km = prompt(`KM del engrase para ${v.code}:`, v.currentKm?.toString() || '0');
+    if (km && !isNaN(Number(km))) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, lastGreaseKm: Number(km) } : x));
+  };
+  const fmt = (s) => { const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60); return d>0?`${d}d ${h}h`:`${h}h ${m}m`; };
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <h2 className="font-black text-stone-900">Mantenimiento</h2>
+
+      {/* EN TALLER */}
+      {enTaller.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-bold text-rose-700 uppercase tracking-wider flex items-center gap-1">🔧 En taller ({enTaller.length})</div>
+          {enTaller.map(v => (
+            <div key={v.id} className="bg-rose-50 border border-rose-200 rounded-xl p-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="font-bold text-stone-900">{v.code} · {v.plate}</div>
+                  <div className="text-xs text-rose-700 font-medium mt-0.5">🔧 {v.tallerMotivo || 'En servicio'}</div>
+                  {v.tallerChofer && <div className="text-xs text-stone-500">Chofer: {v.tallerChofer}</div>}
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-black text-rose-700">{v.tallerEntrada ? fmt(Math.floor((Date.now()-v.tallerEntrada)/1000)) : '—'}</div>
+                  <div className="text-[10px] text-stone-400">en taller</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ALERTAS ACEITE Y ENGRASE */}
       <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
+        <div className="px-3 py-2 bg-stone-50 border-b border-stone-200">
+          <div className="text-xs font-bold text-stone-600 uppercase tracking-wider">🛢️ Cambio de Aceite</div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-stone-100 text-[10px] text-emerald-700 uppercase tracking-wider font-mono">
               <tr>
                 <th className="text-left px-3 py-2">Unidad</th>
-                <th className="text-right px-2 py-2">KM Actual</th>
-                <th className="text-right px-2 py-2">Próx. Mant.</th>
+                <th className="text-right px-2 py-2">Último</th>
+                <th className="text-right px-2 py-2">Próximo</th>
                 <th className="text-right px-2 py-2">Restantes</th>
                 <th className="text-center px-2 py-2">Estado</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {alerts.map(v => (
+              {operativos.map(v => (
                 <tr key={v.id} className="border-t border-stone-200">
                   <td className="px-3 py-2"><div className="font-bold text-stone-900">{v.code}</div><div className="text-xs text-stone-500 font-mono">{v.plate}</div></td>
-                  <td className="text-right px-2 py-2 text-stone-900">{v.currentKm.toLocaleString()}</td>
-                  <td className="text-right px-2 py-2 text-stone-900">{v.nextMaint.toLocaleString()}</td>
-                  <td className={`text-right px-2 py-2 font-bold font-mono ${v.kmRemaining < 0 ? 'text-rose-400' : v.kmRemaining < 500 ? 'text-amber-400' : 'text-stone-700'}`}>{v.kmRemaining.toLocaleString()}</td>
+                  <td className="text-right px-2 py-2 text-stone-600 text-xs">{(v.lastMaintKm||0).toLocaleString()}</td>
+                  <td className="text-right px-2 py-2 text-stone-900">{v.nextOil.toLocaleString()}</td>
+                  <td className={`text-right px-2 py-2 font-bold font-mono ${v.remOil < 0 ? 'text-rose-600' : v.remOil < 500 ? 'text-amber-500' : 'text-emerald-600'}`}>{v.remOil.toLocaleString()}</td>
                   <td className="text-center px-2 py-2">
-                    {v.level === 'critical' && <span className="text-[10px] bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded font-bold font-mono uppercase">CRÍTICO</span>}
-                    {v.level === 'warning' && <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-bold font-mono uppercase">PRÓXIMO</span>}
-                    {v.level === 'ok' && <span className="text-[10px] bg-emerald-500/20 text-stone-700 border border-emerald-500/40 px-2 py-0.5 rounded font-bold font-mono uppercase">AL DÍA</span>}
+                    {v.remOil < 0 && <span className="text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">VENCIDO</span>}
+                    {v.remOil >= 0 && v.remOil < 500 && <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">PRÓXIMO</span>}
+                    {v.remOil >= 500 && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-bold">AL DÍA</span>}
                   </td>
-                  <td className="px-2 py-2"><button onClick={() => reg(v)} className="text-[10px] bg-emerald-500/20 text-stone-700 border border-emerald-500/40 px-2 py-1 rounded font-bold">Registrar</button></td>
+                  <td className="px-2 py-2"><button onClick={() => reg(v)} className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded font-bold">✓ Registrar</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ENGRASE */}
+      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
+        <div className="px-3 py-2 bg-stone-50 border-b border-stone-200">
+          <div className="text-xs font-bold text-stone-600 uppercase tracking-wider">⚙️ Engrase</div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-stone-100 text-[10px] text-emerald-700 uppercase tracking-wider font-mono">
+              <tr>
+                <th className="text-left px-3 py-2">Unidad</th>
+                <th className="text-right px-2 py-2">Último</th>
+                <th className="text-right px-2 py-2">Próximo</th>
+                <th className="text-right px-2 py-2">Restantes</th>
+                <th className="text-center px-2 py-2">Estado</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {operativos.filter(v => v.greaseFreq > 0).map(v => (
+                <tr key={v.id} className="border-t border-stone-200">
+                  <td className="px-3 py-2"><div className="font-bold text-stone-900">{v.code}</div><div className="text-xs text-stone-500 font-mono">{v.plate}</div></td>
+                  <td className="text-right px-2 py-2 text-stone-600 text-xs">{(v.lastGreaseKm||0).toLocaleString()}</td>
+                  <td className="text-right px-2 py-2 text-stone-900">{v.nextGrease.toLocaleString()}</td>
+                  <td className={`text-right px-2 py-2 font-bold font-mono ${v.remGrease < 0 ? 'text-rose-600' : v.remGrease < 500 ? 'text-amber-500' : 'text-emerald-600'}`}>{v.remGrease.toLocaleString()}</td>
+                  <td className="text-center px-2 py-2">
+                    {v.remGrease < 0 && <span className="text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">VENCIDO</span>}
+                    {v.remGrease >= 0 && v.remGrease < 500 && <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">PRÓXIMO</span>}
+                    {v.remGrease >= 500 && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-bold">AL DÍA</span>}
+                  </td>
+                  <td className="px-2 py-2"><button onClick={() => regGrease(v)} className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded font-bold">✓ Registrar</button></td>
                 </tr>
               ))}
             </tbody>
