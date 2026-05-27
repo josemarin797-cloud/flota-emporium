@@ -2685,7 +2685,7 @@ function DriverHistoryView({ trips, vehicles, branches }) {
             </div>
             <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
               <div className="bg-stone-100 rounded p-1.5"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">KM</div><div className="font-bold text-stone-900">{t.kmTraveled}</div></div>
-              <div className="bg-stone-100 rounded p-1.5"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Litros</div><div className="font-bold text-stone-900">{t.liters.toFixed(1)}</div></div>
+              <div className="bg-stone-100 rounded p-1.5"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Litros</div><div className="font-bold text-stone-900">{t.liters.toFixed(2)}</div></div>
               <div className="bg-stone-100 rounded p-1.5"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Entregas</div><div className="font-bold text-stone-900">{t.deliveries}</div></div>
             </div>
           </div>
