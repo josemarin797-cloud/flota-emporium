@@ -1395,7 +1395,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     }
   };
 
-  const finishTrip = (data) => {
+  const finishTrip = async (data) => {
     const realNow = new Date();
     data = { ...data, endDate: realNow.toISOString().slice(0,10), endTime: realNow.toTimeString().slice(0,5) };
     const v = vehicles.find(x => x.id === currentTrip.vehicleId);
