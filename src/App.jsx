@@ -6683,7 +6683,7 @@ function ChecklistDetailModal({ checklist, vehicles, onClose }) {
 }
 
 async function sendChecklistDiscord(cl, vehicle, driver, config) {
-  const webhookUrl = config?.discordWebhookMaintByVehicle?.[vehicle?.id] || config?.discordWebhookByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+  const webhookUrl = config?.discordWebhookMaintByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
   if (!webhookUrl) return;
   const crits = cl.criticalCount || 0;
   const warns = cl.warningCount || 0;
