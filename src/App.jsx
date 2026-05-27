@@ -1647,7 +1647,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) setChecklistKm(Number(km)); setStep('start'); }} onBack={() => setStep('select')} config={config} />}
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} />}
-          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} />}
+          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} />}
           {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
@@ -2252,7 +2252,7 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }
   );
 }
 
-function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, onLogout, onMarkDeparted, onFinishJornada, onEntregarUnidad, onWaitEnd }) {
+function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, onLogout, onMarkDeparted, onFinishJornada, onEntregarUnidad, onWaitEnd, allVehicles, saveVehicles }) {
   const origin = branches.find(b => b.id === trip.originBranchId) || (trip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
   const destination = branches.find(b => b.id === trip.destinationBranchId) || (trip.destinationBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
   const [timeAtDest, setTimeAtDest] = useState('');
@@ -2377,6 +2377,11 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
               ⏸️ Sin viajes por ahora
             </button>
           </div>
+          {trip.destinationBranchId === 'taller' && vehicle && (
+            <div className="mt-3 pt-3 border-t border-white/20">
+              <TallerEntradaForm vehicle={vehicle} driver={driver} vehicles={allVehicles} saveVehicles={saveVehicles} config={config} />
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4">
@@ -4615,6 +4620,58 @@ function BranchesTab({ branches, saveBranches }) {
 // ============================================================
 // TALLER VIEW — pantalla del chofer cuando el camión está en taller
 // ============================================================
+// ============================================================
+// TALLER VIEW — pantalla del chofer cuando el camión está en taller
+// ============================================================
+function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config }) {
+  const [motivo, setMotivo] = useState('');
+  const [submitted, setSubmitted] = useState(vehicle?.status === 'EN TALLER');
+
+  if (submitted) return (
+    <div className="bg-white/10 rounded-xl p-3 text-center">
+      <div className="text-white font-bold text-sm">🔧 Registrado en taller</div>
+      <div className="text-white/70 text-xs mt-1">{vehicle?.tallerMotivo || 'En servicio'}</div>
+    </div>
+  );
+
+  const handleRegistrar = async () => {
+    if (!motivo.trim()) { alert('Escribe el motivo de entrada al taller'); return; }
+    const updatedVehicles = vehicles.map(v => v.id === vehicle.id ? {
+      ...v, status: 'EN TALLER',
+      tallerEntrada: Date.now(),
+      tallerMotivo: motivo,
+      tallerKmEntrada: v.currentKm,
+      tallerChofer: driver.name,
+    } : v);
+    saveVehicles(updatedVehicles);
+    const wh = config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    if (wh) sendDiscordNotification(wh, {
+      title: `🔧 EN TALLER · ${vehicle.code}`,
+      description: `**${driver.name}** dejó **${vehicle.code}** (${vehicle.plate}) en taller`,
+      color: 0xEF4444,
+      fields: [
+        { name: '🔧 Motivo / Trabajo a realizar', value: motivo, inline: false },
+        { name: '📍 KM entrada', value: `${(vehicle.currentKm||0).toLocaleString()} km`, inline: true },
+        { name: '📅 Fecha', value: new Date().toLocaleString('es-VE'), inline: true },
+      ],
+    }).catch(() => {});
+    setSubmitted(true);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="text-white/80 text-xs font-bold uppercase tracking-wider">🔧 Registrar en taller</div>
+      <textarea rows={2} value={motivo} onChange={e => setMotivo(e.target.value)}
+        placeholder="Motivo / trabajo a realizar (ej: cambio aceite, revisión frenos...)"
+        className="w-full bg-white/10 text-white placeholder:text-white/40 text-sm rounded-xl px-3 py-2 outline-none border border-white/20 focus:border-white/50 resize-none" />
+      <button onClick={handleRegistrar}
+        className="w-full py-2.5 bg-rose-500 hover:bg-rose-600 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 transition">
+        🔧 Registrar en taller → Discord
+      </button>
+    </div>
+  );
+}
+
 function TallerView({ vehicle, driver, vehicles, saveVehicles, config, onSalir }) {
   const [elapsed, setElapsed] = useState(0);
   const [trabajoRealizado, setTrabajoRealizado] = useState('');
