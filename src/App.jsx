@@ -163,7 +163,9 @@ const PHOTO_CATEGORIES = [
 const DEFAULT_CONFIG = {
   fuelPrice: 0.5,
   discordWebhookGeneral: '',
+  discordWebhookMaintenance: '',
   discordWebhookByVehicle: {},
+  discordWebhookMaintByVehicle: {},
 };
 
 // ============================================================
@@ -4110,34 +4112,110 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         // ════════════════════════════════════════════════════════════════
         // HOJA — TALLER
         // ════════════════════════════════════════════════════════════════
-        const tallerVehicles = vehicles.filter(v => v.tallerSalida || v.status === 'EN TALLER');
+        const NT = 11; // número de columnas historial
+        const NM = 9;  // número de columnas mantenimiento
         const tt = [];
-        tt.push(['HISTORIAL DE TALLER — TRANSPORTE EMPORIUM', ...Array(8).fill('')]);
-        tt.push([`Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(8).fill('')]);
-        tt.push(Array(9).fill(''));
-        tt.push(['Unidad', 'Placa', 'Chofer', 'Motivo', 'Trabajo Realizado', 'KM Entrada', 'KM Salida', 'Tiempo en Taller', 'Estado']);
+        // Filas 0-1: título y subtítulo
+        tt.push(['HISTORIAL DE TALLER — TRANSPORTE EMPORIUM', ...Array(NT-1).fill('')]);
+        tt.push([`Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(NT-1).fill('')]);
+        tt.push(Array(NT).fill(''));
+        // Fila 3: encabezados historial (11 columnas)
+        tt.push(['Unidad', 'Placa', 'Chofer', 'Motivo entrada', 'Trabajo Realizado', 'KM Entrada', 'KM Salida', 'Fecha Entrada', 'Fecha Salida', 'Tiempo en Taller', 'Estado']);
+        const tallerDataStartR = tt.length;
+        let tallerCount = 0;
         vehicles.forEach(v => {
-          const entrada = v.tallerEntrada ? new Date(v.tallerEntrada).toLocaleString('es-VE') : '—';
-          const salida = v.tallerSalida ? new Date(v.tallerSalida).toLocaleString('es-VE') : '—';
-          const tiempoMs = v.tallerEntrada && v.tallerSalida ? v.tallerSalida - v.tallerEntrada : v.tallerEntrada ? Date.now() - v.tallerEntrada : 0;
-          const tiempoH = tiempoMs > 0 ? `${Math.floor(tiempoMs/3600000)}h ${Math.floor((tiempoMs%3600000)/60000)}m` : '—';
-          if (v.tallerMotivo || v.status === 'EN TALLER') {
-            tt.push([v.code, v.plate, v.tallerChofer||'—', v.tallerMotivo||'—', v.tallerTrabajo||'En curso', v.tallerKmEntrada||'—', v.currentKm||'—', tiempoH, v.status === 'EN TALLER' ? 'EN TALLER' : 'COMPLETADO']);
-          }
+          if (!v.tallerMotivo && v.status !== 'EN TALLER') return;
+          const fechaEntrada = v.tallerEntrada ? new Date(v.tallerEntrada).toLocaleString('es-VE') : '—';
+          const fechaSalida  = v.tallerSalida  ? new Date(v.tallerSalida).toLocaleString('es-VE')  : '—';
+          const tiempoMs = v.tallerEntrada && v.tallerSalida
+            ? v.tallerSalida - v.tallerEntrada
+            : v.tallerEntrada ? Date.now() - v.tallerEntrada : 0;
+          const tiempoH = tiempoMs > 0
+            ? `${Math.floor(tiempoMs/3600000)}h ${Math.floor((tiempoMs%3600000)/60000)}m`
+            : '—';
+          const estado = v.status === 'EN TALLER' ? 'EN TALLER' : 'COMPLETADO';
+          tt.push([
+            v.code, v.plate, v.tallerChofer||'—',
+            v.tallerMotivo||'—', v.tallerTrabajo||'En curso',
+            v.tallerKmEntrada||'—', v.currentKm||'—',
+            fechaEntrada, fechaSalida, tiempoH, estado
+          ]);
+          tallerCount++;
         });
-        if (tt.length === 4) tt.push(['Sin registros de taller', ...Array(8).fill('')]);
-        tt.push(Array(9).fill(''));
-        tt.push(['ESTADO MANTENIMIENTO ACTUAL', ...Array(8).fill('')]);
-        tt.push(['Unidad', 'Placa', 'KM Actual', 'Último Aceite', 'Próximo Aceite', 'KM Rest. Aceite', 'Último Engrase', 'Próximo Engrase', 'KM Rest. Engrase']);
+        if (tallerCount === 0) tt.push(['Sin registros de taller', ...Array(NT-1).fill('')]);
+        const tallerDataEndR = tt.length;
+        tt.push(Array(NT).fill(''));
+
+        // Sección mantenimiento actual
+        const maintHeaderR = tt.length;
+        tt.push(['ESTADO MANTENIMIENTO ACTUAL', ...Array(NT-1).fill('')]);
+        tt.push(['Unidad', 'Placa', 'KM Actual', 'Último Aceite', 'Próximo Aceite', 'KM Rest. Aceite', 'Último Engrase', 'Próximo Engrase', 'KM Rest. Engrase', '', '']);
+        const maintDataStartR = tt.length;
         vehicles.forEach(v => {
           const nextOil = (v.lastMaintKm||0) + (v.maintFreq||6000);
           const remOil = nextOil - (v.currentKm||0);
           const nextGrease = (v.lastGreaseKm||0) + (v.greaseFreq||3000);
           const remGrease = nextGrease - (v.currentKm||0);
-          tt.push([v.code, v.plate, v.currentKm||0, v.lastMaintKm||0, nextOil, remOil, v.lastGreaseKm||0, nextGrease, v.greaseFreq > 0 ? remGrease : 'N/A']);
+          tt.push([v.code, v.plate, v.currentKm||0, v.lastMaintKm||0, nextOil, remOil, v.lastGreaseKm||0, nextGrease, v.greaseFreq > 0 ? remGrease : 'N/A', '', '']);
         });
+        const maintDataEndR = tt.length;
+
         const wsTaller = XLSX.utils.aoa_to_sheet(tt);
-        wsTaller['!cols'] = [{ wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 22 }, { wch: 28 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }];
+
+        // Merges
+        wsTaller['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: NT-1 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: NT-1 } },
+          { s: { r: maintHeaderR, c: 0 }, e: { r: maintHeaderR, c: NT-1 } },
+        ];
+
+        // Estilos: títulos
+        sr(wsTaller, 0, NT, ST.title);
+        sr(wsTaller, 1, NT, ST.subtitle);
+        // Encabezados historial
+        for (let c = 0; c < NT; c++) sc(wsTaller, 3, c, ST.colHeader);
+        // Filas datos historial
+        for (let i = tallerDataStartR; i < tallerDataEndR; i++) {
+          const e = (i - tallerDataStartR) % 2 === 0;
+          for (let c = 0; c < NT; c++) {
+            if (c === 10) { // Estado
+              const cell = XLSX.utils.encode_cell({ r: i, c });
+              const val = wsTaller[cell]?.v;
+              sc(wsTaller, i, c, val === 'EN TALLER' ? ST.statusRevisar : ST.statusEficiente);
+            } else if (c >= 5 && c <= 6) {
+              sc(wsTaller, i, c, ST.dataRight(e));
+            } else if (c === 7 || c === 8) {
+              sc(wsTaller, i, c, ST.timeCell(e));
+            } else {
+              sc(wsTaller, i, c, e ? ST.dataEven : ST.dataOdd);
+            }
+          }
+        }
+        // Sección mantenimiento
+        sr(wsTaller, maintHeaderR, NT, ST.secHeader);
+        for (let c = 0; c < NM; c++) sc(wsTaller, maintHeaderR + 1, c, ST.colHeader);
+        for (let i = maintDataStartR; i < maintDataEndR; i++) {
+          const e = (i - maintDataStartR) % 2 === 0;
+          for (let c = 0; c < NM; c++) {
+            if (c >= 2) {
+              // KM Rest. Aceite y Engrase: rojo si negativo
+              if ((c === 5 || c === 8)) {
+                const cell = XLSX.utils.encode_cell({ r: i, c });
+                const val = Number(wsTaller[cell]?.v);
+                sc(wsTaller, i, c, !isNaN(val) && val < 0 ? ST.statusRevisar : ST.dataRight(e));
+              } else {
+                sc(wsTaller, i, c, ST.dataRight(e));
+              }
+            } else {
+              sc(wsTaller, i, c, e ? ST.dataEven : ST.dataOdd);
+            }
+          }
+        }
+
+        wsTaller['!cols'] = [
+          { wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 26 }, { wch: 30 },
+          { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 20 }, { wch: 14 }, { wch: 12 }
+        ];
         wsTaller['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsTaller, 'Taller');
 
@@ -4630,7 +4708,7 @@ function RetirarTallerView({ vehicle, driver, vehicles, saveVehicles, config, on
     saveVehicles(updatedVehicles);
 
     // Discord mantenimiento
-    const wh = config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    const wh = config?.discordWebhookMaintByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
     if (wh) {
       const embed = {
         title: `✅ RETIRO DE TALLER · ${vehicle.code}`,
@@ -4749,7 +4827,7 @@ function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config }) 
       tallerChofer: driver.name,
     } : v);
     saveVehicles(updatedVehicles);
-    const wh = config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    const wh = config?.discordWebhookMaintByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
     if (wh) sendDiscordNotification(wh, {
       title: `🔧 EN TALLER · ${vehicle.code}`,
       description: `**${driver.name}** dejó **${vehicle.code}** (${vehicle.plate}) en taller`,
@@ -4816,7 +4894,7 @@ function TallerView({ vehicle, driver, vehicles, saveVehicles, config, onSalir }
     } : v);
     saveVehicles(updatedVehicles);
     // Discord → mantenimiento
-    const wh = config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    const wh = config?.discordWebhookMaintByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
     if (wh) await sendDiscordNotification(wh, {
       title: `✅ SALIÓ DE TALLER · ${vehicle.code}`,
       description: `**${driver.name}** reporta salida de taller de **${vehicle.code}** (${vehicle.plate})`,
@@ -5094,6 +5172,7 @@ function DiscordTab({ config, saveConfig, vehicles }) {
     discordWebhookGeneral: config.discordWebhookGeneral || '',
     discordWebhookMaintenance: config.discordWebhookMaintenance || '',
     discordWebhookByVehicle: config.discordWebhookByVehicle || {},
+    discordWebhookMaintByVehicle: config.discordWebhookMaintByVehicle || {},
   });
   // testStatus: { key: 'idle' | 'sending' | 'success' | 'error', error: string }
   const [testStatus, setTestStatus] = useState({});
@@ -5200,7 +5279,7 @@ function DiscordTab({ config, saveConfig, vehicles }) {
 
       {/* Webhooks por unidad */}
       <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
-        <h3 className="font-bold text-stone-900 mb-1">🚛 Canales por unidad</h3>
+        <h3 className="font-bold text-stone-900 mb-1">🚛 Canales por unidad — <span className="text-indigo-700">Viajes</span></h3>
         <p className="text-xs text-stone-600 mb-4">Inicios y llegadas de viajes van al canal del camión. Ej: NPR 01 → <code className="bg-stone-100 px-1 rounded">#npr-01-daniel</code></p>
         <div className="space-y-3">
           {vehicles.map(v => (
@@ -5213,6 +5292,26 @@ function DiscordTab({ config, saveConfig, vehicles }) {
                 </DarkField>
               </div>
               <TestBtn webhookKey={v.id} url={form.discordWebhookByVehicle[v.id]} label={v.code} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Webhooks mantenimiento por unidad */}
+      <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
+        <h3 className="font-bold text-stone-900 mb-1">🔧 Canales por unidad — <span className="text-emerald-700">Mantenimiento</span></h3>
+        <p className="text-xs text-stone-600 mb-4">Chequeos pre-viaje y eventos de taller van al canal de mantenimiento de cada camión. Ej: L300 05 → <code className="bg-stone-100 px-1 rounded">#panel-l300</code></p>
+        <div className="space-y-3">
+          {vehicles.map(v => (
+            <div key={v.id} className="flex items-end gap-2">
+              <div className="flex-1">
+                <DarkField label={`${v.code} (${v.plate})`}>
+                  <input type="text" value={form.discordWebhookMaintByVehicle[v.id] || ''}
+                    onChange={e => { setForm({ ...form, discordWebhookMaintByVehicle: { ...form.discordWebhookMaintByVehicle, [v.id]: e.target.value } }); setStatus(`maint_${v.id}`, 'idle'); }}
+                    placeholder="https://discord.com/api/webhooks/..." className="dark-input font-mono text-xs" />
+                </DarkField>
+              </div>
+              <TestBtn webhookKey={`maint_${v.id}`} url={form.discordWebhookMaintByVehicle[v.id]} label={`${v.code} maint`} />
             </div>
           ))}
         </div>
@@ -6210,7 +6309,7 @@ function ChecklistDetailModal({ checklist, vehicles, onClose }) {
 }
 
 async function sendChecklistDiscord(cl, vehicle, driver, config) {
-  const webhookUrl = config?.discordWebhookByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+  const webhookUrl = config?.discordWebhookMaintByVehicle?.[vehicle?.id] || config?.discordWebhookByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
   if (!webhookUrl) return;
   const crits = cl.criticalCount || 0;
   const warns = cl.warningCount || 0;
