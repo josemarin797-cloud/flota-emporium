@@ -5098,6 +5098,7 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
   const [signature, setSignature] = useState(null);
   const [clearSig, setClearSig] = useState(0);
   const [finalPhoto, setFinalPhoto] = useState(null);
+  const [unitPhotos, setUnitPhotos] = useState([]);
   const [kmInicial, setKmInicial] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -5121,6 +5122,16 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
     const reader = new FileReader();
     reader.onload = ev => setPhotos(p => ({ ...p, [itemId]: ev.target.result }));
     reader.readAsDataURL(file);
+  };
+
+  const handleUnitPhoto = (e) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => setUnitPhotos(p => [...p, ev.target.result]);
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
   };
 
   const handleFinalPhoto = (e) => {
@@ -5160,6 +5171,7 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
       reporte,
       signature,
       finalPhoto,
+      unitPhotos,
       createdAt: Date.now(),
     };
 
@@ -5291,6 +5303,32 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
         <textarea rows={3} value={reporte} onChange={e => setReporte(e.target.value)}
           placeholder="Ej: vibración en el volante al pasar de 60 km/h..."
           className="w-full bg-white border border-stone-200 rounded-2xl px-3 py-2.5 text-sm outline-none focus:border-emerald-400 resize-none" />
+      </div>
+
+      {/* Fotos de la unidad */}
+      <div>
+        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">
+          📷 Fotos de la unidad <span className="text-stone-400 font-normal normal-case">(opcional — toma las que quieras)</span>
+        </label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {unitPhotos.map((p, i) => (
+            <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-stone-200 flex-shrink-0">
+              <img src={p} alt={`Foto ${i+1}`} className="w-full h-full object-cover" />
+              <button type="button" onClick={() => setUnitPhotos(ps => ps.filter((_, j) => j !== i))}
+                className="absolute top-0.5 right-0.5 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+          <label className="w-20 h-20 rounded-xl border-2 border-dashed border-stone-300 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition flex-shrink-0">
+            <Camera className="w-6 h-6 text-stone-400" />
+            <span className="text-[10px] text-stone-400 mt-1">Agregar</span>
+            <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={handleUnitPhoto} />
+          </label>
+        </div>
+        {unitPhotos.length > 0 && (
+          <p className="text-[10px] text-stone-400">{unitPhotos.length} foto{unitPhotos.length > 1 ? 's' : ''} — se enviarán al Discord</p>
+        )}
       </div>
 
       {/* Firma + Foto de Respaldo Final (lado a lado en pantallas grandes, apilados en móvil) */}
@@ -5680,6 +5718,11 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
   } else {
     embed.fields.push({ name: '📸 Foto', value: '❌ Sin foto' });
   }
+  // Fotos adicionales de la unidad
+  const extraPhotos = cl.unitPhotos || [];
+  if (extraPhotos.length > 0) {
+    embed.fields.push({ name: '📷 Fotos de la unidad', value: `✅ ${extraPhotos.length} foto(s) adjunta(s)` });
+  }
   // Enviar embed + foto adjunta en un solo mensaje
   if (fotoData && webhookUrl) {
     try {
@@ -5699,7 +5742,20 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
   } else {
     await sendDiscordNotification(webhookUrl, embed);
   }
-}
+  // Enviar fotos adicionales de la unidad
+  const extraPhotos = cl.unitPhotos || [];
+  for (let idx = 0; idx < extraPhotos.length; idx++) {
+    try {
+      const blob = base64ToBlob(extraPhotos[idx]);
+      const fd = new FormData();
+      fd.append('files[0]', blob, `foto_unidad_${idx+1}.jpg`);
+      fd.append('payload_json', JSON.stringify({ content: `📷 Foto de la unidad ${idx+1}/${extraPhotos.length} · ${vehicle?.code}` }));
+      if (navigator.onLine) await fetch(webhookUrl, { method: 'POST', body: fd });
+      else await idbAdd({ type: 'discord', webhookUrl, content: `📷 Foto unidad ${idx+1}`, photoData: extraPhotos[idx], filename: `foto_unidad_${idx+1}.jpg`, embed: null, queuedAt: new Date().toISOString() });
+    } catch(e) {
+      await idbAdd({ type: 'discord', webhookUrl, content: `📷 Foto unidad ${idx+1}`, photoData: extraPhotos[idx], filename: `foto_unidad_${idx+1}.jpg`, embed: null, queuedAt: new Date().toISOString() });
+    }
+  }
 
 // ============================================================
 // ChecklistCoordTab — vista para el coordinador con PDF
