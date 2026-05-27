@@ -20,6 +20,7 @@ const KEYS = {
   PENDING:    '__emp:pendingSync',
   DISC_QUEUE: '__emp:discordQueue',
   CHECKLISTS: 'emp:v4:checklists',
+  MAINT_RECORDS: 'emp:v4:maint_records',
 };
 
 // ============================================================
@@ -346,6 +347,7 @@ export default function App() {
   const [photos, setPhotos] = useState([]);
   const [gpsTracks, setGpsTracks] = useState([]);
   const [checklists, setChecklists] = useState([]);
+  const [maintRecords, setMaintRecords] = useState([]);
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
 
@@ -382,6 +384,9 @@ export default function App() {
           const local = await window.storage.get(KEYS.CHECKLISTS).catch(() => null);
           if (local?.value) setChecklists(JSON.parse(local.value));
         }
+        // Cargar registros de mantenimiento desde storage
+        const mrLocal = await window.storage.get(KEYS.MAINT_RECORDS).catch(() => null);
+        if (mrLocal?.value) setMaintRecords(JSON.parse(mrLocal.value));
       } catch (e) {}
       setLoading(false);
     };
@@ -498,6 +503,7 @@ export default function App() {
   const savePhotos = (d) => { setPhotos(d); persist(KEYS.PHOTOS, d); };
   const saveGpsTracks = (d) => { setGpsTracks(d); persist(KEYS.GPS_TRACKS, d); };
   const saveHandoffs = (d) => { setHandoffs(d); persist(KEYS.HANDOFFS, d); };
+  const saveMaintRecords = (d) => { setMaintRecords(d); persist(KEYS.MAINT_RECORDS, d); };
   // saveChecklists: guarda LOCAL siempre + Supabase si está disponible
   const saveChecklists = async (d) => {
     setChecklists(d);
@@ -627,9 +633,11 @@ export default function App() {
         config={config}
         checklists={checklists}
         handoffs={handoffs}
+        maintRecords={maintRecords}
         saveVehicles={saveVehicles} saveDrivers={saveDrivers} saveBranches={saveBranches}
         saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} saveGpsTracks={saveGpsTracks}
         saveArchived={saveArchived} saveConfig={saveConfig} savePhotos={savePhotos} saveChecklists={saveChecklists}
+        saveMaintRecords={saveMaintRecords}
       />
       <InstallAppButton />
     </>;
@@ -2764,7 +2772,7 @@ function DriverHistoryView({ trips, vehicles, branches }) {
 // ============================================================
 // COORDINADOR
 // ============================================================
-function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists }) {
+function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords }) {
   const [tab, setTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
 
@@ -2834,12 +2842,12 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
       <main className="max-w-7xl mx-auto px-4 py-5">
         {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} />}
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
-        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} />}
+        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
         {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
-        {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} />}
+        {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} maintRecords={maintRecords} saveMaintRecords={saveMaintRecords} />}
         {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} />}
         {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} saveChecklists={saveChecklists} sbFetch={sbFetch} />}
         {tab === 'discord' && <DiscordTab config={config} saveConfig={saveConfig} vehicles={vehicles} />}
@@ -3422,7 +3430,7 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
 // ============================================================
 // VIAJES TABLE
 // ============================================================
-function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [] }) {
+function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [], maintRecords = [] }) {
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
   // Refrescar cada minuto para actualizar los cronómetros "aún ahí"
@@ -4221,10 +4229,81 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         wsTaller['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsTaller, 'Taller');
 
+        // ════════════════════════════════════════════════════════════════
+        // HOJA — GASTOS DE MANTENIMIENTO
+        // ════════════════════════════════════════════════════════════════
+        const NG = 9;
+        const monthMaint = maintRecords.filter(r => r.fecha.startsWith(trips[0]?.startDate?.slice(0,7) || ''));
+        const allMaint = maintRecords;
+        const gd = [];
+        gd.push(['GASTOS DE MANTENIMIENTO — TRANSPORTE EMPORIUM', ...Array(NG-1).fill('')]);
+        gd.push([`Período: ${trips[0]?.startDate?.slice(0,7)||''}     ·     Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(NG-1).fill('')]);
+        gd.push(Array(NG).fill(''));
+        // Encabezados detalle
+        gd.push(['Fecha', 'Unidad', 'Placa', 'KM', 'Técnico', 'Trabajo Realizado', 'Costo Repuesto $', 'Mano de Obra $', 'Total $']);
+        const gDetStartR = gd.length;
+        const gRecords = allMaint.sort((a,b) => a.fecha.localeCompare(b.fecha));
+        gRecords.forEach(r => {
+          gd.push([r.fecha, r.vehicleCode||'', r.vehiclePlate||'', r.km||0, r.tecnico||'—', r.trabajo||'', Number(r.costoRepuesto)||0, Number(r.manoObra)||0, (Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0)]);
+        });
+        if (gRecords.length === 0) gd.push(['Sin registros', ...Array(NG-1).fill('')]);
+        const gDetEndR = gd.length;
+        // Fila total
+        gd.push(['TOTAL', '', '', '', '', '', gRecords.reduce((s,r)=>s+(Number(r.costoRepuesto)||0),0), gRecords.reduce((s,r)=>s+(Number(r.manoObra)||0),0), gRecords.reduce((s,r)=>s+(Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0),0)]);
+        gd.push(Array(NG).fill(''));
+
+        // Resumen por camión
+        const gResHeaderR = gd.length;
+        gd.push(['RESUMEN POR CAMIÓN', ...Array(NG-1).fill('')]);
+        gd.push(['Unidad', 'Placa', 'N° Trabajos', 'Total Repuesto $', 'Total M. Obra $', 'Total Gastado $', 'Camión más costoso', '', '']);
+        const gResStartR = gd.length;
+        const byVehicle = vehicles.map(v => {
+          const rs = allMaint.filter(r => r.vehicleId === v.id);
+          return { code: v.code, plate: v.plate, count: rs.length, repuesto: rs.reduce((s,r)=>s+(Number(r.costoRepuesto)||0),0), obra: rs.reduce((s,r)=>s+(Number(r.manoObra)||0),0), total: rs.reduce((s,r)=>s+(Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0),0) };
+        }).sort((a,b) => b.total - a.total);
+        const maxGasto = byVehicle[0]?.total || 0;
+        byVehicle.forEach((bv, i) => {
+          gd.push([bv.code, bv.plate, bv.count, bv.repuesto, bv.obra, bv.total, i===0 && bv.total>0 ? '🏆 Mayor gasto' : '', '', '']);
+        });
+        const gResEndR = gd.length;
+
+        const wsGastos = XLSX.utils.aoa_to_sheet(gd);
+        wsGastos['!merges'] = [
+          { s:{r:0,c:0}, e:{r:0,c:NG-1} },
+          { s:{r:1,c:0}, e:{r:1,c:NG-1} },
+          { s:{r:gResHeaderR,c:0}, e:{r:gResHeaderR,c:NG-1} },
+        ];
+        sr(wsGastos, 0, NG, ST.title);
+        sr(wsGastos, 1, NG, ST.subtitle);
+        for (let c=0;c<NG;c++) sc(wsGastos, 3, c, ST.colHeader);
+        for (let i=gDetStartR;i<gDetEndR;i++) {
+          const e=(i-gDetStartR)%2===0;
+          for (let c=0;c<NG;c++) {
+            if (c>=6) sc(wsGastos,i,c,ST.dataRight(e));
+            else sc(wsGastos,i,c,e?ST.dataEven:ST.dataOdd);
+          }
+        }
+        // Fila total
+        for (let c=0;c<NG;c++) sc(wsGastos,gDetEndR,c,c>=6?ST.totalRight:ST.totalRow);
+        sr(wsGastos, gResHeaderR, NG, ST.secHeader);
+        for (let c=0;c<6;c++) sc(wsGastos, gResHeaderR+1, c, ST.colHeader);
+        for (let i=gResStartR;i<gResEndR;i++) {
+          const e=(i-gResStartR)%2===0;
+          for (let c=0;c<NG;c++) {
+            if (c>=3&&c<=5) {
+              const isMax = c===5 && wsGastos[XLSX.utils.encode_cell({r:i,c})]?.v === maxGasto && maxGasto>0;
+              sc(wsGastos,i,c,isMax?ST.statusRevisar:ST.dataRight(e));
+            } else sc(wsGastos,i,c,e?ST.dataEven:ST.dataOdd);
+          }
+        }
+        wsGastos['!cols'] = [{wch:12},{wch:10},{wch:12},{wch:12},{wch:18},{wch:36},{wch:16},{wch:16},{wch:16}];
+        wsGastos['!rows'] = [{hpt:26},{hpt:14}];
+        XLSX.utils.book_append_sheet(wb, wsGastos, 'Gastos Mantenimiento');
+
         // ── Descargar ────────────────────────────────────────────────────
         const fileName = `reporte_flota_emporium_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, fileName);
-        setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado — 10 hojas` });
+        setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado — 11 hojas` });
         setTimeout(() => setExportMsg(null), 5000);
         setExporting(false);
         return;
@@ -4962,7 +5041,15 @@ function TallerView({ vehicle, driver, vehicles, saveVehicles, config, onSalir }
   );
 }
 
-function MaintenanceTab({ vehicles, saveVehicles }) {
+function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRecords }) {
+  const TIPOS = ['Preventivo', 'Correctivo', 'Repuesto', 'Garantía'];
+  const emptyForm = { vehicleId: vehicles[0]?.id || '', fecha: new Date().toISOString().slice(0,10), km: '', tecnico: '', trabajo: '', costoRepuesto: '', manoObra: '', tipo: 'Correctivo' };
+  const [form, setForm] = useState(emptyForm);
+  const [showForm, setShowForm] = useState(false);
+  const [filterVehicle, setFilterVehicle] = useState('all');
+  const [filterMes, setFilterMes] = useState('all');
+
+  // KM alerts
   const alerts = vehicles.map(v => {
     const nextOil = (v.lastMaintKm || 0) + (v.maintFreq || 6000);
     const remOil = nextOil - (v.currentKm || 0);
@@ -4973,23 +5060,212 @@ function MaintenanceTab({ vehicles, saveVehicles }) {
     else if (remOil < 500 || remGrease < 500) level = 'warning';
     return { ...v, remOil, nextOil, remGrease, nextGrease, level };
   });
-
   const enTaller = alerts.filter(v => v.status === 'EN TALLER');
   const operativos = alerts.filter(v => v.status !== 'EN TALLER');
-
-  const reg = (v) => {
-    const km = prompt(`KM del servicio de aceite para ${v.code}:`, v.currentKm?.toString() || '0');
-    if (km && !isNaN(Number(km))) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, lastMaintKm: Number(km) } : x));
-  };
-  const regGrease = (v) => {
-    const km = prompt(`KM del engrase para ${v.code}:`, v.currentKm?.toString() || '0');
-    if (km && !isNaN(Number(km))) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, lastGreaseKm: Number(km) } : x));
-  };
   const fmt = (s) => { const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60); return d>0?`${d}d ${h}h`:`${h}h ${m}m`; };
+  const reg = (v) => { const km = prompt(`KM aceite ${v.code}:`, v.currentKm?.toString()||'0'); if (km&&!isNaN(Number(km))) saveVehicles(vehicles.map(x=>x.id===v.id?{...x,lastMaintKm:Number(km)}:x)); };
+  const regGrease = (v) => { const km = prompt(`KM engrase ${v.code}:`, v.currentKm?.toString()||'0'); if (km&&!isNaN(Number(km))) saveVehicles(vehicles.map(x=>x.id===v.id?{...x,lastGreaseKm:Number(km)}:x)); };
+
+  // Cálculos registros
+  const total = (r) => (Number(r.costoRepuesto)||0) + (Number(r.manoObra)||0);
+  const meses = [...new Set(maintRecords.map(r => r.fecha.slice(0,7)))].sort().reverse();
+  const filtered = maintRecords.filter(r =>
+    (filterVehicle === 'all' || r.vehicleId === filterVehicle) &&
+    (filterMes === 'all' || r.fecha.startsWith(filterMes))
+  ).sort((a,b) => b.fecha.localeCompare(a.fecha));
+
+  // Datos para gráficos por camión
+  const chartData = vehicles.map(v => {
+    const rs = maintRecords.filter(r => r.vehicleId === v.id &&
+      (filterMes === 'all' || r.fecha.startsWith(filterMes)));
+    return {
+      name: v.code,
+      'Repuesto': Math.round(rs.reduce((s,r)=>s+(Number(r.costoRepuesto)||0),0)),
+      'Mano de Obra': Math.round(rs.reduce((s,r)=>s+(Number(r.manoObra)||0),0)),
+      'Total': Math.round(rs.reduce((s,r)=>s+total(r),0)),
+    };
+  }).filter(d => d.Total > 0);
+
+  const handleAdd = () => {
+    if (!form.vehicleId || !form.fecha || !form.trabajo) return;
+    const v = vehicles.find(x => x.id === form.vehicleId);
+    const rec = { id: Date.now().toString(), ...form, km: Number(form.km)||0, costoRepuesto: Number(form.costoRepuesto)||0, manoObra: Number(form.manoObra)||0, vehicleCode: v?.code || '', vehiclePlate: v?.plate || '' };
+    saveMaintRecords([rec, ...maintRecords]);
+    setForm(emptyForm);
+    setShowForm(false);
+  };
+
+  const handleDelete = (id) => { if (window.confirm('¿Eliminar registro?')) saveMaintRecords(maintRecords.filter(r => r.id !== id)); };
+
+  const tipoColor = { Preventivo: 'bg-blue-100 text-blue-800', Correctivo: 'bg-rose-100 text-rose-800', Repuesto: 'bg-amber-100 text-amber-800', Garantía: 'bg-emerald-100 text-emerald-800' };
 
   return (
-    <div className="space-y-4">
-      <h2 className="font-black text-stone-900">Mantenimiento</h2>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <h2 className="font-black text-stone-900 text-lg">Mantenimiento</h2>
+        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition">
+          <Plus className="w-3.5 h-3.5" /> Registrar trabajo
+        </button>
+      </div>
+
+      {/* FORM NUEVO REGISTRO */}
+      {showForm && (
+        <div className="bg-white rounded-2xl border border-emerald-200 shadow-lg p-5 space-y-4">
+          <div className="font-bold text-stone-900 text-sm flex items-center gap-2"><Wrench className="w-4 h-4 text-emerald-600" /> Nuevo registro de mantenimiento</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Unidad</label>
+              <select value={form.vehicleId} onChange={e => setForm({...form, vehicleId: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                {vehicles.map(v => <option key={v.id} value={v.id}>{v.code} · {v.plate}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha</label>
+              <input type="date" value={form.fecha} onChange={e => setForm({...form, fecha: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Kilometraje</label>
+              <input type="number" value={form.km} onChange={e => setForm({...form, km: e.target.value})} placeholder="0" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Tipo</label>
+              <select value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                {TIPOS.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Técnico / Taller</label>
+              <input type="text" value={form.tecnico} onChange={e => setForm({...form, tecnico: e.target.value})} placeholder="Nombre del técnico o taller" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Trabajo Realizado</label>
+              <input type="text" value={form.trabajo} onChange={e => setForm({...form, trabajo: e.target.value})} placeholder="Descripción del trabajo..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Costo Repuesto $</label>
+              <input type="number" step="0.01" value={form.costoRepuesto} onChange={e => setForm({...form, costoRepuesto: e.target.value})} placeholder="0.00" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Mano de Obra $</label>
+              <input type="number" step="0.01" value={form.manoObra} onChange={e => setForm({...form, manoObra: e.target.value})} placeholder="0.00" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Total $</label>
+              <div className="w-full border border-emerald-200 bg-emerald-50 rounded-lg px-2 py-1.5 text-sm font-bold text-emerald-700">
+                $ {((Number(form.costoRepuesto)||0)+(Number(form.manoObra)||0)).toFixed(2)}
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end pt-1">
+            <button onClick={() => { setShowForm(false); setForm(emptyForm); }} className="px-4 py-2 text-sm text-stone-600 border border-stone-200 rounded-lg hover:bg-stone-50">Cancelar</button>
+            <button onClick={handleAdd} disabled={!form.trabajo} className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold rounded-lg transition">Guardar registro</button>
+          </div>
+        </div>
+      )}
+
+      {/* GRÁFICOS */}
+      {chartData.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
+            <div className="text-xs font-bold text-stone-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-rose-500" />
+              Gasto total por camión {filterMes !== 'all' ? `· ${filterMes}` : ''}
+            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
+                <Bar dataKey="Total" fill="#059669" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
+            <div className="text-xs font-bold text-stone-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-blue-500" />
+              Repuesto vs Mano de Obra {filterMes !== 'all' ? `· ${filterMes}` : ''}
+            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="Repuesto" fill="#F59E0B" radius={[4,4,0,0]} />
+                <Bar dataKey="Mano de Obra" fill="#3B82F6" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* TABLA REGISTROS */}
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Historial de trabajos ({filtered.length})</div>
+          <div className="flex items-center gap-2">
+            <select value={filterMes} onChange={e => setFilterMes(e.target.value)} className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white">
+              <option value="all">Todos los meses</option>
+              {meses.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <select value={filterVehicle} onChange={e => setFilterVehicle(e.target.value)} className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white">
+              <option value="all">Todos los camiones</option>
+              {vehicles.map(v => <option key={v.id} value={v.id}>{v.code}</option>)}
+            </select>
+          </div>
+        </div>
+        {filtered.length === 0 ? (
+          <div className="text-center py-10 text-stone-400 text-sm">Sin registros. Usa "Registrar trabajo" para agregar.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-stone-800 text-stone-200 uppercase tracking-wider font-bold">
+                <tr>
+                  <th className="text-left px-3 py-2.5">Fecha</th>
+                  <th className="text-left px-3 py-2.5">Unidad</th>
+                  <th className="text-right px-3 py-2.5">KM</th>
+                  <th className="text-left px-3 py-2.5">Técnico</th>
+                  <th className="text-left px-3 py-2.5 min-w-[200px]">Trabajo Realizado</th>
+                  <th className="text-right px-3 py-2.5">Repuesto $</th>
+                  <th className="text-right px-3 py-2.5">M. Obra $</th>
+                  <th className="text-right px-3 py-2.5 font-black">Total $</th>
+                  <th className="text-center px-3 py-2.5">Tipo</th>
+                  <th className="px-2 py-2.5"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r, i) => (
+                  <tr key={r.id} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'} hover:bg-emerald-50/40 transition-colors`}>
+                    <td className="px-3 py-2 font-mono text-stone-600">{r.fecha}</td>
+                    <td className="px-3 py-2"><div className="font-bold text-stone-900">{r.vehicleCode}</div><div className="text-stone-400">{r.vehiclePlate}</div></td>
+                    <td className="px-3 py-2 text-right font-mono text-stone-700">{(r.km||0).toLocaleString()}</td>
+                    <td className="px-3 py-2 text-stone-700">{r.tecnico||'—'}</td>
+                    <td className="px-3 py-2 text-stone-800 max-w-xs">{r.trabajo}</td>
+                    <td className="px-3 py-2 text-right text-amber-700 font-mono">{r.costoRepuesto > 0 ? `$${Number(r.costoRepuesto).toFixed(2)}` : '—'}</td>
+                    <td className="px-3 py-2 text-right text-blue-700 font-mono">{r.manoObra > 0 ? `$${Number(r.manoObra).toFixed(2)}` : '—'}</td>
+                    <td className="px-3 py-2 text-right font-black text-emerald-700 font-mono">${total(r).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-center"><span className={`text-[10px] px-2 py-0.5 rounded font-bold ${tipoColor[r.tipo]||'bg-stone-100 text-stone-600'}`}>{r.tipo}</span></td>
+                    <td className="px-2 py-2"><button onClick={() => handleDelete(r.id)} className="text-stone-300 hover:text-rose-500 transition"><Trash2 className="w-3.5 h-3.5" /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-emerald-50 border-t-2 border-emerald-300">
+                <tr>
+                  <td colSpan={5} className="px-3 py-2 font-bold text-stone-700 text-xs">TOTAL ({filtered.length} registros)</td>
+                  <td className="px-3 py-2 text-right font-bold text-amber-700 font-mono">${filtered.reduce((s,r)=>s+(Number(r.costoRepuesto)||0),0).toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right font-bold text-blue-700 font-mono">${filtered.reduce((s,r)=>s+(Number(r.manoObra)||0),0).toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right font-black text-emerald-700 font-mono">${filtered.reduce((s,r)=>s+total(r),0).toFixed(2)}</td>
+                  <td colSpan={2}></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* EN TALLER */}
       {enTaller.length > 0 && (
@@ -5050,7 +5326,6 @@ function MaintenanceTab({ vehicles, saveVehicles }) {
         </div>
       </div>
 
-      {/* ENGRASE */}
       <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
         <div className="px-3 py-2 bg-stone-50 border-b border-stone-200">
           <div className="text-xs font-bold text-stone-600 uppercase tracking-wider">⚙️ Engrase</div>
@@ -5089,6 +5364,7 @@ function MaintenanceTab({ vehicles, saveVehicles }) {
     </div>
   );
 }
+
 
 function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveArchived }) {
   const [showModal, setShowModal] = useState(false);
