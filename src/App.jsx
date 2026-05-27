@@ -1910,14 +1910,14 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
       </div>
 
 <div className="space-y-3 mb-3">
-          <div className="bg-stone-900/60 rounded-xl p-3 border border-stone-700/50">
-            <label className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2 block">📝 Notas del viaje</label>
-            <textarea value={tripNotes} onChange={e => setTripNotes(e.target.value)} placeholder="Observaciones, instrucciones especiales..." className="w-full bg-transparent text-stone-200 text-sm resize-none outline-none placeholder:text-stone-600" rows={2} />
+          <div className="bg-white rounded-xl p-3 border border-stone-200">
+            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 block">📝 Notas del viaje</label>
+            <textarea value={tripNotes} onChange={e => setTripNotes(e.target.value)} placeholder="Observaciones, instrucciones especiales..." className="w-full bg-transparent text-stone-800 text-sm resize-none outline-none placeholder:text-stone-400" rows={2} />
           </div>
-          <div className="bg-stone-900/60 rounded-xl p-3 border border-stone-700/50">
-            <label className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2 block">📸 Fotos de documentos</label>
+          <div className="bg-white rounded-xl p-3 border border-stone-200">
+            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 block">📸 Fotos de documentos</label>
             <input type="file" accept="image/*" capture="environment" multiple onChange={e => setTripPhotos([...tripPhotos, ...Array.from(e.target.files)])} className="hidden" id="photoInput" />
-            <label htmlFor="photoInput" className="flex items-center gap-2 py-2 px-3 bg-stone-700/50 hover:bg-stone-700 rounded-lg cursor-pointer text-stone-300 text-sm font-medium w-full justify-center">📎 Agregar fotos</label>
+            <label htmlFor="photoInput" className="flex items-center gap-2 py-2 px-3 bg-stone-100 hover:bg-stone-200 rounded-lg cursor-pointer text-stone-600 text-sm font-medium w-full justify-center">📎 Agregar fotos</label>
             {tripPhotos.length > 0 && <div className="flex gap-2 mt-2 flex-wrap">{tripPhotos.map((f,i) => <div key={i} className="relative"><img src={URL.createObjectURL(f)} className="w-16 h-16 object-cover rounded-lg" /><button onClick={() => setTripPhotos(tripPhotos.filter((_,j)=>j!==i))} className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 text-white text-xs flex items-center justify-center">×</button></div>)}</div>}
           </div>
         </div>
@@ -3844,6 +3844,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               else if (c === 6 || c === 7) sc(ws, ri, c, ST.dataRight(e));  // KM Salida, KM Llegada
               else if (c >= 8 && c <= 11) sc(ws, ri, c, ST.timeCell(e));    // T.Viaje, Espera, T.Destino, Salida Destino
               else if (c >= 12 && c <= 15) sc(ws, ri, c, ST.dataRight(e));  // KM rec, Litros, Costo, Entregas
+              else if (c === 17) sc(ws, ri, c, { font: { color: { rgb: '1C1917' }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: e ? 'FFFFFF' : 'F9FAFB' } }, alignment: { wrapText: true }, border: bdr() }); // Notas
               else sc(ws, ri, c, e ? ST.dataEven : ST.dataOdd);
             }
           });
@@ -5031,6 +5032,12 @@ function SignatureCanvas({ onSignature, cleared }) {
     return { x: (src.clientX - r.left) * (canvas.width / r.width), y: (src.clientY - r.top) * (canvas.height / r.height) };
   };
 
+  const clearCanvas = (canvas) => {
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  };
+
   const startDraw = (e) => {
     e.preventDefault();
     drawing.current = true;
@@ -5061,12 +5068,13 @@ function SignatureCanvas({ onSignature, cleared }) {
   };
   const clear = () => {
     const canvas = canvasRef.current;
-    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    clearCanvas(canvas);
     hasSig.current = false;
     onSignature(null);
   };
 
   useEffect(() => { if (cleared > 0) clear(); }, [cleared]);
+  useEffect(() => { if (canvasRef.current) clearCanvas(canvasRef.current); }, []);
 
   return (
     <div>
@@ -5834,7 +5842,7 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config, saveChecklis
     const foto = cl.finalPhoto || cl.foto || cl.photo;
     const notas = cl.notas || cl.notes;
     const w = window.open('', '_blank', 'width=820,height=960');
-    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Chequeo - ${v?.code} - ${cl.date}</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#1c1917;font-size:13px}@media print{.no-print{display:none}}h1{font-size:18px;margin:0;color:#047857}.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #10b981;padding-bottom:12px;margin-bottom:16px}.info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:14px}.info label{font-size:10px;text-transform:uppercase;color:#6b7280;display:block;font-weight:700}table{width:100%;border-collapse:collapse;border:1px solid #e5e7eb;margin-bottom:14px}th{background:#f9fafb;padding:6px 10px;font-size:10px;text-transform:uppercase;color:#6b7280;text-align:left;border-bottom:1px solid #e5e7eb}.sf{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.sf-box{border:1px solid #e5e7eb;border-radius:8px;padding:10px}.sf-title{font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:700;margin-bottom:6px}.print-btn{background:#047857;color:white;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:700;margin-bottom:16px;font-size:13px}.footer{margin-top:16px;border-top:1px solid #e5e7eb;padding-top:8px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}</style></head><body><button class="no-print print-btn" onclick="window.print()">🖨️ Guardar como PDF / Imprimir</button><div class="hdr"><div><h1>Transporte Emporium</h1><div style="font-weight:700;margin-top:4px">Chequeo Pre-Viaje</div><div style="color:#6b7280">${v?.code || '—'} · ${v?.plate || '—'}</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:700">${cl.date}</div><div style="margin:4px 0">${cl.time || ''}</div>${statusBadge}</div></div><div class="info"><div><label>Chofer</label><strong>${d?.name || '—'}</strong></div><div><label>Unidad</label><strong>${v?.code || '—'}</strong></div><div><label>Placa</label><strong>${v?.plate || '—'}</strong></div><div><label>KM Odómetro</label><strong>${(cl.kmOdometer || 0).toLocaleString()}</strong></div></div><table><tr><th>Ítem</th><th>Categoría</th><th>Estado</th></tr>${rows}</table>${notas ? `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:14px"><div style="font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:700;margin-bottom:4px">Novedades reportadas</div><div>${notas}</div></div>` : ''}<div class="sf"><div class="sf-box"><div class="sf-title">Firma del chofer</div>${sig ? `<img src="${sig}" style="width:100%;max-height:90px;object-fit:contain;background:#f9fafb">` : '<div style="height:70px;background:#f9fafb;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px">Sin firma</div>'}</div><div class="sf-box"><div class="sf-title">Foto de respaldo</div>${foto ? `<img src="${foto}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px">` : '<div style="height:90px;background:#f9fafb;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px">Sin foto</div>'}</div></div><div class="footer"><span>Transporte Emporium · Sistema de Control de Flota</span><span>Generado: ${new Date().toLocaleString('es-VE')}</span></div></body></html>`);
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Chequeo - ${v?.code} - ${cl.date}</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#1c1917;font-size:13px}@media print{.no-print{display:none}}h1{font-size:18px;margin:0;color:#047857}.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #10b981;padding-bottom:12px;margin-bottom:16px}.info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:14px}.info label{font-size:10px;text-transform:uppercase;color:#6b7280;display:block;font-weight:700}table{width:100%;border-collapse:collapse;border:1px solid #e5e7eb;margin-bottom:14px}th{background:#f9fafb;padding:6px 10px;font-size:10px;text-transform:uppercase;color:#6b7280;text-align:left;border-bottom:1px solid #e5e7eb}.sf{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.sf-box{border:1px solid #e5e7eb;border-radius:8px;padding:10px}.sf-title{font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:700;margin-bottom:6px}.print-btn{background:#047857;color:white;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:700;margin-bottom:16px;font-size:13px}.footer{margin-top:16px;border-top:1px solid #e5e7eb;padding-top:8px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}</style></head><body><button class="no-print print-btn" onclick="window.print()">🖨️ Guardar como PDF / Imprimir</button><div class="hdr"><div><h1>Transporte Emporium</h1><div style="font-weight:700;margin-top:4px">Chequeo Pre-Viaje</div><div style="color:#6b7280">${v?.code || '—'} · ${v?.plate || '—'}</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:700">${cl.date}</div><div style="margin:4px 0">${cl.time || ''}</div>${statusBadge}</div></div><div class="info"><div><label>Chofer</label><strong>${d?.name || '—'}</strong></div><div><label>Unidad</label><strong>${v?.code || '—'}</strong></div><div><label>Placa</label><strong>${v?.plate || '—'}</strong></div><div><label>KM Odómetro</label><strong>${(cl.kmOdometer || 0).toLocaleString()}</strong></div></div><table><tr><th>Ítem</th><th>Categoría</th><th>Estado</th></tr>${rows}</table>${notas ? `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:14px"><div style="font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:700;margin-bottom:4px">Novedades reportadas</div><div>${notas}</div></div>` : ''}<div class="sf"><div class="sf-box"><div class="sf-title">Firma del chofer</div>${sig ? `<img src="${sig}" style="width:100%;max-height:90px;object-fit:contain;background:#ffffff;border:1px solid #e5e7eb;border-radius:6px">` : '<div style="height:70px;background:#f9fafb;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px">Sin firma</div>'}</div><div class="sf-box"><div class="sf-title">Foto de respaldo</div>${foto ? `<img src="${foto}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px">` : '<div style="height:90px;background:#f9fafb;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px">Sin foto</div>'}</div></div><div class="footer"><span>Transporte Emporium · Sistema de Control de Flota</span><span>Generado: ${new Date().toLocaleString('es-VE')}</span></div></body></html>`);
     w.document.close(); w.focus();
   };
   return (
