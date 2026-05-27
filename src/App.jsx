@@ -1625,7 +1625,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
               } : v);
               saveVehicles(updatedVehicles);
               // Discord
-              const wh = config?.discordWebhookByVehicle?.[selectedVehicle.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+              const wh = config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
               if (wh) sendDiscordNotification(wh, {
                 title: `🔧 EN TALLER · ${selectedVehicle.code}`,
                 description: `**${currentDriver.name}** dejó **${selectedVehicle.code}** (${selectedVehicle.plate}) en taller`,
@@ -4653,8 +4653,8 @@ function TallerView({ vehicle, driver, vehicles, saveVehicles, config, onSalir }
       tallerChofer: null,
     } : v);
     saveVehicles(updatedVehicles);
-    // Discord
-    const wh = config?.discordWebhookByVehicle?.[vehicle.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    // Discord → mantenimiento
+    const wh = config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
     if (wh) await sendDiscordNotification(wh, {
       title: `✅ SALIÓ DE TALLER · ${vehicle.code}`,
       description: `**${driver.name}** reporta salida de taller de **${vehicle.code}** (${vehicle.plate})`,
