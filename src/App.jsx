@@ -5709,7 +5709,7 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
     footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
     timestamp: new Date().toISOString(),
   };
-  if (cl.notas || cl.notes) embed.fields.push({ name: '📝 Novedades', value: cl.notas || cl.notes });
+  if (cl.reporte || cl.notas || cl.notes) embed.fields.push({ name: '📝 Novedades', value: cl.reporte || cl.notas || cl.notes });
   embed.fields.push({ name: '✍️ Firma', value: (cl.firma || cl.signature) ? '✅ Firmado por el chofer' : '❌ Sin firma' });
   const fotoData = cl.finalPhoto || cl.foto || cl.photo;
   if (fotoData) {
