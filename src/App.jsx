@@ -1991,6 +1991,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
               </div>
             </div>
           )}
+        </div>
 
         <div className="grid grid-cols-2 gap-3">
           <DarkField label="KM al salir">
