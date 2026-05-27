@@ -5743,7 +5743,6 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
     await sendDiscordNotification(webhookUrl, embed);
   }
   // Enviar fotos adicionales de la unidad
-  const extraPhotos = cl.unitPhotos || [];
   for (let idx = 0; idx < extraPhotos.length; idx++) {
     try {
       const blob = base64ToBlob(extraPhotos[idx]);
@@ -5757,6 +5756,7 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
     }
   }
 
+}
 // ============================================================
 // ChecklistCoordTab — vista para el coordinador con PDF
 // ============================================================
