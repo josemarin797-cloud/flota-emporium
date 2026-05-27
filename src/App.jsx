@@ -5168,6 +5168,8 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
         note: notes[i.id] || '',
         photo: values[i.id] === 'bad' ? (photos[i.id] || null) : null,
       })),
+      criticalCount: criticalItems.length,
+      warningCount: warnItems.length,
       reporte,
       signature,
       finalPhoto,
@@ -5710,6 +5712,15 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
     timestamp: new Date().toISOString(),
   };
   if (cl.reporte || cl.notas || cl.notes) embed.fields.push({ name: '📝 Novedades', value: cl.reporte || cl.notas || cl.notes });
+  // Detalle de ítems críticos con notas
+  const badItems = (cl.items || []).filter(i => i.value === 'bad');
+  if (badItems.length > 0) {
+    const badLines = badItems.map(i => {
+      const def = allItems.find(ci => ci.id === i.id);
+      return `🔴 **${def?.label || i.id}**: ${def?.bad || 'crítico'}${i.note ? ` — _${i.note}_` : ''}`;
+    }).join('\n');
+    embed.fields.push({ name: `🔴 Ítems críticos (${badItems.length})`, value: badLines.slice(0, 1000) });
+  }
   embed.fields.push({ name: '✍️ Firma', value: (cl.firma || cl.signature) ? '✅ Firmado por el chofer' : '❌ Sin firma' });
   const fotoData = cl.finalPhoto || cl.foto || cl.photo;
   if (fotoData) {
@@ -5741,6 +5752,21 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
     }
   } else {
     await sendDiscordNotification(webhookUrl, embed);
+  }
+  // Enviar fotos de ítems críticos
+  for (const item of badItems) {
+    if (!item.photo) continue;
+    const def = allItems.find(ci => ci.id === item.id);
+    try {
+      const blob = base64ToBlob(item.photo);
+      const fd = new FormData();
+      fd.append('files[0]', blob, `falla_${item.id}.jpg`);
+      fd.append('payload_json', JSON.stringify({ content: `🔴 **Falla crítica: ${def?.label || item.id}**${item.note ? ` — ${item.note}` : ''} · ${vehicle?.code}` }));
+      if (navigator.onLine) await fetch(webhookUrl, { method: 'POST', body: fd });
+      else await idbAdd({ type: 'discord', webhookUrl, content: `🔴 Falla: ${def?.label}`, photoData: item.photo, filename: `falla_${item.id}.jpg`, embed: null, queuedAt: new Date().toISOString() });
+    } catch(e) {
+      await idbAdd({ type: 'discord', webhookUrl, content: `🔴 Falla: ${def?.label}`, photoData: item.photo, filename: `falla_${item.id}.jpg`, embed: null, queuedAt: new Date().toISOString() });
+    }
   }
   // Enviar fotos adicionales de la unidad
   for (let idx = 0; idx < extraPhotos.length; idx++) {
