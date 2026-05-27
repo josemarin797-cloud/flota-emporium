@@ -750,8 +750,27 @@ function WelcomeScreen({ onOk }) {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricRegistered, setBiometricRegistered] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
+  const [lockout, setLockout] = useState(0); // segundos restantes de bloqueo
 
+  // Verificar si ya autenticó en los últimos 30 días
   useEffect(() => {
+    const saved = localStorage.getItem('emp:access:ts');
+    if (saved && Date.now() - Number(saved) < 30 * 24 * 60 * 60 * 1000) {
+      onOk(); // ya autenticado, saltar pantalla
+    }
+  }, []);
+
+  // Contador de bloqueo
+  useEffect(() => {
+    if (lockout <= 0) return;
+    const t = setInterval(() => setLockout(l => { if (l <= 1) { clearInterval(t); return 0; } return l - 1; }), 1000);
+    return () => clearInterval(t);
+  }, [lockout > 0]);
+
+  // Verificar bloqueo activo al cargar
+  useEffect(() => {
+    const lockUntil = Number(localStorage.getItem('emp:lockout:until') || 0);
+    if (lockUntil > Date.now()) setLockout(Math.ceil((lockUntil - Date.now()) / 1000));
     const check = async () => {
       if (window.PublicKeyCredential) {
         const ok = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
@@ -763,15 +782,25 @@ function WelcomeScreen({ onOk }) {
   }, []);
 
   const tryEnter = () => {
+    if (lockout > 0) return;
     if (password.toLowerCase().trim() === GLOBAL_PASSWORD) {
-     // 🔊 SALUDO al ingresar contraseña general correctamente
-        const greeting = getGreetingByTime();
-        setTimeout(() => {
-          speakText(`${greeting}. Bienvenido al Sistema de Control de Flota Emporium.`);
-        }, 300);
+      localStorage.setItem('emp:access:ts', String(Date.now()));
+      localStorage.removeItem('emp:login:attempts');
+      const greeting = getGreetingByTime();
+      setTimeout(() => speakText(`${greeting}. Bienvenido al Sistema de Control de Flota Emporium.`), 300);
       onOk();
     } else {
-      setError('Contraseña incorrecta');
+      const attempts = Number(localStorage.getItem('emp:login:attempts') || 0) + 1;
+      localStorage.setItem('emp:login:attempts', String(attempts));
+      if (attempts >= 5) {
+        const until = Date.now() + 2 * 60 * 1000;
+        localStorage.setItem('emp:lockout:until', String(until));
+        localStorage.setItem('emp:login:attempts', '0');
+        setLockout(120);
+        setError('Demasiados intentos. Espera 2 minutos.');
+      } else {
+        setError(`Contraseña incorrecta (${attempts}/5 intentos)`);
+      }
       setPassword('');
     }
   };
@@ -796,10 +825,11 @@ function WelcomeScreen({ onOk }) {
       const credIdStr = localStorage.getItem('emp:biometric:credId');
       const credIdBytes = Uint8Array.from(atob(credIdStr), c => c.charCodeAt(0));
       await navigator.credentials.get({ publicKey: { challenge, rpId: location.hostname, allowCredentials: [{ type: 'public-key', id: credIdBytes }], userVerification: 'required', timeout: 30000 } });
+      localStorage.setItem('emp:access:ts', String(Date.now()));
       const greeting = getGreetingByTime();
       setTimeout(() => speakText(greeting + '. Bienvenido al Sistema de Control de Flota Emporium.'), 300);
       onOk();
-    } catch (e) { setError('Huella no reconocida. Usa tu contrasena.'); }
+    } catch (e) { setError('Huella no reconocida. Usa tu contraseña.'); }
     setBiometricLoading(false);
   };
 
@@ -860,10 +890,16 @@ function WelcomeScreen({ onOk }) {
             </div>
           )}
 
-          {biometricAvailable && biometricRegistered && <button onClick={loginBiometric} disabled={biometricLoading} className="w-full py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2 mb-2">{biometricLoading ? 'Verificando...' : 'Entrar con huella'}</button>}
+          {lockout > 0 && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-3 py-2 mb-3 text-center font-medium">
+              🔒 Bloqueado — espera {Math.floor(lockout/60)}:{String(lockout%60).padStart(2,'0')}
+            </div>
+          )}
+
+          {biometricAvailable && biometricRegistered && <button onClick={loginBiometric} disabled={biometricLoading || lockout > 0} className="w-full py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2 mb-2 disabled:opacity-50">{biometricLoading ? 'Verificando...' : 'Entrar con huella'}</button>}
           {biometricAvailable && !biometricRegistered && <button onClick={registerBiometric} disabled={biometricLoading} className="w-full py-2 rounded-xl font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center justify-center gap-2 mb-2">{biometricLoading ? 'Registrando...' : 'Activar huella dactilar'}</button>}
-          <button onClick={tryEnter} disabled={!password}
-            className={`w-full py-3.5 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2 ${password ? 'bg-emerald-600 hover:bg-emerald-700 shadow-lg active:scale-[0.98]' : 'bg-stone-300'}`}>
+          <button onClick={tryEnter} disabled={!password || lockout > 0}
+            className={`w-full py-3.5 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2 ${password && lockout === 0 ? 'bg-emerald-600 hover:bg-emerald-700 shadow-lg active:scale-[0.98]' : 'bg-stone-300'}`}>
             Entrar <ChevronRight className="w-5 h-5" />
           </button>
         </div>
