@@ -1615,34 +1615,14 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         {tab === 'trip' && <>
           {step === 'select' && <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onContinue={(accion, motivo, km) => {
             if (accion === 'taller') {
-              // Marcar vehículo EN TALLER
-              const updatedVehicles = vehicles.map(v => v.id === selectedVehicle.id ? {
-                ...v, status: 'EN TALLER',
-                tallerEntrada: Date.now(),
-                tallerMotivo: motivo,
-                tallerKmEntrada: km,
-                tallerChofer: currentDriver.name,
-              } : v);
-              saveVehicles(updatedVehicles);
-              // Discord
-              const wh = config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
-              if (wh) sendDiscordNotification(wh, {
-                title: `🔧 EN TALLER · ${selectedVehicle.code}`,
-                description: `**${currentDriver.name}** dejó **${selectedVehicle.code}** (${selectedVehicle.plate}) en taller`,
-                color: 0xEF4444,
-                fields: [
-                  { name: '🔧 Motivo', value: motivo, inline: false },
-                  { name: '📍 KM entrada', value: `${km.toLocaleString()} km`, inline: true },
-                  { name: '📅 Fecha', value: new Date().toLocaleString('es-VE'), inline: true },
-                ],
-              }).catch(() => {});
-              setStep('taller');
-            } else if (selectedVehicle?.status === 'EN TALLER' && selectedVehicle?.tallerEntrada) {
-              setStep('taller');
+              // ya no se usa desde selección
+            } else if (selectedVehicle?.status === 'EN TALLER') {
+              setStep('retirar');
             } else {
               setStep('checklist');
             }
           }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} />}
+          {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) setChecklistKm(Number(km)); setStep('start'); }} onBack={() => setStep('select')} config={config} />}
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} />}
@@ -1837,18 +1817,6 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
         className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle && !pendingHandoff ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400'}`}>
         Continuar <ArrowRight className="w-5 h-5" />
       </button>
-      {selectedVehicle && !pendingHandoff && selectedVehicle.status !== 'EN TALLER' && (
-        <button onClick={() => {
-          const motivo = prompt('¿Motivo del taller?\n(ej: cambio aceite, revisión frenos, falla mecánica...)');
-          if (!motivo) return;
-          const km = prompt('KM actual del odómetro:', selectedVehicle.currentKm?.toString() || '0');
-          if (!km || isNaN(Number(km))) return;
-          onContinue('taller', motivo, Number(km));
-        }}
-          className="w-full py-3 rounded-2xl font-bold text-rose-700 bg-rose-50 border border-rose-200 hover:bg-rose-100 transition flex items-center justify-center gap-2">
-          🔧 Dejar en taller
-        </button>
-      )}
       {pendingHandoff && <p className="text-center text-xs text-amber-600 font-semibold">⚠️ Confirma la recepción para continuar</p>}
     </div>
   );
@@ -4623,6 +4591,143 @@ function BranchesTab({ branches, saveBranches }) {
 // ============================================================
 // TALLER VIEW — pantalla del chofer cuando el camión está en taller
 // ============================================================
+// ============================================================
+// RETIRAR DEL TALLER — chofer retira el camión
+// ============================================================
+function RetirarTallerView({ vehicle, driver, vehicles, saveVehicles, config, onRetiro, onBack }) {
+  const [trabajo, setTrabajo] = useState('');
+  const [kmSalida, setKmSalida] = useState(vehicle.currentKm?.toString() || '');
+  const [foto, setFoto] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const tiempoMs = vehicle.tallerEntrada ? Date.now() - vehicle.tallerEntrada : 0;
+  const fmt = (ms) => { const h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000), d=Math.floor(ms/86400000); return d>0?`${d}d ${h%24}h`:h>0?`${h}h ${m}m`:`${m}m`; };
+
+  const handleFoto = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setFoto(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const handleRegistrar = async () => {
+    if (!trabajo.trim()) { alert('Describe el trabajo realizado'); return; }
+    if (!kmSalida || isNaN(Number(kmSalida))) { alert('Ingresa el KM de salida'); return; }
+    setSubmitting(true);
+
+    // Actualizar vehículo
+    const updatedVehicles = vehicles.map(v => v.id === vehicle.id ? {
+      ...v, status: 'AL DIA',
+      currentKm: Number(kmSalida),
+      tallerSalida: Date.now(),
+      tallerTrabajo: trabajo,
+      tallerDias: Math.max(1, Math.round(tiempoMs / 86400000)),
+      tallerEntrada: null,
+      tallerMotivo: null,
+      tallerChofer: null,
+    } : v);
+    saveVehicles(updatedVehicles);
+
+    // Discord mantenimiento
+    const wh = config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    if (wh) {
+      const embed = {
+        title: `✅ RETIRO DE TALLER · ${vehicle.code}`,
+        description: `**${driver.name}** retira **${vehicle.code}** (${vehicle.plate}) del taller`,
+        color: 0x10B981,
+        fields: [
+          { name: '🔧 Motivo entrada', value: vehicle.tallerMotivo || '—', inline: false },
+          { name: '🛠️ Trabajo realizado', value: trabajo, inline: false },
+          { name: '⏱️ Tiempo en taller', value: fmt(tiempoMs), inline: true },
+          { name: '📍 KM salida', value: `${Number(kmSalida).toLocaleString()} km`, inline: true },
+          { name: '📅 Fecha', value: new Date().toLocaleString('es-VE'), inline: true },
+        ],
+      };
+      if (foto) {
+        try {
+          const blob = base64ToBlob(foto);
+          const fd = new FormData();
+          fd.append('files[0]', blob, 'retiro_taller.jpg');
+          fd.append('payload_json', JSON.stringify({ embeds: [embed] }));
+          if (navigator.onLine) await fetch(wh, { method: 'POST', body: fd });
+          else await sendDiscordNotification(wh, embed);
+        } catch { await sendDiscordNotification(wh, embed); }
+      } else {
+        await sendDiscordNotification(wh, embed).catch(() => {});
+      }
+    }
+    setSubmitting(false);
+    onRetiro();
+  };
+
+  return (
+    <div className="space-y-4 pb-8">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200">
+          <ArrowRight className="w-4 h-4 rotate-180 text-stone-600" />
+        </button>
+        <div>
+          <h2 className="font-bold text-stone-900">🔧 Retirar del taller</h2>
+          <p className="text-xs text-stone-500">{vehicle.code} · {vehicle.plate}</p>
+        </div>
+      </div>
+
+      {/* Info entrada */}
+      <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 space-y-1">
+        <div className="text-xs font-bold text-rose-700 uppercase tracking-wider">Motivo de entrada</div>
+        <div className="text-sm font-medium text-rose-900">{vehicle.tallerMotivo || '—'}</div>
+        {vehicle.tallerEntrada && <div className="text-xs text-stone-500">Tiempo en taller: {fmt(tiempoMs)}</div>}
+      </div>
+
+      {/* Trabajo realizado */}
+      <div>
+        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">
+          🛠️ Trabajo realizado <span className="text-red-500">*</span>
+        </label>
+        <textarea rows={3} value={trabajo} onChange={e => setTrabajo(e.target.value)}
+          placeholder="Describe el trabajo realizado (cambio aceite, reparación frenos, etc.)..."
+          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-400 resize-none" />
+      </div>
+
+      {/* Foto */}
+      <div>
+        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">
+          📷 Foto del trabajo <span className="text-stone-400 font-normal">(opcional)</span>
+        </label>
+        {foto ? (
+          <div className="relative w-full rounded-xl overflow-hidden border border-stone-200">
+            <img src={foto} alt="Foto taller" className="w-full h-40 object-cover" />
+            <button onClick={() => setFoto(null)}
+              className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center font-bold shadow">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <label className="w-full h-28 rounded-xl border-2 border-dashed border-stone-300 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition">
+            <Camera className="w-7 h-7 text-stone-400" />
+            <span className="text-xs text-stone-400 mt-1">Tomar foto del trabajo</span>
+            <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={handleFoto} />
+          </label>
+        )}
+      </div>
+
+      {/* KM salida */}
+      <div>
+        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">📍 KM odómetro al retirar</label>
+        <input type="number" value={kmSalida} onChange={e => setKmSalida(e.target.value)}
+          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:border-emerald-400" />
+      </div>
+
+      {/* Botón registrar */}
+      <button onClick={handleRegistrar} disabled={submitting}
+        className="w-full py-4 rounded-2xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2 transition disabled:opacity-50">
+        {submitting ? 'Registrando...' : '✅ Registrar retiro → Discord + iniciar viaje'}
+      </button>
+    </div>
+  );
+}
+
 function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config }) {
   const [motivo, setMotivo] = useState('');
   const [submitted, setSubmitted] = useState(vehicle?.status === 'EN TALLER');
