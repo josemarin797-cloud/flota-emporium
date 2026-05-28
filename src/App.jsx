@@ -4570,10 +4570,112 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
   );
 }
 
+// ── Diagrama SVG área de carga ──────────────────────────────────
+function CargoDiagram({ largo, ancho, alto, cubicaje, maxLoad, bodyType, color = '#10b981' }) {
+  if (!largo || !alto) return null;
+  // Proporciones del dibujo
+  const W = 340, H = 160;
+  const cabW = 54, wheelR = 18, groundY = H - 14;
+  const maxLargo = 7, maxAlto = 3.5;
+  const boxW = Math.max(80, Math.min(220, (largo / maxLargo) * 220));
+  const boxH = Math.max(40, Math.min(110, (alto / maxAlto) * 110));
+  const boxX = cabW + 8;
+  const boxY = groundY - wheelR - boxH;
+  const totalW = boxX + boxW + 10;
+  const vp = `0 0 ${totalW} ${H}`;
+
+  return (
+    <svg viewBox={vp} className="w-full" style={{ maxHeight: 160 }} xmlns="http://www.w3.org/2000/svg">
+      {/* Cabina */}
+      <rect x="4" y={boxY + 10} width={cabW - 4} height={boxH - 10} rx="6" fill={color + '30'} stroke={color} strokeWidth="1.5" />
+      <rect x="10" y={boxY + 16} width={cabW - 20} height={18} rx="3" fill={color + '50'} />
+      {/* Cuerpo / caja de carga */}
+      <rect x={boxX} y={boxY} width={boxW} height={boxH} rx="3" fill={color + '18'} stroke={color} strokeWidth="1.5" />
+      {/* Líneas internas caja */}
+      <line x1={boxX + 2} y1={boxY + boxH * 0.35} x2={boxX + boxW - 2} y2={boxY + boxH * 0.35} stroke={color + '40'} strokeWidth="0.8" strokeDasharray="4,3" />
+      <line x1={boxX + 2} y1={boxY + boxH * 0.65} x2={boxX + boxW - 2} y2={boxY + boxH * 0.65} stroke={color + '40'} strokeWidth="0.8" strokeDasharray="4,3" />
+      {/* Chasis */}
+      <line x1="4" y1={groundY - wheelR} x2={totalW - 6} y2={groundY - wheelR} stroke="#78716c" strokeWidth="3" />
+      {/* Ruedas */}
+      {[18, totalW - 28, totalW - 14].map((cx, i) => (
+        <g key={i}>
+          <circle cx={cx} cy={groundY - wheelR + wheelR} r={wheelR} fill="#292524" />
+          <circle cx={cx} cy={groundY - wheelR + wheelR} r={wheelR * 0.55} fill="#57534e" />
+          <circle cx={cx} cy={groundY - wheelR + wheelR} r={3} fill="#a8a29e" />
+        </g>
+      ))}
+      {/* Etiqueta Largo */}
+      <line x1={boxX} y1={groundY - 2} x2={boxX + boxW} y2={groundY - 2} stroke="#64748b" strokeWidth="1" markerEnd="url(#arrow)" />
+      <text x={boxX + boxW / 2} y={groundY + 10} textAnchor="middle" fontSize="9" fill="#475569" fontWeight="bold">Largo: {largo} m</text>
+      {/* Etiqueta Alto */}
+      <line x1={boxX + boxW + 4} y1={boxY} x2={boxX + boxW + 4} y2={boxY + boxH} stroke="#64748b" strokeWidth="1" />
+      <text x={boxX + boxW + 8} y={boxY + boxH / 2} fontSize="8" fill="#475569" dominantBaseline="middle">Alto: {alto}m</text>
+      {/* Info central */}
+      <text x={boxX + boxW / 2} y={boxY + boxH / 2 - 8} textAnchor="middle" fontSize="10" fill={color} fontWeight="bold">{bodyType || ''}</text>
+      {cubicaje && <text x={boxX + boxW / 2} y={boxY + boxH / 2 + 5} textAnchor="middle" fontSize="9" fill="#475569">{cubicaje} m³</text>}
+      {maxLoad && <text x={boxX + boxW / 2} y={boxY + boxH / 2 + 17} textAnchor="middle" fontSize="9" fill="#475569">{Number(maxLoad).toLocaleString()} kg</text>}
+      {ancho && <text x={boxX + boxW / 2} y={boxY + boxH / 2 + 28} textAnchor="middle" fontSize="8" fill="#94a3b8">Ancho: {ancho} m</text>}
+    </svg>
+  );
+}
+
+const EMPTY_VEHICLE = { code: '', plate: '', type: 'NPR', bodyType: 'Furgón', year: '', performance: 5, status: 'AL DIA', currentKm: 0, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#10b981', maxLoad: '', cargoLength: '', cargoWidth: '', cargoHeight: '', cargoCubic: '' };
+
+function VehicleForm({ v, onSave, onCancel, title }) {
+  const [f, setF] = useState({...EMPTY_VEHICLE, ...v});
+  const s = (k, val) => setF(p => ({...p, [k]: val}));
+  return (
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-bold text-stone-900">{title}</h3>
+        <button onClick={onCancel} className="text-stone-400 hover:text-stone-700"><X className="w-5 h-5" /></button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <DarkField label="Vehículo"><input value={f.code} onChange={e => s('code', e.target.value)} className="dark-input" placeholder="NPR 01" /></DarkField>
+        <DarkField label="Placa"><input value={f.plate} onChange={e => s('plate', e.target.value)} className="dark-input" /></DarkField>
+        <DarkField label="Marca / Chasis"><select value={f.type} onChange={e => s('type', e.target.value)} className="dark-input"><option>NPR</option><option>FUSO</option><option>L300</option><option>OTRO</option></select></DarkField>
+        <DarkField label="Carrocería"><select value={f.bodyType||'Furgón'} onChange={e => s('bodyType', e.target.value)} className="dark-input"><option>Furgón</option><option>Cava Térmica</option><option>Panel</option><option>Plataforma</option><option>Otro</option></select></DarkField>
+        <DarkField label="Año"><input type="number" value={f.year||''} onChange={e => s('year', e.target.value)} className="dark-input" placeholder="2009" /></DarkField>
+        <DarkField label="Color"><input type="color" value={f.color||'#10b981'} onChange={e => s('color', e.target.value)} className="dark-input h-10" /></DarkField>
+        <DarkField label="Litros/100km"><input type="number" value={f.litersPer100km} onChange={e => s('litersPer100km', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Carga máx. (kg)"><input type="number" value={f.maxLoad||''} onChange={e => s('maxLoad', e.target.value)} className="dark-input" placeholder="4690" /></DarkField>
+      </div>
+      {/* Dimensiones carga */}
+      <div className="mt-3 p-3 bg-stone-50 rounded-xl border border-stone-200">
+        <div className="text-xs font-bold text-stone-600 uppercase tracking-wider mb-2">📐 Dimensiones área de carga</div>
+        <div className="grid grid-cols-2 gap-3">
+          <DarkField label="Largo (m)"><input type="number" step="0.01" value={f.cargoLength||''} onChange={e => s('cargoLength', e.target.value)} className="dark-input" placeholder="2.94" /></DarkField>
+          <DarkField label="Ancho (m)"><input type="number" step="0.01" value={f.cargoWidth||''} onChange={e => s('cargoWidth', e.target.value)} className="dark-input" placeholder="2.20" /></DarkField>
+          <DarkField label="Alto (m)"><input type="number" step="0.01" value={f.cargoHeight||''} onChange={e => s('cargoHeight', e.target.value)} className="dark-input" placeholder="1.55" /></DarkField>
+          <DarkField label="Cubicaje (m³)"><input type="number" step="0.01" value={f.cargoCubic||''} onChange={e => s('cargoCubic', e.target.value)} className="dark-input" placeholder="18.28" /></DarkField>
+        </div>
+        {f.cargoLength && f.cargoHeight && (
+          <div className="mt-3 bg-white rounded-lg border border-stone-200 p-2">
+            <CargoDiagram largo={f.cargoLength} ancho={f.cargoWidth} alto={f.cargoHeight} cubicaje={f.cargoCubic} maxLoad={f.maxLoad} bodyType={f.bodyType} color={f.color||'#10b981'} />
+          </div>
+        )}
+      </div>
+      {/* KM y mantenimiento */}
+      <div className="grid grid-cols-2 gap-3 mt-3">
+        <DarkField label="Estado"><select value={f.status} onChange={e => s('status', e.target.value)} className="dark-input"><option>AL DIA</option><option>EN TALLER</option><option>OPERATIVO</option><option>FUERA DE SERVICIO</option></select></DarkField>
+        <DarkField label="KM Actual"><input type="number" value={f.currentKm} onChange={e => s('currentKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Último Mant. KM"><input type="number" value={f.lastMaintKm} onChange={e => s('lastMaintKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Frec. Mant. KM"><input type="number" value={f.maintFreq} onChange={e => s('maintFreq', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Último Engrase KM"><input type="number" value={f.lastGreaseKm} onChange={e => s('lastGreaseKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Frec. Engrase KM"><input type="number" value={f.greaseFreq||3000} onChange={e => s('greaseFreq', Number(e.target.value))} className="dark-input" /></DarkField>
+        <div className="col-span-2"><DarkField label="Observaciones"><input value={f.observations||''} onChange={e => s('observations', e.target.value)} className="dark-input" /></DarkField></div>
+      </div>
+      <div className="flex justify-end gap-2 mt-4">
+        <button onClick={onCancel} className="px-3 py-1.5 text-sm text-stone-500">Cancelar</button>
+        <button onClick={() => onSave(f)} className="px-4 py-1.5 text-sm bg-emerald-600 text-white rounded-lg font-bold">Guardar</button>
+      </div>
+    </div>
+  );
+}
+
 function VehiclesTab({ vehicles, saveVehicles, trips }) {
   const [editing, setEditing] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [newVehicle, setNewVehicle] = useState({ code: '', plate: '', type: 'NPR', performance: 5, status: 'AL DIA', currentKm: 0, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#10b981' });
 
   const handleSave = (v) => {
     if (v.id) saveVehicles(vehicles.map(x => x.id === v.id ? v : x));
@@ -4586,31 +4688,14 @@ function VehiclesTab({ vehicles, saveVehicles, trips }) {
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <h2 className="font-black text-stone-900">Flota</h2>
-        <button onClick={() => setShowAdd(!showAdd)}
-          className="bg-emerald-600 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-bold">
+        <button onClick={() => setShowAdd(!showAdd)} className="bg-emerald-600 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-bold">
           <Plus className="w-4 h-4" /> Agregar
         </button>
       </div>
 
-      {/* Formulario nuevo vehículo */}
       {showAdd && (
-        <div className="bg-white rounded-xl border-2 border-emerald-400 p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-bold text-stone-900">Nuevo vehículo</h3>
-            <button onClick={() => setShowAdd(false)} className="text-stone-400 hover:text-stone-700"><X className="w-5 h-5" /></button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <DarkField label="Código"><input value={newVehicle.code} onChange={e => setNewVehicle({...newVehicle, code: e.target.value})} className="dark-input" /></DarkField>
-            <DarkField label="Placa"><input value={newVehicle.plate} onChange={e => setNewVehicle({...newVehicle, plate: e.target.value})} className="dark-input" /></DarkField>
-            <DarkField label="Tipo"><select value={newVehicle.type} onChange={e => setNewVehicle({...newVehicle, type: e.target.value})} className="dark-input"><option>NPR</option><option>FUSO</option><option>L300</option><option>OTRO</option></select></DarkField>
-            <DarkField label="Color"><input type="color" value={newVehicle.color} onChange={e => setNewVehicle({...newVehicle, color: e.target.value})} className="dark-input h-10" /></DarkField>
-            <DarkField label="Litros/100km"><input type="number" value={newVehicle.litersPer100km} onChange={e => setNewVehicle({...newVehicle, litersPer100km: Number(e.target.value)})} className="dark-input" /></DarkField>
-            <DarkField label="KM Actual"><input type="number" value={newVehicle.currentKm} onChange={e => setNewVehicle({...newVehicle, currentKm: Number(e.target.value)})} className="dark-input" /></DarkField>
-          </div>
-          <div className="flex justify-end gap-2 mt-3">
-            <button onClick={() => setShowAdd(false)} className="px-3 py-1.5 text-sm text-stone-500">Cancelar</button>
-            <button onClick={() => handleSave(newVehicle)} className="px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg font-bold">Guardar</button>
-          </div>
+        <div className="bg-white rounded-xl border-2 border-emerald-400 overflow-hidden">
+          <VehicleForm v={EMPTY_VEHICLE} onSave={handleSave} onCancel={() => setShowAdd(false)} title="Nuevo vehículo" />
         </div>
       )}
 
@@ -4621,51 +4706,42 @@ function VehiclesTab({ vehicles, saveVehicles, trips }) {
           return (
             <div key={v.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${isEditing ? 'border-emerald-400 border-2' : 'border-stone-200'}`}>
               {isEditing ? (
-                /* MODO EDICIÓN INLINE */
-                <div className="p-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-bold text-stone-900">Editar {v.code}</h3>
-                    <button onClick={() => setEditing(null)} className="text-stone-400 hover:text-stone-700"><X className="w-5 h-5" /></button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <DarkField label="Código"><input value={editing.code} onChange={e => setEditing({...editing, code: e.target.value})} className="dark-input" /></DarkField>
-                    <DarkField label="Placa"><input value={editing.plate} onChange={e => setEditing({...editing, plate: e.target.value})} className="dark-input" /></DarkField>
-                    <DarkField label="Tipo"><select value={editing.type} onChange={e => setEditing({...editing, type: e.target.value})} className="dark-input"><option>NPR</option><option>FUSO</option><option>L300</option><option>OTRO</option></select></DarkField>
-                    <DarkField label="Color"><input type="color" value={editing.color||'#10b981'} onChange={e => setEditing({...editing, color: e.target.value})} className="dark-input h-10" /></DarkField>
-                    <DarkField label="Litros/100km"><input type="number" value={editing.litersPer100km} onChange={e => setEditing({...editing, litersPer100km: Number(e.target.value)})} className="dark-input" /></DarkField>
-                    <DarkField label="KM Actual"><input type="number" value={editing.currentKm} onChange={e => setEditing({...editing, currentKm: Number(e.target.value)})} className="dark-input" /></DarkField>
-                    <DarkField label="Estado"><select value={editing.status} onChange={e => setEditing({...editing, status: e.target.value})} className="dark-input"><option>AL DIA</option><option>EN TALLER</option><option>OPERATIVO</option><option>FUERA DE SERVICIO</option></select></DarkField>
-                    <DarkField label="Último Mant. KM"><input type="number" value={editing.lastMaintKm} onChange={e => setEditing({...editing, lastMaintKm: Number(e.target.value)})} className="dark-input" /></DarkField>
-                    <DarkField label="Frec. Mant. KM"><input type="number" value={editing.maintFreq} onChange={e => setEditing({...editing, maintFreq: Number(e.target.value)})} className="dark-input" /></DarkField>
-                    <DarkField label="Último Engrase KM"><input type="number" value={editing.lastGreaseKm} onChange={e => setEditing({...editing, lastGreaseKm: Number(e.target.value)})} className="dark-input" /></DarkField>
-                    <div className="col-span-2"><DarkField label="Observaciones"><input value={editing.observations||''} onChange={e => setEditing({...editing, observations: e.target.value})} className="dark-input" /></DarkField></div>
-                  </div>
-                  <div className="flex justify-end gap-2 mt-3">
-                    <button onClick={() => setEditing(null)} className="px-3 py-1.5 text-sm text-stone-500">Cancelar</button>
-                    <button onClick={() => handleSave(editing)} className="px-4 py-1.5 text-sm bg-emerald-600 text-white rounded-lg font-bold">Guardar</button>
-                  </div>
-                </div>
+                <VehicleForm v={editing} onSave={handleSave} onCancel={() => setEditing(null)} title={`Editar ${v.code}`} />
               ) : (
-                /* MODO VISTA */
                 <div className="p-4">
-                  <div className="flex justify-between items-start mb-2">
+                  {/* Header */}
+                  <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: (v.color||'#10b981')+'30', border: `1px solid ${v.color||'#10b981'}` }}>
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: (v.color||'#10b981')+'30', border: `1px solid ${v.color||'#10b981'}` }}>
                         <Truck className="w-5 h-5" style={{ color: v.color||'#10b981' }} />
                       </div>
                       <div>
-                        <div className="font-bold text-stone-900">{v.code}</div>
-                        <div className="text-xs text-stone-500 font-mono">{v.plate} · {v.litersPer100km}L/100km</div>
+                        <div className="font-black text-stone-900 text-base">{v.code}</div>
+                        <div className="text-xs text-stone-500 font-mono">{v.plate}{v.year ? ` · ${v.year}` : ''} · {v.litersPer100km}L/100km</div>
+                        {v.bodyType && <div className="text-[10px] text-stone-400 font-medium mt-0.5">{v.bodyType}</div>}
                       </div>
                     </div>
-                    <div className="flex gap-2 items-center">
+                    <div className="flex gap-2 items-center flex-shrink-0">
                       <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${v.status==='AL DIA'?'bg-emerald-500/20 text-stone-700 border border-emerald-500/40':'bg-rose-100 text-rose-800 border border-rose-300'}`}>{v.status}</span>
                       <button onClick={() => setEditing({...v})} className="p-1.5 rounded-lg bg-stone-100 hover:bg-emerald-100 text-stone-600 hover:text-emerald-700 transition">
                         <Edit className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-xs mt-2">
+
+                  {/* Diagrama carga */}
+                  {v.cargoLength && v.cargoHeight && (
+                    <div className="mb-3 bg-stone-50 rounded-xl border border-stone-200 p-2">
+                      <div className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1 flex justify-between">
+                        <span>📐 Área de carga</span>
+                        <span className="text-stone-400">{v.cargoLength}×{v.cargoWidth}×{v.cargoHeight} m{v.cargoCubic ? ` · ${v.cargoCubic}m³` : ''}{v.maxLoad ? ` · ${Number(v.maxLoad).toLocaleString()}kg` : ''}</span>
+                      </div>
+                      <CargoDiagram largo={v.cargoLength} ancho={v.cargoWidth} alto={v.cargoHeight} cubicaje={v.cargoCubic} maxLoad={v.maxLoad} bodyType={v.bodyType} color={v.color||'#10b981'} />
+                    </div>
+                  )}
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-3 gap-2 text-xs">
                     <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">KM Actual</div><div className="font-bold text-stone-900">{v.currentKm.toLocaleString()}</div></div>
                     <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Viajes</div><div className="font-bold text-stone-900">{vt.length}</div></div>
                     <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Días</div><div className="font-bold text-stone-900">{new Set(vt.map(t=>t.startDate)).size}</div></div>
