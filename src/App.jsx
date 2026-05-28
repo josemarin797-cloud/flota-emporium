@@ -131,11 +131,11 @@ const GLOBAL_PASSWORD = 'emporium'; // Contraseña general para entrar a la app
 const COORDINATOR_PHONE = '+584123932778';
 
 const INITIAL_VEHICLES = [
-  { id: 'v1', code: 'NPR 01', plate: 'A91BF8M', type: 'NPR', performance: 4.76, status: 'AL DIA', currentKm: 142107, lastMaintKm: 141364, maintFreq: 6000, lastGreaseKm: 141364, greaseFreq: 3000, observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#10b981' },
-  { id: 'v2', code: 'NPR 02', plate: 'A21AM9G', type: 'NPR', performance: 4.41, status: 'EN TALLER', currentKm: 48831, lastMaintKm: 48831, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: 'En taller, servicio bandas y tren delantero', litersPer100km: 21, color: '#f59e0b' },
-  { id: 'v3', code: 'FUSO 03', plate: 'A37AJ01', type: 'FUSO', performance: 5.0, status: 'AL DIA', currentKm: 168854, lastMaintKm: 168281, maintFreq: 6000, lastGreaseKm: 168281, greaseFreq: 3000, observations: 'cambio aceite y filtros', litersPer100km: 20, color: '#3b82f6' },
-  { id: 'v4', code: 'NPR 04', plate: 'A15AM5G', type: 'NPR', performance: 10.01, status: 'AL DIA', currentKm: 694812, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#a855f7' },
-  { id: 'v5', code: 'L300 05', plate: 'A15BP7M', type: 'L300', performance: 7.69, status: 'AL DIA', currentKm: 0, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 13, color: '#ec4899' },
+  { id: 'v1', code: 'NPR 01', plate: 'A91BF8M', type: 'NPR', performance: 4.76, status: 'AL DIA', currentKm: 142107, lastMaintKm: 141364, maintFreq: 6000, lastGreaseKm: 141364, greaseFreq: 3000, observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#10b981', maintenanceWebhook: '' },
+  { id: 'v2', code: 'NPR 02', plate: 'A21AM9G', type: 'NPR', performance: 4.41, status: 'AL DIA', currentKm: 48831, lastMaintKm: 48831, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#f59e0b', maintenanceWebhook: '' },
+  { id: 'v3', code: 'FUSO 03', plate: 'A37AJ01', type: 'FUSO', performance: 5.0, status: 'AL DIA', currentKm: 168854, lastMaintKm: 168281, maintFreq: 6000, lastGreaseKm: 168281, greaseFreq: 3000, observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#3b82f6', maintenanceWebhook: '' },
+  { id: 'v4', code: 'NPR 04', plate: 'A15AM5G', type: 'NPR', performance: 10.01, status: 'AL DIA', currentKm: 694812, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#a855f7', maintenanceWebhook: '' },
+  { id: 'v5', code: 'L300 05', plate: 'A15BP7M', type: 'L300', performance: 7.69, status: 'AL DIA', currentKm: 145523, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 13, color: '#ec4899', maintenanceWebhook: '' },
 ];
 
 const INITIAL_DRIVERS = [
@@ -384,7 +384,7 @@ export default function App() {
           loadFromStorage(KEYS.GPS_TRACKS),
           loadFromStorage(KEYS.HANDOFFS),
         ]);
-        if (reads[0]) setVehicles(reads[0]);
+        if (reads[0]) setVehicles(reads[0].map(v => ({ maintenanceWebhook: '', ...v })));
         if (reads[1]) setDrivers(reads[1]);
         if (reads[2]) setBranches(reads[2]);
         if (reads[3]) setTrips(reads[3]);
