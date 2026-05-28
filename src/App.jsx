@@ -629,6 +629,7 @@ export default function App() {
         config={config}
         handoffs={handoffs} saveHandoffs={saveHandoffs}
         incidents={incidents} saveIncidents={saveIncidents}
+        fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords}
       />
       <InstallAppButton />
     </>;
@@ -1218,7 +1219,120 @@ function LeafletMap({ markers = [], polylines = [], height = '400px', center = [
 // ============================================================
 // APP DEL CHOFER
 // ============================================================
-function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents }) {
+// Widget de carga de combustible para el chofer
+function DriverFuelWidget({ vehicles, currentDriver, fuelRecords, saveFuelRecords, config }) {
+  const [showForm, setShowForm] = useState(false);
+  const [customLiters, setCustomLiters] = useState('');
+  const [selectedVehicleId, setSelectedVehicleId] = useState(vehicles[0]?.id || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const selectedV = vehicles.find(v => v.id === selectedVehicleId);
+  const isL300 = selectedV?.type === 'L300' || selectedV?.code?.includes('L300') || selectedV?.plate === 'A15BP7M';
+  const pricePerLiter = config?.fuelPrice || 0.5;
+
+  const registerFuel = async (liters) => {
+    if (!liters || !selectedVehicleId) return;
+    setSaving(true);
+    const rec = {
+      id: `fr_${Date.now()}`,
+      vehicleId: selectedVehicleId,
+      vehicleCode: selectedV?.code || '',
+      vehiclePlate: selectedV?.plate || '',
+      driverId: currentDriver.id,
+      driverName: currentDriver.name,
+      date: new Date().toISOString().slice(0, 10),
+      km: selectedV?.currentKm || 0,
+      liters: Number(liters),
+      pricePerLiter,
+      notes: isL300 ? 'Bomba gasolinera' : 'Tanque Palma Real',
+    };
+    saveFuelRecords([rec, ...fuelRecords]);
+    setSaving(false);
+    setSaved(true);
+    setShowForm(false);
+    setCustomLiters('');
+    setTimeout(() => setSaved(false), 3000);
+  };
+
+  return (
+    <div className="mt-4">
+      {saved && (
+        <div className="bg-emerald-50 border border-emerald-300 rounded-xl px-4 py-3 text-sm font-bold text-emerald-700 flex items-center gap-2 mb-3">
+          <CheckCircle className="w-4 h-4" /> ¡Carga registrada correctamente!
+        </div>
+      )}
+      {!showForm ? (
+        <button onClick={() => setShowForm(true)}
+          className="w-full flex items-center justify-between bg-white border-2 border-amber-200 hover:border-amber-400 rounded-2xl px-4 py-3.5 transition group">
+          <div className="flex items-center gap-3">
+            <div className="bg-amber-100 w-10 h-10 rounded-xl flex items-center justify-center">
+              <Fuel className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="text-left">
+              <div className="font-bold text-stone-900 text-sm">Registrar carga de combustible</div>
+              <div className="text-xs text-stone-400">¿Surtiste hoy? Toca para registrar</div>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-stone-400 group-hover:text-amber-500 transition" />
+        </button>
+      ) : (
+        <div className="bg-white border-2 border-amber-300 rounded-2xl p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="font-bold text-stone-900 flex items-center gap-2"><Fuel className="w-4 h-4 text-amber-500" /> Carga de combustible</div>
+            <button onClick={() => setShowForm(false)} className="text-stone-400 hover:text-stone-700"><X className="w-5 h-5" /></button>
+          </div>
+
+          {/* Seleccionar camión */}
+          <div>
+            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-1.5">¿Qué camión surtiste?</label>
+            <div className="grid grid-cols-2 gap-2">
+              {vehicles.filter(v => v.status !== 'EN TALLER').map(v => (
+                <button key={v.id} onClick={() => setSelectedVehicleId(v.id)}
+                  className={`p-2.5 rounded-xl border-2 text-xs font-bold transition ${selectedVehicleId === v.id ? 'border-amber-400 bg-amber-50 text-amber-800' : 'border-stone-200 text-stone-600 bg-stone-50'}`}>
+                  <div>{v.code}</div>
+                  <div className="font-normal text-stone-400">{v.plate}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Botón rápido L300 o entrada manual */}
+          {isL300 ? (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Carga rápida L300</label>
+              <button onClick={() => registerFuel(30)} disabled={saving}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-4 rounded-xl text-base transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2">
+                <Fuel className="w-5 h-5" /> 30 litros — $15.00
+              </button>
+              <div className="text-center text-xs text-stone-400">Precio fijo · Bomba gasolinera</div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Litros cargados (dato de la máquina)</label>
+              <div className="flex gap-2">
+                <input type="number" value={customLiters} onChange={e => setCustomLiters(e.target.value)}
+                  placeholder="Ej: 85" className="flex-1 border-2 border-stone-200 rounded-xl px-3 py-3 text-xl font-bold text-center focus:border-amber-400 focus:outline-none" />
+              </div>
+              {customLiters > 0 && (
+                <div className="text-center text-sm text-stone-500 font-mono">
+                  {customLiters} L × ${pricePerLiter.toFixed(2)} = <span className="font-bold text-amber-700">${(customLiters * pricePerLiter).toFixed(2)}</span>
+                </div>
+              )}
+              <button onClick={() => registerFuel(customLiters)} disabled={!customLiters || saving}
+                className={`w-full font-black py-4 rounded-xl text-base transition flex items-center justify-center gap-2 ${customLiters ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/30' : 'bg-stone-100 text-stone-400'}`}>
+                <Fuel className="w-5 h-5" /> Registrar {customLiters ? `${customLiters}L` : ''}
+              </button>
+              <div className="text-center text-xs text-stone-400">Tanque Palma Real · ${pricePerLiter.toFixed(2)}/L</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents, fuelRecords = [], saveFuelRecords }) {
   const [tab, setTab] = useState('trip');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [step, setStep] = useState('select');
@@ -1737,15 +1851,22 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
       <main className="max-w-lg mx-auto p-4 pb-24">
         {tab === 'trip' && <>
-          {step === 'select' && <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onContinue={(accion, motivo, km) => {
-            if (accion === 'taller') {
-              // ya no se usa desde selección
-            } else if (selectedVehicle?.status === 'EN TALLER') {
-              setStep('retirar');
-            } else {
-              setStep('checklist');
-            }
-          }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} />}
+          {step === 'select' && <>
+            <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onContinue={(accion, motivo, km) => {
+              if (accion === 'taller') {
+                // ya no se usa desde selección
+              } else if (selectedVehicle?.status === 'EN TALLER') {
+                setStep('retirar');
+              } else {
+                setStep('checklist');
+              }
+            }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} />
+            <DriverFuelWidget
+              vehicles={vehicles} currentDriver={currentDriver}
+              fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords}
+              config={config}
+            />
+          </>}
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) setChecklistKm(Number(km)); setStep('start'); }} onBack={() => setStep('select')} config={config} />}
