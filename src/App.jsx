@@ -162,6 +162,15 @@ const PHOTO_CATEGORIES = [
   { id: 'maintenance', label: 'Mantenimiento', icon: Wrench, color: 'emerald' },
 ];
 
+// Resolver nombre legible de destino
+const resolveDestName = (trip, branches) => {
+  if (!trip) return '—';
+  if (trip.destinationBranchId === 'surtir') return '⛽ Surtir combustible';
+  if (trip.destinationBranchId === 'taller') return '🔧 Taller';
+  if (trip.destinationBranchId === 'otro') return `📍 ${trip.customDestName || 'Otro'}`;
+  return branches?.find(b => b.id === trip.destinationBranchId)?.name || trip.destinationBranchId || '—';
+};
+
 const DEFAULT_CONFIG = {
   fuelPrice: 0.5,
   discordWebhookGeneral: '',
@@ -1589,7 +1598,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     // Notificación Discord
     const origin = branches.find(b => b.id === data.originBranchId) || (data.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
-    const destName = data.destinationBranchId === 'otro' ? `📍 ${data.customDestName}` : (branches.find(b => b.id === data.destinationBranchId)?.name || (data.destinationBranchId === 'taller' ? '🔧 Taller' : data.destinationBranchId));
+    const destName = resolveDestName(data, branches);
     // Discord: si es Otro → mantenimiento usa canal maint, gestión usa canal viajes
     const webhookUrl = data.destinationBranchId === 'otro' && data.customDestType === 'mantenimiento'
       ? (config.discordWebhookMaintByVehicle?.[selectedVehicle.id] || config.discordWebhookMaintenance || config.discordWebhookGeneral)
@@ -1695,7 +1704,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     // Notificación Discord
     const origin = branches.find(b => b.id === currentTrip.originBranchId) || (currentTrip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
-    const destName = currentTrip.destinationBranchId === 'otro' ? `📍 ${currentTrip.customDestName}` : (branches.find(b => b.id === currentTrip.destinationBranchId)?.name || (currentTrip.destinationBranchId === 'taller' ? '🔧 Taller' : currentTrip.destinationBranchId));
+    const destName = resolveDestName(currentTrip, branches);
     const webhookUrl = currentTrip.destinationBranchId === 'otro' && currentTrip.customDestType === 'mantenimiento'
       ? (config.discordWebhookMaintByVehicle?.[v.id] || config.discordWebhookMaintenance || config.discordWebhookGeneral)
       : (config.discordWebhookByVehicle?.[v.id] || config.discordWebhookGeneral);
@@ -1971,7 +1980,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) setChecklistKm(Number(km)); setStep('start'); }} onBack={() => setStep('select')} config={config} />}
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} />}
-          {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} />}
+          {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} />}
           {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
         </>}
@@ -2271,6 +2280,10 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
                 🔧 Taller
               </button>
             )}
+            <button onClick={() => setForm({ ...form, destinationBranchId: 'surtir' })}
+              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.destinationBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
+              ⛽ Surtir combustible
+            </button>
             <button onClick={() => setForm({ ...form, destinationBranchId: 'otro' })}
               className={`p-2.5 rounded-lg border-2 text-sm font-bold transition col-span-2 ${form.destinationBranchId === 'otro' ? 'border-purple-400 bg-purple-100 text-purple-800' : 'border-purple-200 text-purple-600 hover:border-purple-400 bg-purple-50'}`}>
               📍 Otro destino
@@ -2364,7 +2377,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   );
 }
 
-function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, onAddPhoto, gpsEnabled, currentPosition }) {
+function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, onAddPhoto, gpsEnabled, currentPosition, fuelRecords = [], saveFuelRecords, config }) {
   const [elapsed, setElapsed] = useState('');
   const [showFinishForm, setShowFinishForm] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -2384,12 +2397,10 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
   }, [trip]);
 
   const origin = branches.find(b => b.id === trip.originBranchId) || (trip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
-  const destination = trip.destinationBranchId === 'otro'
-    ? { id: 'otro', name: `📍 ${trip.customDestName}` }
-    : branches.find(b => b.id === trip.destinationBranchId) || (trip.destinationBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
+  const destination = { id: trip.destinationBranchId, name: resolveDestName(trip, branches) };
 
   if (showCamera) return <PhotoCapture onCapture={(p) => { onAddPhoto(p); setShowCamera(false); }} onCancel={() => setShowCamera(false)} />;
-  if (showFinishForm) return <FinishTripForm trip={trip} vehicle={vehicle} origin={origin} destination={destination} onFinish={onFinish} onBack={() => setShowFinishForm(false)} />;
+  if (showFinishForm) return <FinishTripForm trip={trip} vehicle={vehicle} origin={origin} destination={destination} onFinish={onFinish} onBack={() => setShowFinishForm(false)} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} driver={driver} config={config} />;
 
   // Mostrar mapa con sucursales y posición actual
   const mapMarkers = [
@@ -2539,17 +2550,70 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
   );
 }
 
-function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }) {
+function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack, fuelRecords = [], saveFuelRecords, driver, config }) {
   const now = new Date();
+  const isSurtir = trip.destinationBranchId === 'surtir';
   const isOtro = trip.destinationBranchId === 'otro';
+  const isL300 = vehicle?.type === 'L300' || vehicle?.code?.includes('L300') || vehicle?.plate === 'A15BP7M';
+  const pricePerLiter = config?.fuelPrice || 0.5;
   const [form, setForm] = useState({
     kmEnd: trip.kmStart, endDate: now.toISOString().slice(0, 10), endTime: now.toTimeString().slice(0, 5),
     deliveries: 0, tripsCount: 1, route: 'LOCAL', notes: '', arrivalNotes: '',
   });
   const [arrivalPhotos, setArrivalPhotos] = useState([]);
+  // Campos de combustible (solo cuando isSurtir)
+  const [fuelLiters, setFuelLiters] = useState(isL300 ? '30' : '');
+  const [tankLevel, setTankLevel] = useState('');
+  const [fuelPhoto, setFuelPhoto] = useState(null);
   const kmTraveled = Math.max(0, Number(form.kmEnd) - trip.kmStart);
   const liters = (kmTraveled * (vehicle.litersPer100km || 21)) / 100;
-  const valid = Number(form.kmEnd) >= trip.kmStart && form.endTime && (!isOtro || (form.arrivalNotes.trim().length > 0 && arrivalPhotos.length > 0));
+  const valid = Number(form.kmEnd) >= trip.kmStart && form.endTime &&
+    (!isOtro || (form.arrivalNotes.trim().length > 0 && arrivalPhotos.length > 0)) &&
+    (!isSurtir || fuelLiters > 0);
+
+  const handleFinish = async () => {
+    // Si es surtir → registrar carga de combustible
+    if (isSurtir && fuelLiters > 0 && saveFuelRecords) {
+      const rec = {
+        id: `fr_${Date.now()}`,
+        vehicleId: vehicle?.id || '', vehicleCode: vehicle?.code || '', vehiclePlate: vehicle?.plate || '',
+        driverId: driver?.id || '', driverName: driver?.name || '',
+        date: form.endDate, time: form.endTime,
+        km: Number(form.kmEnd), liters: Number(fuelLiters),
+        pricePerLiter, tankLevelBefore: tankLevel,
+        createdAt: Date.now(),
+        notes: isL300 ? 'Bomba gasolinera' : 'Tanque Palma Real',
+      };
+      saveFuelRecords([rec, ...fuelRecords]);
+      // Discord
+      const wh = config?.discordWebhookMaintByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+      if (wh) {
+        const lastLoad = fuelRecords.filter(r => r.vehicleId === vehicle?.id).sort((a,b) => b.createdAt - a.createdAt)[0];
+        const kmSince = lastLoad ? (Number(form.kmEnd) - (lastLoad.km||0)) : null;
+        await sendDiscordNotification(wh, {
+          title: `⛽ CARGA COMBUSTIBLE · ${vehicle?.code}`,
+          description: `**${driver?.name}** registró una carga de combustible`,
+          color: 0xf59e0b,
+          fields: [
+            { name: '⛽ Litros', value: `${fuelLiters} L`, inline: true },
+            { name: '💵 Costo', value: `$${(Number(fuelLiters)*pricePerLiter).toFixed(2)}`, inline: true },
+            { name: '📊 KM', value: Number(form.kmEnd).toLocaleString(), inline: true },
+            ...(tankLevel ? [{ name: '🪣 Nivel antes', value: tankLevel, inline: true }] : []),
+            ...(kmSince > 0 ? [{ name: '🛣️ KM desde última carga', value: `${kmSince.toLocaleString()} km`, inline: true }] : []),
+          ],
+          footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
+        });
+        if (fuelPhoto) {
+          try {
+            const fd = new FormData(); fd.append('files[0]', fuelPhoto);
+            fd.append('payload_json', JSON.stringify({ content: `📸 Ticket · ${vehicle?.code}` }));
+            await fetch(wh, { method: 'POST', body: fd });
+          } catch(e) {}
+        }
+      }
+    }
+    onFinish({ ...form, arrivalPhotos });
+  };
 
   const destLabel = isOtro ? `📍 ${trip.customDestName}` : destination?.name;
 
@@ -2588,19 +2652,66 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }
         </DarkField>
       </div>
 
-      {/* SECCIÓN ESPECIAL PARA OTRO DESTINO */}
+      {/* SECCIÓN SURTIR COMBUSTIBLE */}
+      {isSurtir && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 space-y-4">
+          <div className="font-bold text-amber-800 flex items-center gap-2">
+            <Fuel className="w-4 h-4" /> Registro de carga — {vehicle?.code}
+          </div>
+
+          {/* Nivel antes */}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">¿Cuánto tenía antes de surtir?</label>
+            <div className="grid grid-cols-4 gap-2">
+              {[{id:'vacio',emoji:'🔴',label:'Vacío',desc:'~0L'},{id:'cuarto',emoji:'🟡',label:'1/4',desc:'~25%'},{id:'mitad',emoji:'🟠',label:'1/2',desc:'~50%'},{id:'tres_cuartos',emoji:'🟢',label:'3/4',desc:'~75%'}].map(opt => (
+                <button key={opt.id} onClick={() => setTankLevel(opt.label)}
+                  className={`flex flex-col items-center py-2.5 rounded-xl border-2 transition ${tankLevel===opt.label?'border-amber-400 bg-amber-100':'border-stone-200 bg-white'}`}>
+                  <span className="text-lg">{opt.emoji}</span>
+                  <span className="text-xs font-black">{opt.label}</span>
+                  <span className="text-[10px] text-stone-400">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Litros */}
+          {isL300 ? (
+            <div className="bg-amber-100 rounded-xl p-3 text-center">
+              <div className="font-black text-amber-800 text-lg">⛽ 30 litros — $15.00</div>
+              <div className="text-xs text-amber-600">Carga fija · Bomba gasolinera</div>
+            </div>
+          ) : (
+            <div>
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">Litros cargados (dato máquina)</label>
+              <input type="number" value={fuelLiters} onChange={e => setFuelLiters(e.target.value)}
+                placeholder="Ej: 85" className="w-full border-2 border-stone-200 rounded-xl px-4 py-3 text-2xl font-black text-center focus:border-amber-400 focus:outline-none" />
+              {fuelLiters > 0 && <div className="text-center text-sm mt-1 font-mono text-amber-700">{fuelLiters}L × ${pricePerLiter.toFixed(2)} = <b>${(Number(fuelLiters)*pricePerLiter).toFixed(2)}</b></div>}
+            </div>
+          )}
+
+          {/* Foto ticket */}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">📸 Foto del ticket (opcional)</label>
+            <input type="file" accept="image/*" capture="environment" id="finishFuelPhoto" onChange={e => setFuelPhoto(e.target.files[0])} className="hidden" />
+            <label htmlFor="finishFuelPhoto" className={`flex items-center justify-center gap-2 py-2.5 border-2 border-dashed rounded-xl cursor-pointer text-sm font-medium w-full ${fuelPhoto?'border-emerald-400 bg-emerald-50 text-emerald-700':'border-stone-300 bg-white text-stone-500'}`}>
+              <Camera className="w-4 h-4" /> {fuelPhoto ? `✅ ${fuelPhoto.name||'Foto lista'}` : 'Tomar foto del ticket'}
+            </label>
+          </div>
+        </div>
+      )}
+
+      {/* SECCIÓN OTRO DESTINO */}
       {isOtro && (
         <div className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-5 space-y-4">
           <div className="font-bold text-purple-800 flex items-center gap-2">
             <Camera className="w-4 h-4" /> Registro de llegada — {trip.customDestName}
           </div>
           <p className="text-xs text-purple-600">Requerido: indica qué se hizo y sube al menos una foto.</p>
-
-          <DarkField label="¿Qué se hizo? *">
-            <textarea value={form.arrivalNotes} onChange={e => setForm({ ...form, arrivalNotes: e.target.value })} rows={3}
-              placeholder="Ej: cambio de cauchos delanteros, compra de repuestos..." className="dark-input text-sm" />
-          </DarkField>
-
+          <div>
+            <label className="text-xs font-bold text-purple-700 uppercase tracking-wider block mb-1.5">¿Qué se hizo? *</label>
+            <textarea value={form.arrivalNotes} onChange={e => setForm({...form, arrivalNotes: e.target.value})} rows={3}
+              placeholder="Ej: cambio de cauchos delanteros, compra de repuestos..." className="dark-input text-sm w-full" />
+          </div>
           <div>
             <label className="text-xs font-bold text-purple-700 uppercase tracking-wider block mb-2">📸 Fotos de evidencia *</label>
             <input type="file" accept="image/*" capture="environment" multiple onChange={e => setArrivalPhotos([...arrivalPhotos, ...Array.from(e.target.files)])} className="hidden" id="arrivalPhotoInput" />
@@ -2624,7 +2735,7 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }
 
       <div className="grid grid-cols-2 gap-2">
         <button onClick={onBack} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200">← Atrás</button>
-        <button onClick={() => onFinish({ ...form, arrivalPhotos })} disabled={!valid}
+        <button onClick={handleFinish} disabled={!valid}
           className={`py-3 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 ${valid ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 shadow-emerald-700/30' : 'bg-stone-100 text-stone-300'}`}>
           <CheckCircle2 className="w-5 h-5" /> GUARDAR
         </button>
@@ -2636,9 +2747,7 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }
 
 function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, onLogout, onMarkDeparted, onFinishJornada, onEntregarUnidad, onWaitEnd, allVehicles, saveVehicles }) {
   const origin = branches.find(b => b.id === trip.originBranchId) || (trip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
-  const destination = trip.destinationBranchId === 'otro'
-    ? { id: 'otro', name: `📍 ${trip.customDestName}` }
-    : branches.find(b => b.id === trip.destinationBranchId) || (trip.destinationBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
+  const destination = { id: trip.destinationBranchId, name: resolveDestName(trip, branches) };
   const [timeAtDest, setTimeAtDest] = useState('');
   const [departed, setDeparted] = useState(!!trip.timeAtDestinationMinutes);
   const [confirmedMinutes, setConfirmedMinutes] = useState(trip.timeAtDestinationMinutes || null);
