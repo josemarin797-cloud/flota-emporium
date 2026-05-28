@@ -1219,20 +1219,28 @@ function LeafletMap({ markers = [], polylines = [], height = '400px', center = [
 // ============================================================
 // APP DEL CHOFER
 // ============================================================
-// Widget de carga de combustible para el chofer
-function DriverFuelWidget({ vehicles, currentDriver, fuelRecords, saveFuelRecords, config }) {
-  const [showForm, setShowForm] = useState(false);
-  const [customLiters, setCustomLiters] = useState('');
-  const [selectedVehicleId, setSelectedVehicleId] = useState(vehicles[0]?.id || '');
+// ============================================================
+// TAB SURTIR — Registro de combustible por el chofer
+// ============================================================
+function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords, config }) {
+  const [selectedVehicleId, setSelectedVehicleId] = useState('');
+  const [liters, setLiters] = useState('');
+  const [photo, setPhoto] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const pricePerLiter = config?.fuelPrice || 0.5;
 
   const selectedV = vehicles.find(v => v.id === selectedVehicleId);
   const isL300 = selectedV?.type === 'L300' || selectedV?.code?.includes('L300') || selectedV?.plate === 'A15BP7M';
-  const pricePerLiter = config?.fuelPrice || 0.5;
+  const totalCost = (Number(liters)||0) * pricePerLiter;
 
-  const registerFuel = async (liters) => {
-    if (!liters || !selectedVehicleId) return;
+  // Última carga de este camión
+  const lastLoad = selectedVehicleId ? fuelRecords.filter(r => r.vehicleId === selectedVehicleId).sort((a,b) => b.createdAt - a.createdAt)[0] : null;
+  const kmSinceLastLoad = lastLoad && selectedV ? (selectedV.currentKm || 0) - (lastLoad.km || 0) : null;
+  const realConsumption = lastLoad && kmSinceLastLoad > 0 ? ((lastLoad.liters / kmSinceLastLoad) * 100).toFixed(1) : null;
+
+  const handleRegister = async (litrosVal) => {
+    if (!selectedVehicleId || !litrosVal) return;
     setSaving(true);
     const rec = {
       id: `fr_${Date.now()}`,
@@ -1242,96 +1250,165 @@ function DriverFuelWidget({ vehicles, currentDriver, fuelRecords, saveFuelRecord
       driverId: currentDriver.id,
       driverName: currentDriver.name,
       date: new Date().toISOString().slice(0, 10),
+      time: new Date().toTimeString().slice(0, 5),
       km: selectedV?.currentKm || 0,
-      liters: Number(liters),
+      liters: Number(litrosVal),
       pricePerLiter,
+      createdAt: Date.now(),
       notes: isL300 ? 'Bomba gasolinera' : 'Tanque Palma Real',
     };
     saveFuelRecords([rec, ...fuelRecords]);
+
+    // Discord → canal mantenimiento del camión
+    const wh = config?.discordWebhookMaintByVehicle?.[selectedVehicleId] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    if (wh) {
+      await sendDiscordNotification(wh, {
+        title: `⛽ CARGA COMBUSTIBLE · ${selectedV?.code}`,
+        description: `**${currentDriver.name}** registró una carga de combustible`,
+        color: 0xf59e0b,
+        fields: [
+          { name: '⛽ Litros', value: `${litrosVal} L`, inline: true },
+          { name: '💵 Costo', value: `$${(Number(litrosVal)*pricePerLiter).toFixed(2)}`, inline: true },
+          { name: '📊 KM', value: (selectedV?.currentKm||0).toLocaleString(), inline: true },
+          { name: '🕐 Hora', value: rec.time, inline: true },
+          { name: '📅 Fecha', value: rec.date, inline: true },
+          { name: '⛽ Tipo', value: isL300 ? 'Bomba gasolinera' : 'Tanque Palma Real', inline: true },
+          ...(kmSinceLastLoad > 0 ? [{ name: '🛣️ KM desde última carga', value: `${kmSinceLastLoad.toLocaleString()} km`, inline: true }] : []),
+          ...(realConsumption ? [{ name: '📈 Consumo real', value: `${realConsumption} L/100km`, inline: true }] : []),
+        ],
+        footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
+      });
+      // Foto si la hay
+      if (photo && wh) {
+        try {
+          const fd = new FormData();
+          fd.append('files[0]', photo);
+          fd.append('payload_json', JSON.stringify({ content: `📸 Ticket/Máquina · ${selectedV?.code} · ${rec.date}` }));
+          await fetch(wh, { method: 'POST', body: fd });
+        } catch(e) {}
+      }
+    }
+
     setSaving(false);
     setSaved(true);
-    setShowForm(false);
-    setCustomLiters('');
-    setTimeout(() => setSaved(false), 3000);
+    setLiters('');
+    setPhoto(null);
+    setTimeout(() => setSaved(false), 4000);
   };
 
   return (
-    <div className="mt-4">
-      {saved && (
-        <div className="bg-emerald-50 border border-emerald-300 rounded-xl px-4 py-3 text-sm font-bold text-emerald-700 flex items-center gap-2 mb-3">
-          <CheckCircle className="w-4 h-4" /> ¡Carga registrada correctamente!
-        </div>
-      )}
-      {!showForm ? (
-        <button onClick={() => setShowForm(true)}
-          className="w-full flex items-center justify-between bg-white border-2 border-amber-200 hover:border-amber-400 rounded-2xl px-4 py-3.5 transition group">
-          <div className="flex items-center gap-3">
-            <div className="bg-amber-100 w-10 h-10 rounded-xl flex items-center justify-center">
-              <Fuel className="w-5 h-5 text-amber-600" />
-            </div>
-            <div className="text-left">
-              <div className="font-bold text-stone-900 text-sm">Registrar carga de combustible</div>
-              <div className="text-xs text-stone-400">¿Surtiste hoy? Toca para registrar</div>
-            </div>
+    <div className="space-y-4">
+      <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="bg-amber-500 w-10 h-10 rounded-xl flex items-center justify-center shadow">
+            <Fuel className="w-5 h-5 text-white" />
           </div>
-          <ChevronRight className="w-5 h-5 text-stone-400 group-hover:text-amber-500 transition" />
-        </button>
-      ) : (
-        <div className="bg-white border-2 border-amber-300 rounded-2xl p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="font-bold text-stone-900 flex items-center gap-2"><Fuel className="w-4 h-4 text-amber-500" /> Carga de combustible</div>
-            <button onClick={() => setShowForm(false)} className="text-stone-400 hover:text-stone-700"><X className="w-5 h-5" /></button>
-          </div>
-
-          {/* Seleccionar camión */}
           <div>
-            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-1.5">¿Qué camión surtiste?</label>
-            <div className="grid grid-cols-2 gap-2">
-              {vehicles.filter(v => v.status !== 'EN TALLER').map(v => (
-                <button key={v.id} onClick={() => setSelectedVehicleId(v.id)}
-                  className={`p-2.5 rounded-xl border-2 text-xs font-bold transition ${selectedVehicleId === v.id ? 'border-amber-400 bg-amber-50 text-amber-800' : 'border-stone-200 text-stone-600 bg-stone-50'}`}>
-                  <div>{v.code}</div>
-                  <div className="font-normal text-stone-400">{v.plate}</div>
-                </button>
-              ))}
-            </div>
+            <div className="font-black text-stone-900">Registro de combustible</div>
+            <div className="text-xs text-stone-500">Registra cuánto surtiste hoy</div>
           </div>
+        </div>
 
-          {/* Botón rápido L300 o entrada manual */}
-          {isL300 ? (
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Carga rápida L300</label>
-              <button onClick={() => registerFuel(30)} disabled={saving}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-4 rounded-xl text-base transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2">
-                <Fuel className="w-5 h-5" /> 30 litros — $15.00
+        {saved && (
+          <div className="bg-emerald-50 border border-emerald-300 rounded-xl px-4 py-3 text-sm font-bold text-emerald-700 flex items-center gap-2 mb-4">
+            <CheckCircle className="w-4 h-4" /> ¡Carga registrada y enviada a Discord!
+          </div>
+        )}
+
+        {/* Seleccionar camión */}
+        <div className="mb-4">
+          <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">¿Qué camión surtiste?</label>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+            {vehicles.map(v => (
+              <button key={v.id} onClick={() => { setSelectedVehicleId(v.id); setLiters(''); }}
+                className={`p-3 rounded-xl border-2 text-xs font-bold transition ${selectedVehicleId===v.id ? 'border-amber-400 bg-amber-100 text-amber-900' : 'border-stone-200 text-stone-600 bg-white hover:border-amber-300'}`}>
+                <div className="font-black">{v.code}</div>
+                <div className="font-normal text-stone-400">{v.plate}</div>
               </button>
-              <div className="text-center text-xs text-stone-400">Precio fijo · Bomba gasolinera</div>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block">Litros cargados (dato de la máquina)</label>
-              <div className="flex gap-2">
-                <input type="number" value={customLiters} onChange={e => setCustomLiters(e.target.value)}
-                  placeholder="Ej: 85" className="flex-1 border-2 border-stone-200 rounded-xl px-3 py-3 text-xl font-bold text-center focus:border-amber-400 focus:outline-none" />
-              </div>
-              {customLiters > 0 && (
-                <div className="text-center text-sm text-stone-500 font-mono">
-                  {customLiters} L × ${pricePerLiter.toFixed(2)} = <span className="font-bold text-amber-700">${(customLiters * pricePerLiter).toFixed(2)}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Última carga info */}
+        {selectedV && lastLoad && (
+          <div className="bg-white rounded-xl border border-stone-200 px-3 py-2 mb-4 text-xs text-stone-600">
+            <span className="font-bold">Última carga:</span> {lastLoad.date} · {lastLoad.liters}L · KM {(lastLoad.km||0).toLocaleString()}
+            {kmSinceLastLoad > 0 && <span className="ml-2 text-amber-700 font-bold">· {kmSinceLastLoad.toLocaleString()} km recorridos</span>}
+            {realConsumption && <span className="ml-2 text-emerald-700 font-bold">· {realConsumption} L/100km real</span>}
+          </div>
+        )}
+
+        {/* Litros */}
+        {selectedVehicleId && (
+          <div className="space-y-3">
+            {isL300 ? (
+              <>
+                <button onClick={() => handleRegister(30)} disabled={saving}
+                  className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-black py-5 rounded-xl text-lg transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2">
+                  {saving ? '⏳ Registrando...' : <><Fuel className="w-6 h-6" /> 30 litros — $15.00</>}
+                </button>
+                <div className="text-center text-xs text-stone-400">Carga fija · Bomba gasolinera</div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">Litros (dato de la máquina)</label>
+                  <input type="number" value={liters} onChange={e => setLiters(e.target.value)}
+                    placeholder="Ej: 85" className="w-full border-2 border-stone-200 rounded-xl px-4 py-4 text-3xl font-black text-center focus:border-amber-400 focus:outline-none" />
                 </div>
-              )}
-              <button onClick={() => registerFuel(customLiters)} disabled={!customLiters || saving}
-                className={`w-full font-black py-4 rounded-xl text-base transition flex items-center justify-center gap-2 ${customLiters ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/30' : 'bg-stone-100 text-stone-400'}`}>
-                <Fuel className="w-5 h-5" /> Registrar {customLiters ? `${customLiters}L` : ''}
-              </button>
-              <div className="text-center text-xs text-stone-400">Tanque Palma Real · ${pricePerLiter.toFixed(2)}/L</div>
+                {liters > 0 && (
+                  <div className="text-center text-sm font-mono bg-white rounded-xl border border-stone-200 py-2">
+                    {liters} L × ${pricePerLiter.toFixed(2)} = <span className="font-black text-amber-700 text-base">${(Number(liters)*pricePerLiter).toFixed(2)}</span>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Foto */}
+            <div>
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">📸 Foto del ticket / máquina (opcional)</label>
+              <input type="file" accept="image/*" capture="environment" id="fuelPhoto"
+                onChange={e => setPhoto(e.target.files[0])} className="hidden" />
+              <label htmlFor="fuelPhoto"
+                className={`flex items-center justify-center gap-2 py-3 px-4 border-2 border-dashed rounded-xl cursor-pointer text-sm font-medium transition w-full ${photo ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-stone-300 bg-white text-stone-500 hover:border-amber-400'}`}>
+                <Camera className="w-4 h-4" />
+                {photo ? `✅ ${photo.name || 'Foto lista'}` : 'Tomar foto del ticket'}
+              </label>
             </div>
-          )}
+
+            {/* Botón registrar (NPR/FUSO) */}
+            {!isL300 && (
+              <button onClick={() => handleRegister(liters)} disabled={!liters || saving}
+                className={`w-full font-black py-4 rounded-xl text-base transition flex items-center justify-center gap-2 ${liters && !saving ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/30' : 'bg-stone-100 text-stone-400'}`}>
+                {saving ? '⏳ Registrando...' : `⛽ Registrar ${liters ? liters+'L' : ''}`}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Historial reciente */}
+      {fuelRecords.filter(r => r.driverId === currentDriver.id).length > 0 && (
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 text-xs font-bold text-stone-600 uppercase tracking-wider">
+            Mis últimas cargas
+          </div>
+          <div className="divide-y divide-stone-100">
+            {fuelRecords.filter(r => r.driverId === currentDriver.id).slice(0,5).map(r => (
+              <div key={r.id} className="px-4 py-3 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-stone-900 text-sm">{r.vehicleCode} · {r.liters}L</div>
+                  <div className="text-xs text-stone-400 font-mono">{r.date} · KM {(r.km||0).toLocaleString()}</div>
+                </div>
+                <div className="font-bold text-amber-600 text-sm">${(r.liters * r.pricePerLiter).toFixed(2)}</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
   );
 }
-
 function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents, fuelRecords = [], saveFuelRecords }) {
   const [tab, setTab] = useState('trip');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
@@ -1841,6 +1918,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           <DriverTabBtn active={tab === 'photos'} onClick={() => setTab('photos')} icon={Camera} label="Fotos" />
           <DriverTabBtn active={tab === 'history'} onClick={() => setTab('history')} icon={History} label="Historial" />
           <DriverTabBtn active={tab === 'contacts'} onClick={() => setTab('contacts')} icon={Phone} label="Contactos" />
+          <DriverTabBtn active={tab === 'surtir'} onClick={() => setTab('surtir')} icon={Fuel} label="Surtir" customClass={tab === 'surtir' ? 'text-amber-600 border-b-2 border-amber-500' : ''} />
           <button onClick={() => setShowIncidentForm(true)}
             className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 bg-rose-600 hover:bg-rose-700 text-white transition">
             <AlertTriangle className="w-5 h-5" />
@@ -1850,6 +1928,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       </div>
 
       <main className="max-w-lg mx-auto p-4 pb-24">
+        {tab === 'surtir' && <DriverSurtirTab vehicles={vehicles} currentDriver={currentDriver} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
         {tab === 'trip' && <>
           {step === 'select' && <>
             <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onContinue={(accion, motivo, km) => {
@@ -1861,11 +1940,6 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
                 setStep('checklist');
               }
             }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} />
-            <DriverFuelWidget
-              vehicles={vehicles} currentDriver={currentDriver}
-              fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords}
-              config={config}
-            />
           </>}
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
@@ -2182,7 +2256,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
               <div>
                 <label className="text-xs font-bold text-purple-700 uppercase tracking-wider block mb-1">Nombre del lugar</label>
                 <input type="text" value={customDestName} onChange={e => setCustomDestName(e.target.value)}
-                  placeholder="Ej: Caucagüera, Proveedor Caracas..." className="dark-input w-full" />
+                  placeholder="Nombre del lugar..." className="dark-input w-full" />
               </div>
               <div>
                 <label className="text-xs font-bold text-purple-700 uppercase tracking-wider block mb-1">Tipo de salida</label>
@@ -3189,7 +3263,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
       <main className="max-w-7xl mx-auto px-4 py-5">
         {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} incidents={incidents} />}
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
-        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} />}
+        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
         {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
@@ -3835,7 +3909,7 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
 // ============================================================
 // VIAJES TABLE
 // ============================================================
-function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [], maintRecords = [] }) {
+function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [], maintRecords = [], fuelRecords = [] }) {
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
   // Refrescar cada minuto para actualizar los cronómetros "aún ahí"
@@ -4705,7 +4779,75 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         wsGastos['!rows'] = [{hpt:26},{hpt:14}];
         XLSX.utils.book_append_sheet(wb, wsGastos, 'Gastos Mantenimiento');
 
-        // ── Descargar ────────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════
+        // HOJA — COMBUSTIBLE
+        // ════════════════════════════════════════════════════════════════
+        const NC = 9;
+        const fc = [];
+        fc.push(['REGISTRO DE COMBUSTIBLE — TRANSPORTE EMPORIUM', ...Array(NC-1).fill('')]);
+        fc.push([`Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(NC-1).fill('')]);
+        fc.push(Array(NC).fill(''));
+        fc.push(['Fecha', 'Hora', 'Unidad', 'Placa', 'Chofer', 'KM', 'Litros', 'Precio/L', 'Total $', 'KM desde última carga', 'L/100km real']);
+        const fcHeaders = ['Fecha','Hora','Unidad','Placa','Chofer','KM','Litros','Precio/L $','Total $'];
+        fc.pop(); fc.push(fcHeaders);
+        const fuelDataStartR = fc.length;
+        const sortedFR = [...fuelRecords].sort((a,b) => a.date.localeCompare(b.date) || (a.vehicleId||'').localeCompare(b.vehicleId||''));
+        sortedFR.forEach(r => {
+          fc.push([r.date, r.time||'', r.vehicleCode||'', r.vehiclePlate||'', r.driverName||'', r.km||0, r.liters||0, r.pricePerLiter||0.5, (r.liters||0)*(r.pricePerLiter||0.5)]);
+        });
+        if (sortedFR.length === 0) fc.push(['Sin registros', ...Array(fcHeaders.length-1).fill('')]);
+        const fuelDataEndR = fc.length;
+        fc.push(['TOTAL','','','','','', sortedFR.reduce((s,r)=>s+(Number(r.liters)||0),0).toFixed(1),'', sortedFR.reduce((s,r)=>s+(r.liters||0)*(r.pricePerLiter||0.5),0).toFixed(2)]);
+        fc.push(Array(fcHeaders.length).fill(''));
+        // Resumen por camión
+        const fcResR = fc.length;
+        fc.push(['RESUMEN POR CAMIÓN', ...Array(fcHeaders.length-1).fill('')]);
+        fc.push(['Unidad','Placa','N° Cargas','Total Litros','Total $','KM Promedio entre cargas','Consumo real L/100km promedio','','']);
+        const fcResDataR = fc.length;
+        vehicles.forEach(v => {
+          const vfr = fuelRecords.filter(r => r.vehicleId === v.id).sort((a,b) => a.date.localeCompare(b.date));
+          if (vfr.length === 0) return;
+          const totalL = vfr.reduce((s,r)=>s+(Number(r.liters)||0),0);
+          const totalC = vfr.reduce((s,r)=>s+(r.liters||0)*(r.pricePerLiter||0.5),0);
+          // KM entre cargas
+          let totalKmBetween = 0, kmCount = 0;
+          for (let i = 1; i < vfr.length; i++) {
+            const diff = (vfr[i].km||0) - (vfr[i-1].km||0);
+            if (diff > 0) { totalKmBetween += diff; kmCount++; }
+          }
+          const avgKmBetween = kmCount > 0 ? Math.round(totalKmBetween / kmCount) : '—';
+          const avgConsumption = kmCount > 0 && totalL > 0 ? ((totalL / totalKmBetween) * 100).toFixed(1) : '—';
+          fc.push([v.code, v.plate, vfr.length, totalL.toFixed(1), totalC.toFixed(2), avgKmBetween, avgConsumption, '', '']);
+        });
+
+        const wsFuel = XLSX.utils.aoa_to_sheet(fc);
+        wsFuel['!merges'] = [
+          { s:{r:0,c:0}, e:{r:0,c:fcHeaders.length-1} },
+          { s:{r:1,c:0}, e:{r:1,c:fcHeaders.length-1} },
+          { s:{r:fcResR,c:0}, e:{r:fcResR,c:fcHeaders.length-1} },
+        ];
+        sr(wsFuel, 0, fcHeaders.length, ST.title);
+        sr(wsFuel, 1, fcHeaders.length, ST.subtitle);
+        for (let c=0;c<fcHeaders.length;c++) sc(wsFuel, 3, c, ST.colHeader);
+        for (let i=fuelDataStartR;i<fuelDataEndR;i++) {
+          const e=(i-fuelDataStartR)%2===0;
+          for (let c=0;c<fcHeaders.length;c++) {
+            if (c>=5) sc(wsFuel,i,c,ST.dataRight(e));
+            else sc(wsFuel,i,c,e?ST.dataEven:ST.dataOdd);
+          }
+        }
+        for (let c=0;c<fcHeaders.length;c++) sc(wsFuel,fuelDataEndR,c,c>=5?ST.totalRight:ST.totalRow);
+        sr(wsFuel, fcResR, fcHeaders.length, ST.secHeader);
+        for (let c=0;c<7;c++) sc(wsFuel, fcResR+1, c, ST.colHeader);
+        for (let i=fcResDataR;i<fc.length;i++) {
+          const e=(i-fcResDataR)%2===0;
+          for (let c=0;c<7;c++) {
+            if (c>=2) sc(wsFuel,i,c,ST.dataRight(e));
+            else sc(wsFuel,i,c,e?ST.dataEven:ST.dataOdd);
+          }
+        }
+        wsFuel['!cols'] = [{wch:12},{wch:8},{wch:10},{wch:10},{wch:18},{wch:12},{wch:10},{wch:10},{wch:10}];
+        XLSX.utils.book_append_sheet(wb, wsFuel, 'Combustible');
         const fileName = `reporte_flota_emporium_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, fileName);
         setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado — 11 hojas` });
