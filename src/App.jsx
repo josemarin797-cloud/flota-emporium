@@ -22,6 +22,7 @@ const KEYS = {
   CHECKLISTS: 'emp:v4:checklists',
   MAINT_RECORDS: 'emp:v4:maint_records',
   INCIDENTS: 'emp:v4:incidents',
+  FUEL_RECORDS: 'emp:v4:fuel_records',
 };
 
 // ============================================================
@@ -349,6 +350,7 @@ export default function App() {
   const [checklists, setChecklists] = useState([]);
   const [maintRecords, setMaintRecords] = useState([]);
   const [incidents, setIncidents] = useState([]);
+  const [fuelRecords, setFuelRecords] = useState([]);
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
 
@@ -390,6 +392,8 @@ export default function App() {
         if (mrLocal?.value) setMaintRecords(JSON.parse(mrLocal.value));
         const incLocal = await window.storage.get(KEYS.INCIDENTS).catch(() => null);
         if (incLocal?.value) setIncidents(JSON.parse(incLocal.value));
+        const frLocal = await window.storage.get(KEYS.FUEL_RECORDS).catch(() => null);
+        if (frLocal?.value) setFuelRecords(JSON.parse(frLocal.value));
       } catch (e) {}
       setLoading(false);
     };
@@ -508,6 +512,7 @@ export default function App() {
   const saveHandoffs = (d) => { setHandoffs(d); persist(KEYS.HANDOFFS, d); };
   const saveMaintRecords = (d) => { setMaintRecords(d); persist(KEYS.MAINT_RECORDS, d); };
   const saveIncidents = (d) => { setIncidents(d); persist(KEYS.INCIDENTS, d); };
+  const saveFuelRecords = (d) => { setFuelRecords(d); persist(KEYS.FUEL_RECORDS, d); };
   // saveChecklists: guarda LOCAL siempre + Supabase si está disponible
   const saveChecklists = async (d) => {
     setChecklists(d);
@@ -640,11 +645,13 @@ export default function App() {
         handoffs={handoffs}
         maintRecords={maintRecords}
         incidents={incidents}
+        fuelRecords={fuelRecords}
         saveVehicles={saveVehicles} saveDrivers={saveDrivers} saveBranches={saveBranches}
         saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} saveGpsTracks={saveGpsTracks}
         saveArchived={saveArchived} saveConfig={saveConfig} savePhotos={savePhotos} saveChecklists={saveChecklists}
         saveMaintRecords={saveMaintRecords}
         saveIncidents={saveIncidents}
+        saveFuelRecords={saveFuelRecords}
       />
       <InstallAppButton />
     </>;
@@ -2948,7 +2955,7 @@ function DriverHistoryView({ trips, vehicles, branches }) {
 // ============================================================
 // COORDINADOR
 // ============================================================
-function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], incidents = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents }) {
+function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], incidents = [], fuelRecords = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents, saveFuelRecords }) {
   const [tab, setTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [autoArchiveBanner, setAutoArchiveBanner] = useState(null);
@@ -2994,6 +3001,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     { id: 'drivers', label: 'Choferes', icon: Users },
     { id: 'branches', label: 'Sucursales', icon: MapPin },
     { id: 'maintenance', label: 'Mantenim.', icon: Wrench },
+    { id: 'fuel_mgmt', label: 'Combustible', icon: Fuel },
     { id: 'incidents', label: 'Incidentes', icon: AlertTriangle },
     { id: 'documents', label: 'Documentos', icon: FileText },
     { id: 'history', label: 'Histórico', icon: History },
@@ -3066,6 +3074,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
         {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} maintRecords={maintRecords} saveMaintRecords={saveMaintRecords} />}
+        {tab === 'fuel_mgmt' && <FuelMgmtTab fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} vehicles={vehicles} trips={trips} config={config} selectedMonth={selectedMonth} />}
         {tab === 'incidents' && <IncidentsTab incidents={incidents} vehicles={vehicles} drivers={drivers} saveIncidents={saveIncidents} />}
         {tab === 'documents' && <DocumentsTab vehicles={vehicles} saveVehicles={saveVehicles} config={config} />}
         {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} />}
@@ -5888,6 +5897,218 @@ function IncidentReportForm({ vehicles, currentTrip, selectedVehicle, driver, on
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// GESTIÓN DE COMBUSTIBLE
+// ============================================================
+function FuelMgmtTab({ fuelRecords, saveFuelRecords, vehicles, trips, config, selectedMonth }) {
+  const [showForm, setShowForm] = useState(false);
+  const [filterVehicle, setFilterVehicle] = useState('all');
+  const [filterMes, setFilterMes] = useState(selectedMonth || new Date().toISOString().slice(0,7));
+  const emptyForm = { vehicleId: vehicles[0]?.id || '', date: new Date().toISOString().slice(0,10), km: '', liters: '', pricePerLiter: config?.fuelPrice || 0.5, notes: '' };
+  const [form, setForm] = useState(emptyForm);
+
+  const totalCost = (r) => (Number(r.liters)||0) * (Number(r.pricePerLiter)||0);
+
+  const filtered = fuelRecords.filter(r =>
+    (filterVehicle === 'all' || r.vehicleId === filterVehicle) &&
+    (filterMes === 'all' || r.date.startsWith(filterMes))
+  ).sort((a,b) => b.date.localeCompare(a.date));
+
+  const meses = [...new Set(fuelRecords.map(r => r.date.slice(0,7)))].sort().reverse();
+
+  const handleAdd = () => {
+    if (!form.vehicleId || !form.liters || !form.date) return;
+    const v = vehicles.find(x => x.id === form.vehicleId);
+    saveFuelRecords([{ id: `fr_${Date.now()}`, ...form, liters: Number(form.liters), pricePerLiter: Number(form.pricePerLiter), km: Number(form.km)||0, vehicleCode: v?.code||'', vehiclePlate: v?.plate||'' }, ...fuelRecords]);
+    setForm(emptyForm);
+    setShowForm(false);
+  };
+
+  // Análisis por camión para el mes seleccionado
+  const analysis = vehicles.map(v => {
+    const loaded = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + (Number(r.liters)||0), 0);
+    const consumed = trips.filter(t => t.vehicleId === v.id && t.startDate.startsWith(filterMes)).reduce((s,t) => s + (Number(t.liters)||0), 0);
+    const cost = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + totalCost(r), 0);
+    const diff = loaded - consumed;
+    const diffPct = consumed > 0 ? (diff / consumed) * 100 : 0;
+    return { ...v, loaded, consumed, cost, diff, diffPct };
+  }).filter(v => v.loaded > 0 || v.consumed > 0);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="font-black text-stone-900 text-lg">Combustible</h2>
+        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition">
+          <Plus className="w-3.5 h-3.5" /> Registrar carga
+        </button>
+      </div>
+
+      {/* Formulario */}
+      {showForm && (
+        <div className="bg-white rounded-2xl border border-amber-200 shadow-lg p-5 space-y-4">
+          <div className="font-bold text-stone-900 text-sm flex items-center gap-2"><Fuel className="w-4 h-4 text-amber-500" /> Nueva carga de combustible</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Unidad</label>
+              <select value={form.vehicleId} onChange={e => setForm({...form, vehicleId: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                {vehicles.map(v => <option key={v.id} value={v.id}>{v.code} · {v.plate}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha</label>
+              <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">KM al surtir</label>
+              <input type="number" value={form.km} onChange={e => setForm({...form, km: e.target.value})} placeholder="145.500" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Litros cargados</label>
+              <input type="number" step="0.1" value={form.liters} onChange={e => setForm({...form, liters: e.target.value})} placeholder="40" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Precio / L ($)</label>
+              <input type="number" step="0.01" value={form.pricePerLiter} onChange={e => setForm({...form, pricePerLiter: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Total $</label>
+              <div className="w-full border border-amber-200 bg-amber-50 rounded-lg px-2 py-1.5 text-sm font-bold text-amber-700">
+                ${((Number(form.liters)||0) * (Number(form.pricePerLiter)||0)).toFixed(2)}
+              </div>
+            </div>
+            <div className="col-span-2 md:col-span-3">
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Notas</label>
+              <input type="text" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Estación, observaciones..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => { setShowForm(false); setForm(emptyForm); }} className="px-4 py-2 text-sm text-stone-600 border border-stone-200 rounded-lg">Cancelar</button>
+            <button onClick={handleAdd} disabled={!form.liters||!form.vehicleId} className="px-4 py-2 text-sm bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-bold rounded-lg transition">Guardar</button>
+          </div>
+        </div>
+      )}
+
+      {/* Análisis por camión */}
+      {analysis.length > 0 && (
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
+            <div className="text-xs font-bold text-stone-600 uppercase tracking-wider">📊 Análisis — {filterMes}</div>
+            <select value={filterMes} onChange={e => setFilterMes(e.target.value)} className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white">
+              <option value="all">Todos los meses</option>
+              {meses.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-stone-800 text-stone-200 uppercase tracking-wider font-bold">
+                <tr>
+                  <th className="text-left px-3 py-2.5">Unidad</th>
+                  <th className="text-right px-3 py-2.5">Cargado (L)</th>
+                  <th className="text-right px-3 py-2.5">Consumido (L)</th>
+                  <th className="text-right px-3 py-2.5">Diferencia</th>
+                  <th className="text-right px-3 py-2.5">Costo $</th>
+                  <th className="text-center px-3 py-2.5">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analysis.map((v,i) => {
+                  const alert = v.loaded > 0 && Math.abs(v.diffPct) > 15;
+                  return (
+                    <tr key={v.id} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'} ${alert?'bg-rose-50/50':''}`}>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: v.color||'#10b981' }} />
+                          <div><div className="font-bold">{v.code}</div><div className="text-stone-400">{v.plate}</div></div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono font-bold text-blue-700">{v.loaded.toFixed(1)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-stone-700">{v.consumed.toFixed(1)}</td>
+                      <td className={`px-3 py-2.5 text-right font-mono font-bold ${v.diff > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {v.diff > 0 ? '+' : ''}{v.diff.toFixed(1)}L ({v.diff > 0 ? '+' : ''}{v.diffPct.toFixed(0)}%)
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono font-bold text-amber-700">${v.cost.toFixed(2)}</td>
+                      <td className="px-3 py-2.5 text-center">
+                        {v.loaded === 0 ? <span className="text-[10px] bg-stone-100 text-stone-500 px-2 py-0.5 rounded font-bold">SIN DATOS</span>
+                          : alert && v.diff > 0 ? <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-bold">⚠️ EXCESO</span>
+                          : alert && v.diff < 0 ? <span className="text-[10px] bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded font-bold">⚠️ DÉFICIT</span>
+                          : <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded font-bold">✅ NORMAL</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="bg-amber-50 border-t-2 border-amber-200">
+                <tr>
+                  <td className="px-3 py-2 font-bold text-stone-700">TOTAL</td>
+                  <td className="px-3 py-2 text-right font-bold text-blue-700 font-mono">{analysis.reduce((s,v)=>s+v.loaded,0).toFixed(1)}</td>
+                  <td className="px-3 py-2 text-right font-bold text-stone-700 font-mono">{analysis.reduce((s,v)=>s+v.consumed,0).toFixed(1)}</td>
+                  <td className="px-3 py-2 text-right font-bold font-mono">{(analysis.reduce((s,v)=>s+v.loaded,0) - analysis.reduce((s,v)=>s+v.consumed,0)).toFixed(1)}L</td>
+                  <td className="px-3 py-2 text-right font-bold text-amber-700 font-mono">${analysis.reduce((s,v)=>s+v.cost,0).toFixed(2)}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div className="px-4 py-2 bg-stone-50 border-t border-stone-200 text-[10px] text-stone-500">
+            💡 Diferencia = Litros cargados − Consumo calculado por viajes. Alerta si diferencia &gt; 15%.
+          </div>
+        </div>
+      )}
+
+      {/* Historial cargas */}
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex items-center justify-between flex-wrap gap-2">
+          <div className="text-xs font-bold text-stone-600 uppercase tracking-wider">⛽ Historial de cargas ({filtered.length})</div>
+          <div className="flex gap-2">
+            <select value={filterMes} onChange={e => setFilterMes(e.target.value)} className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white">
+              <option value="all">Todos</option>
+              {meses.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <select value={filterVehicle} onChange={e => setFilterVehicle(e.target.value)} className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white">
+              <option value="all">Todos los camiones</option>
+              {vehicles.map(v => <option key={v.id} value={v.id}>{v.code}</option>)}
+            </select>
+          </div>
+        </div>
+        {filtered.length === 0 ? (
+          <div className="py-10 text-center text-stone-400 text-sm">Sin registros. Usa "Registrar carga" para agregar.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-stone-100 text-stone-600 uppercase tracking-wider font-bold text-[10px]">
+                <tr>
+                  <th className="text-left px-3 py-2">Fecha</th>
+                  <th className="text-left px-3 py-2">Unidad</th>
+                  <th className="text-right px-3 py-2">KM</th>
+                  <th className="text-right px-3 py-2">Litros</th>
+                  <th className="text-right px-3 py-2">$/L</th>
+                  <th className="text-right px-3 py-2">Total $</th>
+                  <th className="text-left px-3 py-2">Notas</th>
+                  <th className="px-2 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r,i) => (
+                  <tr key={r.id} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'}`}>
+                    <td className="px-3 py-2 font-mono text-stone-600">{r.date}</td>
+                    <td className="px-3 py-2 font-bold">{r.vehicleCode}</td>
+                    <td className="px-3 py-2 text-right font-mono">{r.km > 0 ? Number(r.km).toLocaleString() : '—'}</td>
+                    <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">{Number(r.liters).toFixed(1)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-stone-500">${Number(r.pricePerLiter).toFixed(3)}</td>
+                    <td className="px-3 py-2 text-right font-mono font-bold text-amber-700">${totalCost(r).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-stone-500">{r.notes||'—'}</td>
+                    <td className="px-2 py-2"><button onClick={() => saveFuelRecords(fuelRecords.filter(x=>x.id!==r.id))} className="text-stone-300 hover:text-rose-500 transition"><Trash2 className="w-3.5 h-3.5" /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
