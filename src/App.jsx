@@ -372,7 +372,7 @@ export default function App() {
         if (reads[3]) setTrips(reads[3]);
         if (reads[4]) setActiveTrips(reads[4]);
         if (reads[5]) setArchivedMonths(reads[5]);
-        if (reads[6]) setConfig(reads[6]);
+        if (reads[6]) setConfig({ ...DEFAULT_CONFIG, ...reads[6] });
         if (reads[7]) setPhotos(reads[7]);
         if (reads[8]) setGpsTracks(reads[8]);
         if (reads[9]) setHandoffs(reads[9]);
