@@ -3265,7 +3265,7 @@ function DriverHistoryView({ trips, vehicles, branches }) {
       {sorted.map(t => {
         const v = vehicles.find(x => x.id === t.vehicleId);
         const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
-        const d = branches.find(x => x.id === t.destinationBranchId);
+        const dLabel = resolveDestName(t, branches);
         return (
           <div key={t.id} className="bg-white rounded-xl border border-stone-200 shadow-sm p-3 text-sm">
             <div className="flex justify-between items-start mb-2">
@@ -3279,7 +3279,7 @@ function DriverHistoryView({ trips, vehicles, branches }) {
               </div>
             </div>
             <div className="text-xs flex items-center gap-1 text-stone-700">
-              <span>{o?.name}</span><ArrowRight className="w-3 h-3 text-emerald-700" /><span>{d?.name}</span>
+              <span>{o?.name}</span><ArrowRight className="w-3 h-3 text-emerald-700" /><span>{dLabel}</span>
             </div>
             <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
               <div className="bg-stone-100 rounded p-1.5"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">KM</div><div className="font-bold text-stone-900">{t.kmTraveled}</div></div>
@@ -5085,7 +5085,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
                 const v = vehicles.find(x => x.id === t.vehicleId);
                 const d = drivers.find(x => x.id === t.driverId);
                 const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
-                const dest = branches.find(x => x.id === t.destinationBranchId);
+                const destLabel = resolveDestName(t, branches);
                 // Cálculo en vivo si todavía está en destino
                 let destTimeDisplay = null;
                 if (t.timeAtDestinationMinutes != null) {
@@ -5104,7 +5104,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
                     </td>
                     <td className="px-2 py-2 font-bold" style={{ color: v?.color }}>{v?.code}</td>
                     <td className="px-2 py-2 text-stone-900">{d?.shortName}</td>
-                    <td className="px-2 py-2 text-xs text-emerald-700">{o?.name} <ArrowRight className="w-3 h-3 inline" /> {dest?.name}</td>
+                    <td className="px-2 py-2 text-xs text-emerald-700">{o?.name} <ArrowRight className="w-3 h-3 inline" /> {destLabel}</td>
                     <td className="text-right px-2 py-2 text-stone-900">{t.kmTraveled}</td>
                     <td className="text-right px-2 py-2 text-xs text-stone-700 font-mono">{formatDuration(t.tripMinutes)}</td>
                     <td className="text-right px-2 py-2 text-xs font-mono">{t.timeAtBranchPrevMinutes != null ? <span className="text-blue-700">{formatDuration(t.timeAtBranchPrevMinutes)}</span> : <span className="text-stone-300 text-[10px]">primer viaje</span>}</td>
