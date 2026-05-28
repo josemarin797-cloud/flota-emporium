@@ -730,6 +730,12 @@ export default function App() {
   };
   const handleWelcomeOk = () => setView('login');
 
+  // Modo Dashboard TV: ?tv=1 en la URL
+  if (new URLSearchParams(window.location.search).get('tv') === '1') {
+    if (loading) return <div className="min-h-screen bg-stone-950 flex items-center justify-center text-white text-xl font-bold animate-pulse">📺 Cargando Dashboard TV...</div>;
+    return <TVDashboard vehicles={vehicles} activeTrips={activeTrips} trips={trips} drivers={drivers} branches={branches} />;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#1a1d1a] to-[#252726] flex items-center justify-center">
@@ -764,12 +770,6 @@ export default function App() {
       )}
     </>
   );
-
-  // Modo Dashboard TV: ?tv=1 en la URL
-  if (new URLSearchParams(window.location.search).get('tv') === '1') {
-    if (loading) return <div className="min-h-screen bg-stone-950 flex items-center justify-center text-white text-xl font-bold animate-pulse">📺 Cargando Dashboard TV...</div>;
-    return <TVDashboard vehicles={vehicles} activeTrips={activeTrips} trips={trips} drivers={drivers} branches={branches} />;
-  }
 
   if (view === 'welcome') return <><OfflineBanner /><WelcomeScreen onOk={handleWelcomeOk} /><InstallAppButton /></>;
   if (view === 'login') return <><LoginScreen drivers={drivers} onLogin={handleLogin} /><InstallAppButton /></>;
