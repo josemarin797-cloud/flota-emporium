@@ -7040,7 +7040,7 @@ function DiscordTab({ config, saveConfig, vehicles }) {
 }
 
 function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhotos, saveGpsTracks, saveArchived, vehicles, saveVehicles }) {
-  const [form, setForm] = useState(config);
+  const [fuelPrice, setFuelPrice] = useState(config.fuelPrice || 0.5);
   const [availableVoices, setAvailableVoices] = useState([]);
   const [selectedVoice, setSelectedVoice] = useState(localStorage.getItem('emp:voice_name') || '');
   const [voiceMuted, setVoiceMuted] = useState(localStorage.getItem('emp:voice_muted') !== 'false');
@@ -7112,9 +7112,9 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
           <Settings className="w-4 h-4 text-emerald-700" /> Ajustes generales
         </h3>
         <DarkField label="Precio del combustible (USD por litro)">
-          <input type="number" step="0.01" value={form.fuelPrice} onChange={e => setForm({ ...form, fuelPrice: Number(e.target.value) })} className="dark-input" />
+          <input type="number" step="0.01" value={fuelPrice} onChange={e => setFuelPrice(Number(e.target.value))} className="dark-input" />
         </DarkField>
-        <button onClick={() => { saveConfig({ ...config, ...form }); alert('✅ Guardado'); }}
+        <button onClick={() => { saveConfig({ ...config, fuelPrice }); alert('✅ Guardado'); }}
           className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg font-bold transition">
           Guardar cambios
         </button>
