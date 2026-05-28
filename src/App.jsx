@@ -162,6 +162,12 @@ const PHOTO_CATEGORIES = [
   { id: 'maintenance', label: 'Mantenimiento', icon: Wrench, color: 'emerald' },
 ];
 
+// Obtener webhook de mantenimiento de un vehículo (guardado en el vehículo, no en config)
+const getMaintWebhook = (vehicleId, vehicles, config) => {
+  const v = vehicles?.find(x => x.id === vehicleId);
+  return v?.maintenanceWebhook || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
+};
+
 // Resolver nombre legible de destino
 const resolveDestName = (trip, branches) => {
   if (!trip) return '—';
@@ -1271,7 +1277,7 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
     saveFuelRecords([rec, ...fuelRecords]);
 
     // Discord → canal mantenimiento del camión
-    const wh = config?.discordWebhookMaintByVehicle?.[selectedVehicleId] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    const wh = getMaintWebhook(selectedVehicleId, vehicles, config);
     if (wh) {
       await sendDiscordNotification(wh, {
         title: `⛽ CARGA COMBUSTIBLE · ${selectedV?.code}`,
@@ -1601,7 +1607,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const destName = resolveDestName(data, branches);
     // Discord: si es Otro → mantenimiento usa canal maint, gestión usa canal viajes
     const webhookUrl = data.destinationBranchId === 'otro' && data.customDestType === 'mantenimiento'
-      ? (config.discordWebhookMaintByVehicle?.[selectedVehicle.id] || config.discordWebhookMaintenance || config.discordWebhookGeneral)
+      ? (getMaintWebhook(selectedVehicle?.id, vehicles, config))
       : (config.discordWebhookByVehicle?.[selectedVehicle.id] || config.discordWebhookGeneral);
     sendDiscordNotification(webhookUrl, {
       title: `🚛 VIAJE INICIADO · ${selectedVehicle.code}`,
@@ -1706,7 +1712,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const origin = branches.find(b => b.id === currentTrip.originBranchId) || (currentTrip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
     const destName = resolveDestName(currentTrip, branches);
     const webhookUrl = currentTrip.destinationBranchId === 'otro' && currentTrip.customDestType === 'mantenimiento'
-      ? (config.discordWebhookMaintByVehicle?.[v.id] || config.discordWebhookMaintenance || config.discordWebhookGeneral)
+      ? (getMaintWebhook(v?.id, vehicles, config))
       : (config.discordWebhookByVehicle?.[v.id] || config.discordWebhookGeneral);
     sendDiscordNotification(webhookUrl, {
       title: `✅ VIAJE COMPLETADO · ${v.code}`,
@@ -1878,7 +1884,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       createdAt: Date.now(), status: 'Reportado',
     };
     saveIncidents([incident, ...incidents]);
-    const wh = config.discordWebhookMaintByVehicle?.[vehicle?.id] || config.discordWebhookMaintenance || config.discordWebhookGeneral;
+    const wh = getMaintWebhook(vehicle?.id, vehicles, config);
     if (wh) {
       const sevColor = { Leve: 0xf59e0b, Moderado: 0xef4444, Grave: 0x7f1d1d }[data.severity] || 0xef4444;
       await sendDiscordNotification(wh, {
@@ -2587,7 +2593,7 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack, 
       };
       saveFuelRecords([rec, ...fuelRecords]);
       // Discord
-      const wh = config?.discordWebhookMaintByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+      const wh = getMaintWebhook(vehicle?.id, vehicles, config);
       if (wh) {
         const lastLoad = fuelRecords.filter(r => r.vehicleId === vehicle?.id).sort((a,b) => b.createdAt - a.createdAt)[0];
         const kmSince = lastLoad ? (Number(form.kmEnd) - (lastLoad.km||0)) : null;
@@ -2814,7 +2820,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     const isFuelDest = trip.destinationBranchId === 'surtir' ||
       (trip.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(trip.customDestName || ''));
     const wh2 = isFuelDest
-      ? (config.discordWebhookMaintByVehicle?.[trip.vehicleId] || config.discordWebhookMaintenance || config.discordWebhookGeneral)
+      ? (getMaintWebhook(trip.vehicleId, vehicles, config))
       : (config.discordWebhookByVehicle?.[trip.vehicleId] || config.discordWebhookGeneral);
     if (wh2) sendDiscordNotification(wh2, {
       title: `🚪 Salida de sucursal · ${vehicle?.code}`,
@@ -5160,7 +5166,7 @@ function CargoDiagram({ largo, ancho, alto, cubicaje, maxLoad, bodyType, color =
   );
 }
 
-const EMPTY_VEHICLE = { code: '', plate: '', type: 'NPR', bodyType: 'Furgón', year: '', performance: 5, status: 'AL DIA', currentKm: 0, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#10b981', maxLoad: '', cargoLength: '', cargoWidth: '', cargoHeight: '', cargoCubic: '' };
+const EMPTY_VEHICLE = { code: '', plate: '', type: 'NPR', bodyType: 'Furgón', year: '', performance: 5, status: 'AL DIA', currentKm: 0, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#10b981', maxLoad: '', cargoLength: '', cargoWidth: '', cargoHeight: '', cargoCubic: '', maintenanceWebhook: '' };
 
 function VehicleForm({ v, onSave, onCancel, title }) {
   const [f, setF] = useState({...EMPTY_VEHICLE, ...v});
@@ -5205,6 +5211,15 @@ function VehicleForm({ v, onSave, onCancel, title }) {
         <DarkField label="Último Engrase KM"><input type="number" value={f.lastGreaseKm} onChange={e => s('lastGreaseKm', Number(e.target.value))} className="dark-input" /></DarkField>
         <DarkField label="Frec. Engrase KM"><input type="number" value={f.greaseFreq||3000} onChange={e => s('greaseFreq', Number(e.target.value))} className="dark-input" /></DarkField>
         <div className="col-span-2"><DarkField label="Observaciones"><input value={f.observations||''} onChange={e => s('observations', e.target.value)} className="dark-input" /></DarkField></div>
+      </div>
+      {/* Webhook Discord mantenimiento */}
+      <div className="mt-3 p-3 bg-indigo-50 rounded-xl border border-indigo-200">
+        <div className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-2">🔔 Discord — Canal de mantenimiento</div>
+        <DarkField label={`Webhook de #${f.code?.toLowerCase().replace(' ','-') || 'canal'}`}>
+          <input type="text" value={f.maintenanceWebhook||''} onChange={e => s('maintenanceWebhook', e.target.value)}
+            placeholder="https://discord.com/api/webhooks/..." className="dark-input font-mono text-xs" />
+        </DarkField>
+        <p className="text-[10px] text-indigo-500 mt-1">Chequeos, taller, combustible e incidentes de este camión llegan aquí.</p>
       </div>
       <div className="flex justify-end gap-2 mt-4">
         <button onClick={onCancel} className="px-3 py-1.5 text-sm text-stone-500">Cancelar</button>
@@ -5588,7 +5603,7 @@ function RetirarTallerView({ vehicle, driver, vehicles, saveVehicles, config, on
     saveVehicles(updatedVehicles);
 
     // Discord mantenimiento
-    const wh = config?.discordWebhookMaintByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    const wh = getMaintWebhook(vehicle?.id, vehicles, config);
     if (wh) {
       const embed = {
         title: `✅ RETIRO DE TALLER · ${vehicle.code}`,
@@ -5707,7 +5722,7 @@ function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config }) 
       tallerChofer: driver.name,
     } : v);
     saveVehicles(updatedVehicles);
-    const wh = config?.discordWebhookMaintByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    const wh = getMaintWebhook(vehicle?.id, vehicles, config);
     if (wh) sendDiscordNotification(wh, {
       title: `🔧 EN TALLER · ${vehicle.code}`,
       description: `**${driver.name}** dejó **${vehicle.code}** (${vehicle.plate}) en taller`,
@@ -5774,7 +5789,7 @@ function TallerView({ vehicle, driver, vehicles, saveVehicles, config, onSalir }
     } : v);
     saveVehicles(updatedVehicles);
     // Discord → mantenimiento
-    const wh = config?.discordWebhookMaintByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    const wh = getMaintWebhook(vehicle?.id, vehicles, config);
     if (wh) await sendDiscordNotification(wh, {
       title: `✅ SALIÓ DE TALLER · ${vehicle.code}`,
       description: `**${driver.name}** reporta salida de taller de **${vehicle.code}** (${vehicle.plate})`,
@@ -7121,24 +7136,11 @@ function DiscordTab({ config, saveConfig, vehicles }) {
         </div>
       </div>
 
-      {/* Webhooks mantenimiento por unidad */}
-      <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
-        <h3 className="font-bold text-stone-900 mb-1">🔧 Canales por unidad — <span className="text-emerald-700">Mantenimiento</span></h3>
-        <p className="text-xs text-stone-600 mb-4">Chequeos pre-viaje y eventos de taller van al canal de mantenimiento de cada camión. Ej: L300 05 → <code className="bg-stone-100 px-1 rounded">#panel-l300</code></p>
-        <div className="space-y-3">
-          {vehicles.map(v => (
-            <div key={v.id} className="flex items-end gap-2">
-              <div className="flex-1">
-                <DarkField label={`${v.code} (${v.plate})`}>
-                  <input type="text" value={form.discordWebhookMaintByVehicle[v.id] || ''}
-                    onChange={e => { setForm({ ...form, discordWebhookMaintByVehicle: { ...form.discordWebhookMaintByVehicle, [v.id]: e.target.value } }); setStatus(`maint_${v.id}`, 'idle'); }}
-                    placeholder="https://discord.com/api/webhooks/..." className="dark-input font-mono text-xs" />
-                </DarkField>
-              </div>
-              <TestBtn webhookKey={`maint_${v.id}`} url={form.discordWebhookMaintByVehicle[v.id]} label={`${v.code} maint`} />
-            </div>
-          ))}
-        </div>
+      {/* Webhooks mantenimiento — ahora en Flota */}
+      <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-200">
+        <h3 className="font-bold text-indigo-900 mb-1">🔧 Canales por unidad — Mantenimiento</h3>
+        <p className="text-xs text-indigo-700">Los webhooks de mantenimiento ahora se configuran directamente en cada camión.</p>
+        <p className="text-xs text-indigo-600 mt-1">Ve a <b>Flota → ✏️ editar camión → Webhook Discord Mantenimiento</b></p>
       </div>
 
       {/* Guardar */}
@@ -8133,7 +8135,7 @@ function ChecklistDetailModal({ checklist, vehicles, onClose }) {
 }
 
 async function sendChecklistDiscord(cl, vehicle, driver, config) {
-  const webhookUrl = config?.discordWebhookMaintByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+  const webhookUrl = getMaintWebhook(vehicle?.id, vehicles, config);
   if (!webhookUrl) return;
   const crits = cl.criticalCount || 0;
   const warns = cl.warningCount || 0;
