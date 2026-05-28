@@ -158,7 +158,6 @@ const INITIAL_BRANCHES = [
 const PHOTO_CATEGORIES = [
   { id: 'transfer', label: 'Transferencia', icon: FileText, color: 'blue' },
   { id: 'fuel', label: 'Combustible', icon: Fuel, color: 'amber' },
-  { id: 'incident', label: 'Daño/Incidente', icon: AlertTriangle, color: 'rose' },
   { id: 'maintenance', label: 'Mantenimiento', icon: Wrench, color: 'emerald' },
 ];
 
