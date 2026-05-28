@@ -7219,7 +7219,16 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
     savePhotos([]);
     saveGpsTracks([]);
     saveArchived([]);
+    // Resetear estado de vehículos
+    saveVehicles(vehicles.map(v => ({ ...v, status: v.status === 'EN TALLER' ? 'EN TALLER' : 'AL DIA' })));
     alert('✅ App limpia. Puedes empezar a registrar viajes reales.');
+  };
+
+  const cancelarViajesActivos = () => {
+    if (!confirm(`¿Cancelar los ${vehicles.filter(v=>v.status==='EN RUTA').length || 'todos los'} viajes activos?\n\nLos camiones quedarán disponibles para nuevos viajes.`)) return;
+    saveActiveTrips([]);
+    saveVehicles(vehicles.map(v => v.status === 'EN RUTA' ? { ...v, status: 'AL DIA' } : v));
+    alert('✅ Viajes activos cancelados.');
   };
 
   const reiniciarKmVehiculos = () => {
@@ -7326,6 +7335,17 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
             <div className="text-xs text-amber-800 mb-2">Para corregir el KM actual de todos los camiones de una vez</div>
             <button onClick={reiniciarKmVehiculos} className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
               Reiniciar KM
+            </button>
+          </div>
+
+          <div className="border-2 border-amber-200 bg-amber-50 rounded-xl p-3">
+            <div className="font-semibold text-amber-900 text-sm mb-1">🚛 Cancelar viajes activos</div>
+            <div className="text-xs text-amber-800 mb-2">
+              Cancela todos los viajes que quedaron abiertos sin completar.<br/>
+              Los camiones quedan disponibles para nuevos viajes.
+            </div>
+            <button onClick={cancelarViajesActivos} className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
+              Cancelar viajes activos
             </button>
           </div>
 
