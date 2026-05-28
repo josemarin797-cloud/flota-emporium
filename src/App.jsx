@@ -931,6 +931,26 @@ function LoginScreen({ drivers, onLogin }) {
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [logoTaps, setLogoTaps] = useState(0);
+  const [showCoordHint, setShowCoordHint] = useState(false);
+  const tapTimerRef = useRef(null);
+
+  const handleLogoTap = () => {
+    const next = logoTaps + 1;
+    setLogoTaps(next);
+    clearTimeout(tapTimerRef.current);
+    if (next >= 3) {
+      setLogoTaps(0);
+      setSelectedRole('coordinator');
+      setStep('pin');
+    } else {
+      setShowCoordHint(true);
+      tapTimerRef.current = setTimeout(() => {
+        setLogoTaps(0);
+        setShowCoordHint(false);
+      }, 1500);
+    }
+  };
 
   const handlePinSubmit = () => {
     if (selectedRole === 'coordinator') {
@@ -994,10 +1014,18 @@ function LoginScreen({ drivers, onLogin }) {
       <div className="absolute bottom-0 left-0 w-96 h-96 rounded-full opacity-20 blur-3xl" style={{ background: '#f59e0b' }}></div>
 
       <div className="w-full max-w-md relative z-10">
-        {/* Logo y nombre */}
+        {/* Logo y nombre — 3 toques = acceso coordinador */}
         <div className="text-center mb-6">
-          <div className="bg-white rounded-3xl p-5 shadow-xl mb-4 inline-block">
+          <div className="bg-white rounded-3xl p-5 shadow-xl mb-4 inline-block cursor-pointer select-none relative"
+            onClick={handleLogoTap}>
             <img src={LOGO_TRUCK} alt="Transporte Emporium" className="w-44 h-auto mx-auto" />
+            {showCoordHint && (
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                {[1,2,3].map(i => (
+                  <div key={i} className={`w-2 h-2 rounded-full transition-all ${i <= logoTaps ? 'bg-emerald-600' : 'bg-stone-300'}`} />
+                ))}
+              </div>
+            )}
           </div>
           <h1 className="text-4xl font-black tracking-tight leading-none" style={{ letterSpacing: '-0.03em', color: '#047857' }}>
             Transporte
@@ -1008,27 +1036,9 @@ function LoginScreen({ drivers, onLogin }) {
           <p className="text-stone-700 text-sm mt-2 font-semibold">¿Quién está usando la app?</p>
         </div>
 
-        {/* Tarjeta principal */}
+        {/* Tarjeta principal — solo choferes */}
         <div className="bg-white rounded-3xl p-5 shadow-2xl">
-          <div className="mb-5">
-            <h2 className="font-bold text-stone-700 mb-3 text-sm flex items-center gap-2">
-              <div className="w-1.5 h-5 bg-emerald-600 rounded-full"></div>
-              Coordinador
-            </h2>
-            <button onClick={() => { setSelectedRole('coordinator'); setStep('pin'); }}
-              className="w-full bg-gradient-to-br from-emerald-50 to-emerald-100 hover:from-emerald-100 hover:to-emerald-200 border-2 border-emerald-200 rounded-2xl p-4 flex items-center gap-3 transition-all hover:scale-[1.01] group">
-              <div className="bg-emerald-600 w-12 h-12 rounded-xl flex items-center justify-center shadow-lg">
-                <BarChart3 className="w-6 h-6 text-white" strokeWidth={2.5} />
-              </div>
-              <div className="text-left flex-1">
-                <div className="font-bold text-stone-900">José Marín</div>
-                <div className="text-xs text-stone-600">Coordinador de Transporte</div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-emerald-700 group-hover:translate-x-1 transition-all" />
-            </button>
-          </div>
-
-          <div className="border-t border-stone-200 pt-4">
+          <div>
             <h2 className="font-bold text-stone-700 mb-3 text-sm flex items-center gap-2">
               <div className="w-1.5 h-5 bg-amber-500 rounded-full"></div>
               Choferes
