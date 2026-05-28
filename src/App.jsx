@@ -2811,7 +2811,11 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     onMarkDeparted(trip.id);
     setDeparted(true);
     setShowConfirmDialog(false);
-    const wh2 = config.discordWebhookByVehicle?.[trip.vehicleId] || config.discordWebhookGeneral;
+    const isFuelDest = trip.destinationBranchId === 'surtir' ||
+      (trip.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(trip.customDestName || ''));
+    const wh2 = isFuelDest
+      ? (config.discordWebhookMaintByVehicle?.[trip.vehicleId] || config.discordWebhookMaintenance || config.discordWebhookGeneral)
+      : (config.discordWebhookByVehicle?.[trip.vehicleId] || config.discordWebhookGeneral);
     if (wh2) sendDiscordNotification(wh2, {
       title: `🚪 Salida de sucursal · ${vehicle?.code}`,
       description: `⏱️ Tiempo en ${destination?.name}: ${minutes > 59 ? Math.floor(minutes / 60) + 'h ' + minutes % 60 + 'min' : minutes + ' min'}`,
@@ -6984,6 +6988,16 @@ function DiscordTab({ config, saveConfig, vehicles }) {
     discordWebhookByVehicle: config.discordWebhookByVehicle || {},
     discordWebhookMaintByVehicle: config.discordWebhookMaintByVehicle || {},
   });
+
+  // Sincronizar form cuando el config cambia (ej: carga desde storage)
+  useEffect(() => {
+    setForm({
+      discordWebhookGeneral: config.discordWebhookGeneral || '',
+      discordWebhookMaintenance: config.discordWebhookMaintenance || '',
+      discordWebhookByVehicle: config.discordWebhookByVehicle || {},
+      discordWebhookMaintByVehicle: config.discordWebhookMaintByVehicle || {},
+    });
+  }, [config.discordWebhookMaintByVehicle, config.discordWebhookByVehicle, config.discordWebhookGeneral, config.discordWebhookMaintenance]);
   // testStatus: { key: 'idle' | 'sending' | 'success' | 'error', error: string }
   const [testStatus, setTestStatus] = useState({});
 
