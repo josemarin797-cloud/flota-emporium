@@ -2552,8 +2552,9 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
 
 function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack, fuelRecords = [], saveFuelRecords, driver, config }) {
   const now = new Date();
-  const isSurtir = trip.destinationBranchId === 'surtir';
-  const isOtro = trip.destinationBranchId === 'otro';
+  const isSurtir = trip.destinationBranchId === 'surtir' ||
+    (trip.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(trip.customDestName || ''));
+  const isOtro = trip.destinationBranchId === 'otro' && !isSurtir;
   const isL300 = vehicle?.type === 'L300' || vehicle?.code?.includes('L300') || vehicle?.plate === 'A15BP7M';
   const pricePerLiter = config?.fuelPrice || 0.5;
   const [form, setForm] = useState({
