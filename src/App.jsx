@@ -1646,7 +1646,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       createdAt: Date.now(), status: 'Reportado',
     };
     saveIncidents([incident, ...incidents]);
-    const wh = config.discordWebhookGeneral;
+    const wh = config.discordWebhookMaintByVehicle?.[vehicle?.id] || config.discordWebhookMaintenance || config.discordWebhookGeneral;
     if (wh) {
       const sevColor = { Leve: 0xf59e0b, Moderado: 0xef4444, Grave: 0x7f1d1d }[data.severity] || 0xef4444;
       await sendDiscordNotification(wh, {
