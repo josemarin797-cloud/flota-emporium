@@ -4572,71 +4572,107 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 
 function VehiclesTab({ vehicles, saveVehicles, trips }) {
   const [editing, setEditing] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newVehicle, setNewVehicle] = useState({ code: '', plate: '', type: 'NPR', performance: 5, status: 'AL DIA', currentKm: 0, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#10b981' });
+
   const handleSave = (v) => {
-    if (editing?.id) saveVehicles(vehicles.map(x => x.id === v.id ? v : x));
+    if (v.id) saveVehicles(vehicles.map(x => x.id === v.id ? v : x));
     else saveVehicles([...vehicles, { ...v, id: `v_${Date.now()}` }]);
     setEditing(null);
+    setShowAdd(false);
   };
+
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <h2 className="font-black text-stone-900">Flota</h2>
-        <button onClick={() => setEditing({ code: '', plate: '', type: 'NPR', performance: 5, status: 'AL DIA', currentKm: 0, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#10b981' })}
+        <button onClick={() => setShowAdd(!showAdd)}
           className="bg-emerald-600 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-bold">
           <Plus className="w-4 h-4" /> Agregar
         </button>
       </div>
-      {editing && (
-        <div className="bg-white rounded-xl border-2 border-emerald-500/40 p-4">
+
+      {/* Formulario nuevo vehículo */}
+      {showAdd && (
+        <div className="bg-white rounded-xl border-2 border-emerald-400 p-4">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="font-bold text-stone-900">{editing.id ? 'Editar' : 'Nuevo'} vehículo</h3>
-            <button onClick={() => setEditing(null)} className="text-emerald-700"><X className="w-5 h-5" /></button>
+            <h3 className="font-bold text-stone-900">Nuevo vehículo</h3>
+            <button onClick={() => setShowAdd(false)} className="text-stone-400 hover:text-stone-700"><X className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <DarkField label="Código"><input value={editing.code} onChange={e => setEditing({ ...editing, code: e.target.value })} className="dark-input" /></DarkField>
-            <DarkField label="Placa"><input value={editing.plate} onChange={e => setEditing({ ...editing, plate: e.target.value })} className="dark-input" /></DarkField>
-            <DarkField label="Tipo"><select value={editing.type} onChange={e => setEditing({ ...editing, type: e.target.value })} className="dark-input"><option>NPR</option><option>FUSO</option><option>L300</option><option>OTRO</option></select></DarkField>
-            <DarkField label="Color (mapa)"><input type="color" value={editing.color || '#10b981'} onChange={e => setEditing({ ...editing, color: e.target.value })} className="dark-input h-10" /></DarkField>
-            <DarkField label="Litros/100km"><input type="number" value={editing.litersPer100km} onChange={e => setEditing({ ...editing, litersPer100km: Number(e.target.value) })} className="dark-input" /></DarkField>
-            <DarkField label="Rendimiento km/L"><input type="number" step="0.01" value={editing.performance} onChange={e => setEditing({ ...editing, performance: Number(e.target.value) })} className="dark-input" /></DarkField>
-            <DarkField label="Estado"><select value={editing.status} onChange={e => setEditing({ ...editing, status: e.target.value })} className="dark-input"><option>AL DIA</option><option>EN TALLER</option><option>OPERATIVO</option><option>FUERA DE SERVICIO</option></select></DarkField>
-            <DarkField label="KM Actual"><input type="number" value={editing.currentKm} onChange={e => setEditing({ ...editing, currentKm: Number(e.target.value) })} className="dark-input" /></DarkField>
-            <DarkField label="Último Mant. (KM)"><input type="number" value={editing.lastMaintKm} onChange={e => setEditing({ ...editing, lastMaintKm: Number(e.target.value) })} className="dark-input" /></DarkField>
-            <DarkField label="Frecuencia Mant."><input type="number" value={editing.maintFreq} onChange={e => setEditing({ ...editing, maintFreq: Number(e.target.value) })} className="dark-input" /></DarkField>
-            <div className="col-span-2 md:col-span-3"><DarkField label="Observaciones"><input value={editing.observations} onChange={e => setEditing({ ...editing, observations: e.target.value })} className="dark-input" /></DarkField></div>
+            <DarkField label="Código"><input value={newVehicle.code} onChange={e => setNewVehicle({...newVehicle, code: e.target.value})} className="dark-input" /></DarkField>
+            <DarkField label="Placa"><input value={newVehicle.plate} onChange={e => setNewVehicle({...newVehicle, plate: e.target.value})} className="dark-input" /></DarkField>
+            <DarkField label="Tipo"><select value={newVehicle.type} onChange={e => setNewVehicle({...newVehicle, type: e.target.value})} className="dark-input"><option>NPR</option><option>FUSO</option><option>L300</option><option>OTRO</option></select></DarkField>
+            <DarkField label="Color"><input type="color" value={newVehicle.color} onChange={e => setNewVehicle({...newVehicle, color: e.target.value})} className="dark-input h-10" /></DarkField>
+            <DarkField label="Litros/100km"><input type="number" value={newVehicle.litersPer100km} onChange={e => setNewVehicle({...newVehicle, litersPer100km: Number(e.target.value)})} className="dark-input" /></DarkField>
+            <DarkField label="KM Actual"><input type="number" value={newVehicle.currentKm} onChange={e => setNewVehicle({...newVehicle, currentKm: Number(e.target.value)})} className="dark-input" /></DarkField>
           </div>
           <div className="flex justify-end gap-2 mt-3">
-            <button onClick={() => setEditing(null)} className="px-3 py-1.5 text-sm text-emerald-700">Cancelar</button>
-            <button onClick={() => handleSave(editing)} className="px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg font-bold">Guardar</button>
+            <button onClick={() => setShowAdd(false)} className="px-3 py-1.5 text-sm text-stone-500">Cancelar</button>
+            <button onClick={() => handleSave(newVehicle)} className="px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg font-bold">Guardar</button>
           </div>
         </div>
       )}
+
       <div className="grid md:grid-cols-2 gap-3">
         {vehicles.map(v => {
           const vt = trips.filter(t => t.vehicleId === v.id);
+          const isEditing = editing?.id === v.id;
           return (
-            <div key={v.id} className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: (v.color || '#10b981') + '30', border: `1px solid ${v.color || '#10b981'}` }}>
-                    <Truck className="w-5 h-5" style={{ color: v.color || '#10b981' }} />
+            <div key={v.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${isEditing ? 'border-emerald-400 border-2' : 'border-stone-200'}`}>
+              {isEditing ? (
+                /* MODO EDICIÓN INLINE */
+                <div className="p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-bold text-stone-900">Editar {v.code}</h3>
+                    <button onClick={() => setEditing(null)} className="text-stone-400 hover:text-stone-700"><X className="w-5 h-5" /></button>
                   </div>
-                  <div>
-                    <div className="font-bold text-stone-900">{v.code}</div>
-                    <div className="text-xs text-stone-500 font-mono">{v.plate} · {v.litersPer100km}L/100km</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <DarkField label="Código"><input value={editing.code} onChange={e => setEditing({...editing, code: e.target.value})} className="dark-input" /></DarkField>
+                    <DarkField label="Placa"><input value={editing.plate} onChange={e => setEditing({...editing, plate: e.target.value})} className="dark-input" /></DarkField>
+                    <DarkField label="Tipo"><select value={editing.type} onChange={e => setEditing({...editing, type: e.target.value})} className="dark-input"><option>NPR</option><option>FUSO</option><option>L300</option><option>OTRO</option></select></DarkField>
+                    <DarkField label="Color"><input type="color" value={editing.color||'#10b981'} onChange={e => setEditing({...editing, color: e.target.value})} className="dark-input h-10" /></DarkField>
+                    <DarkField label="Litros/100km"><input type="number" value={editing.litersPer100km} onChange={e => setEditing({...editing, litersPer100km: Number(e.target.value)})} className="dark-input" /></DarkField>
+                    <DarkField label="KM Actual"><input type="number" value={editing.currentKm} onChange={e => setEditing({...editing, currentKm: Number(e.target.value)})} className="dark-input" /></DarkField>
+                    <DarkField label="Estado"><select value={editing.status} onChange={e => setEditing({...editing, status: e.target.value})} className="dark-input"><option>AL DIA</option><option>EN TALLER</option><option>OPERATIVO</option><option>FUERA DE SERVICIO</option></select></DarkField>
+                    <DarkField label="Último Mant. KM"><input type="number" value={editing.lastMaintKm} onChange={e => setEditing({...editing, lastMaintKm: Number(e.target.value)})} className="dark-input" /></DarkField>
+                    <DarkField label="Frec. Mant. KM"><input type="number" value={editing.maintFreq} onChange={e => setEditing({...editing, maintFreq: Number(e.target.value)})} className="dark-input" /></DarkField>
+                    <DarkField label="Último Engrase KM"><input type="number" value={editing.lastGreaseKm} onChange={e => setEditing({...editing, lastGreaseKm: Number(e.target.value)})} className="dark-input" /></DarkField>
+                    <div className="col-span-2"><DarkField label="Observaciones"><input value={editing.observations||''} onChange={e => setEditing({...editing, observations: e.target.value})} className="dark-input" /></DarkField></div>
+                  </div>
+                  <div className="flex justify-end gap-2 mt-3">
+                    <button onClick={() => setEditing(null)} className="px-3 py-1.5 text-sm text-stone-500">Cancelar</button>
+                    <button onClick={() => handleSave(editing)} className="px-4 py-1.5 text-sm bg-emerald-600 text-white rounded-lg font-bold">Guardar</button>
                   </div>
                 </div>
-                <div className="flex gap-2 items-center">
-                  <span className={`text-[10px] px-2 py-0.5 rounded font-bold font-mono uppercase tracking-wider ${v.status === 'AL DIA' ? 'bg-emerald-500/20 text-stone-700 border border-emerald-500/40' : 'bg-rose-100 text-rose-800 border border-rose-300'}`}>{v.status}</span>
-                  <button onClick={() => setEditing(v)} className="text-emerald-700 hover:text-stone-700"><Edit className="w-4 h-4" /></button>
+              ) : (
+                /* MODO VISTA */
+                <div className="p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: (v.color||'#10b981')+'30', border: `1px solid ${v.color||'#10b981'}` }}>
+                        <Truck className="w-5 h-5" style={{ color: v.color||'#10b981' }} />
+                      </div>
+                      <div>
+                        <div className="font-bold text-stone-900">{v.code}</div>
+                        <div className="text-xs text-stone-500 font-mono">{v.plate} · {v.litersPer100km}L/100km</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${v.status==='AL DIA'?'bg-emerald-500/20 text-stone-700 border border-emerald-500/40':'bg-rose-100 text-rose-800 border border-rose-300'}`}>{v.status}</span>
+                      <button onClick={() => setEditing({...v})} className="p-1.5 rounded-lg bg-stone-100 hover:bg-emerald-100 text-stone-600 hover:text-emerald-700 transition">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-xs mt-2">
+                    <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">KM Actual</div><div className="font-bold text-stone-900">{v.currentKm.toLocaleString()}</div></div>
+                    <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Viajes</div><div className="font-bold text-stone-900">{vt.length}</div></div>
+                    <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Días</div><div className="font-bold text-stone-900">{new Set(vt.map(t=>t.startDate)).size}</div></div>
+                  </div>
+                  {v.observations && <div className="mt-2 text-xs bg-amber-950/30 border border-amber-700/30 rounded p-2 text-amber-700">{v.observations}</div>}
                 </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-xs mt-2">
-                <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">KM Actual</div><div className="font-bold text-stone-900">{v.currentKm.toLocaleString()}</div></div>
-                <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Viajes</div><div className="font-bold text-stone-900">{vt.length}</div></div>
-                <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Días</div><div className="font-bold text-stone-900">{new Set(vt.map(t => t.startDate)).size}</div></div>
-              </div>
-              {v.observations && <div className="mt-2 text-xs bg-amber-950/30 border border-amber-700/30 rounded p-2 text-amber-700">{v.observations}</div>}
+              )}
             </div>
           );
         })}
