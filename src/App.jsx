@@ -347,6 +347,142 @@ function InstallAppButton() {
   );
 }
 
+// ============================================================
+// DASHBOARD TV — pantalla para oficina/sala de despacho
+// URL: ?tv=1  (sin login, se refresca cada 30 seg)
+// ============================================================
+function TVDashboard({ vehicles, activeTrips, trips, drivers, branches }) {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  const fmt = (d) => new Date(d).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+  const fmtDate = (d) => new Date(d).toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const viajesHoy = trips.filter(t => {
+    const hoy = new Date(); const td = new Date(t.startTime);
+    return td.getDate() === hoy.getDate() && td.getMonth() === hoy.getMonth() && td.getFullYear() === hoy.getFullYear();
+  });
+
+  const statusColor = (s) => {
+    if (s === 'EN RUTA') return 'bg-emerald-500';
+    if (s === 'EN TALLER') return 'bg-amber-500';
+    return 'bg-stone-600';
+  };
+  const statusLabel = (s) => {
+    if (s === 'EN RUTA') return '🟢 EN RUTA';
+    if (s === 'EN TALLER') return '🔧 EN TALLER';
+    return '⚪ AL DÍA';
+  };
+
+  return (
+    <div className="min-h-screen bg-stone-950 text-white p-4 font-sans">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 border-b border-stone-800 pb-4">
+        <div className="flex items-center gap-3">
+          <img src={LOGO_TRUCK} alt="" className="w-14 h-auto" />
+          <div>
+            <div className="text-2xl font-black tracking-tight">Transporte <span className="text-emerald-400">Emporium</span></div>
+            <div className="text-stone-400 text-sm capitalize">{fmtDate(now)}</div>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-4xl font-mono font-bold text-emerald-400">{now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}</div>
+          <div className="text-stone-500 text-xs mt-1">Actualización automática cada 30 seg</div>
+        </div>
+      </div>
+
+      {/* Resumen rápido */}
+      <div className="grid grid-cols-4 gap-3 mb-6">
+        {[
+          { label: 'Flota total', value: vehicles.length, icon: '🚛', color: 'bg-stone-800' },
+          { label: 'En ruta', value: vehicles.filter(v=>v.status==='EN RUTA').length, icon: '🟢', color: 'bg-emerald-900' },
+          { label: 'En taller', value: vehicles.filter(v=>v.status==='EN TALLER').length, icon: '🔧', color: 'bg-amber-900' },
+          { label: 'Viajes hoy', value: viajesHoy.length, icon: '📦', color: 'bg-blue-900' },
+        ].map(c => (
+          <div key={c.label} className={`${c.color} rounded-2xl p-4 text-center`}>
+            <div className="text-3xl mb-1">{c.icon}</div>
+            <div className="text-4xl font-black">{c.value}</div>
+            <div className="text-stone-300 text-sm mt-1">{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tarjetas de vehículos */}
+      <div className="grid grid-cols-5 gap-3 mb-6">
+        {vehicles.map(v => {
+          const tripActivo = activeTrips.find(t => t.vehicleId === v.id);
+          const chofer = tripActivo ? drivers.find(d => d.id === tripActivo.driverId) : null;
+          const destino = tripActivo ? (branches.find(b => b.id === tripActivo.destinationId)?.name || tripActivo.destination || '—') : null;
+          return (
+            <div key={v.id} className={`rounded-2xl p-4 border-2 ${v.status === 'EN RUTA' ? 'border-emerald-500 bg-emerald-950' : v.status === 'EN TALLER' ? 'border-amber-500 bg-amber-950' : 'border-stone-700 bg-stone-900'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-black text-lg">{v.code}</div>
+                <span className={`text-xs px-2 py-1 rounded-full font-bold ${statusColor(v.status)}`}>
+                  {v.status === 'EN RUTA' ? '● RUTA' : v.status === 'EN TALLER' ? '● TALLER' : '● LIBRE'}
+                </span>
+              </div>
+              <div className="text-stone-400 text-xs mb-2">{v.plate}</div>
+              {tripActivo ? (
+                <div className="text-xs space-y-1">
+                  <div className="text-emerald-300 font-bold">🚛 {chofer?.name || '—'}</div>
+                  <div className="text-stone-300">📍 → {destino}</div>
+                  <div className="text-stone-500">⏱ Sale: {fmt(tripActivo.startTime)}</div>
+                </div>
+              ) : v.status === 'EN TALLER' ? (
+                <div className="text-amber-300 text-xs font-bold">🔧 En mantenimiento</div>
+              ) : (
+                <div className="text-stone-500 text-xs">Disponible</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Últimos viajes del día */}
+      {viajesHoy.length > 0 && (
+        <div className="bg-stone-900 rounded-2xl p-4">
+          <div className="font-bold text-stone-300 mb-3 text-sm uppercase tracking-wider">📋 Viajes de hoy ({viajesHoy.length})</div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-stone-500 text-xs border-b border-stone-800">
+                  <th className="text-left pb-2">Camión</th><th className="text-left pb-2">Chofer</th>
+                  <th className="text-left pb-2">Destino</th><th className="text-left pb-2">Salida</th>
+                  <th className="text-left pb-2">Llegada</th><th className="text-left pb-2">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {viajesHoy.slice(-10).reverse().map(t => {
+                  const v2 = vehicles.find(v=>v.id===t.vehicleId);
+                  const ch = drivers.find(d=>d.id===t.driverId);
+                  const dest = branches.find(b=>b.id===t.destinationId)?.name || t.destination || '—';
+                  return (
+                    <tr key={t.id} className="border-b border-stone-800/50 hover:bg-stone-800/30">
+                      <td className="py-2 font-bold">{v2?.code||'—'}</td>
+                      <td className="py-2 text-stone-300">{ch?.name||'—'}</td>
+                      <td className="py-2 text-stone-300">{dest}</td>
+                      <td className="py-2 text-stone-400">{fmt(t.startTime)}</td>
+                      <td className="py-2 text-stone-400">{t.endTime ? fmt(t.endTime) : <span className="text-emerald-400">En curso</span>}</td>
+                      <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${t.endTime ? 'bg-stone-700 text-stone-300' : 'bg-emerald-700 text-emerald-100'}`}>{t.endTime ? 'Completado' : 'En ruta'}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="text-center text-stone-700 text-xs mt-4">
+        Transporte Emporium · Sistema de control de flota · flota-emporium.vercel.app?tv=1
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [view, setView] = useState('welcome');
   const [currentUser, setCurrentUser] = useState(null);
@@ -628,6 +764,12 @@ export default function App() {
       )}
     </>
   );
+
+  // Modo Dashboard TV: ?tv=1 en la URL
+  if (new URLSearchParams(window.location.search).get('tv') === '1') {
+    if (loading) return <div className="min-h-screen bg-stone-950 flex items-center justify-center text-white text-xl font-bold animate-pulse">📺 Cargando Dashboard TV...</div>;
+    return <TVDashboard vehicles={vehicles} activeTrips={activeTrips} trips={trips} drivers={drivers} branches={branches} />;
+  }
 
   if (view === 'welcome') return <><OfflineBanner /><WelcomeScreen onOk={handleWelcomeOk} /><InstallAppButton /></>;
   if (view === 'login') return <><LoginScreen drivers={drivers} onLogin={handleLogin} /><InstallAppButton /></>;
