@@ -2871,6 +2871,36 @@ function DriverHistoryView({ trips, vehicles, branches }) {
 function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords }) {
   const [tab, setTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [autoArchiveBanner, setAutoArchiveBanner] = useState(null);
+
+  // ── AUTO-CIERRE MENSUAL ─────────────────────────────────────────────
+  useEffect(() => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const unarchived = [...new Set(trips.map(t => t.startDate.slice(0, 7)))]
+      .filter(m => m < currentMonth)
+      .filter(m => !archivedMonths.find(a => a.month === m))
+      .sort();
+    if (unarchived.length === 0) return;
+    const newArchived = [...archivedMonths];
+    const labels = [];
+    unarchived.forEach(m => {
+      const mt = trips.filter(t => t.startDate.startsWith(m));
+      if (mt.length === 0) return;
+      newArchived.push({
+        month: m, closedAt: Date.now(), autoArchived: true, tripCount: mt.length,
+        totalKm: mt.reduce((s,t)=>s+(t.kmTraveled||0),0),
+        totalLiters: mt.reduce((s,t)=>s+(t.liters||0),0),
+        totalCost: mt.reduce((s,t)=>s+(t.cost||0),0),
+        totalDeliveries: mt.reduce((s,t)=>s+(t.deliveries||0),0),
+        tripsSnapshot: mt, vehiclesSnapshot: vehicles, driversSnapshot: drivers, branchesSnapshot: branches,
+      });
+      labels.push(new Date(m+'-15').toLocaleDateString('es-VE',{month:'long',year:'numeric'}));
+    });
+    saveArchived(newArchived);
+    setSelectedMonth(currentMonth);
+    setAutoArchiveBanner(labels.join(', '));
+    setTimeout(() => setAutoArchiveBanner(null), 9000);
+  }, []);
 
   const monthTrips = useMemo(() => trips.filter(t => t.startDate.startsWith(selectedMonth)), [trips, selectedMonth]);
   const monthPhotos = useMemo(() => photos.filter(p => p.date.startsWith(selectedMonth)), [photos, selectedMonth]);
@@ -2892,6 +2922,16 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
 
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900">
+      {/* Banner auto-archivo */}
+      {autoArchiveBanner && (
+        <div className="bg-amber-500 text-white px-4 py-2.5 flex items-center justify-between gap-3 shadow-md sticky top-0 z-50">
+          <div className="flex items-center gap-2 text-sm font-bold">
+            <Archive className="w-4 h-4 flex-shrink-0" />
+            <span>📅 Archivado automáticamente: <span className="capitalize">{autoArchiveBanner}</span> — disponible en Histórico</span>
+          </div>
+          <button onClick={() => setAutoArchiveBanner(null)} className="text-white/80 hover:text-white"><X className="w-4 h-4" /></button>
+        </div>
+      )}
       <header className="bg-gradient-to-r from-[#1a1d1a] via-[#252726] to-[#1a1d1a] border-b border-stone-700 sticky top-0 z-30 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -5464,23 +5504,82 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
 
 function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveArchived }) {
   const [showModal, setShowModal] = useState(false);
+  const [expanded, setExpanded] = useState(null);
+
   const available = useMemo(() => {
     const months = new Set(trips.map(t => t.startDate.slice(0, 7)));
     return [...months].filter(m => !archivedMonths.find(a => a.month === m)).sort().reverse();
   }, [trips, archivedMonths]);
+
   const close = (m) => {
     const mt = trips.filter(t => t.startDate.startsWith(m));
     if (mt.length === 0) return alert('Sin viajes');
     if (!confirm(`¿Cerrar ${m}? ${mt.length} viajes archivados.`)) return;
     saveArchived([...archivedMonths, {
       month: m, closedAt: Date.now(), tripCount: mt.length,
-      totalKm: mt.reduce((s, t) => s + t.kmTraveled, 0), totalLiters: mt.reduce((s, t) => s + t.liters, 0),
-      totalCost: mt.reduce((s, t) => s + t.cost, 0), totalDeliveries: mt.reduce((s, t) => s + (t.deliveries || 0), 0),
+      totalKm: mt.reduce((s,t)=>s+(t.kmTraveled||0),0),
+      totalLiters: mt.reduce((s,t)=>s+(t.liters||0),0),
+      totalCost: mt.reduce((s,t)=>s+(t.cost||0),0),
+      totalDeliveries: mt.reduce((s,t)=>s+(t.deliveries||0),0),
       tripsSnapshot: mt, vehiclesSnapshot: vehicles, driversSnapshot: drivers, branchesSnapshot: branches,
     }]);
     setShowModal(false);
-    alert(`${m} archivado.`);
   };
+
+  const downloadExcel = (a) => {
+    const wb = XLSX.utils.book_new();
+    const mt = a.tripsSnapshot || [];
+    const vs = a.vehiclesSnapshot || vehicles;
+    const ds = a.driversSnapshot || drivers;
+    const bs = a.branchesSnapshot || branches;
+    const label = new Date(a.month+'-15').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
+
+    // Hoja resumen por camión
+    const rs = [];
+    rs.push([`RESUMEN MENSUAL — ${label.toUpperCase()}`, '', '', '', '', '']);
+    rs.push([`Generado: ${new Date().toLocaleString('es-VE')}`, '', '', '', '', '']);
+    rs.push(['', '', '', '', '', '']);
+    rs.push(['Unidad', 'Placa', 'Chofer', 'Viajes', 'KM Total', 'Litros', 'Costo $', 'Entregas']);
+    vs.forEach(v => {
+      const vt = mt.filter(t => t.vehicleId === v.id);
+      if (vt.length === 0) return;
+      const dr = ds.find(d => vt[0]?.driverId === d.id);
+      rs.push([
+        v.code, v.plate, dr?.name || '—',
+        vt.length,
+        vt.reduce((s,t)=>s+(t.kmTraveled||0),0),
+        vt.reduce((s,t)=>s+(t.liters||0),0).toFixed(2),
+        vt.reduce((s,t)=>s+(t.cost||0),0).toFixed(2),
+        vt.reduce((s,t)=>s+(t.deliveries||0),0),
+      ]);
+    });
+    rs.push(['TOTAL','','',
+      mt.length,
+      mt.reduce((s,t)=>s+(t.kmTraveled||0),0),
+      mt.reduce((s,t)=>s+(t.liters||0),0).toFixed(2),
+      mt.reduce((s,t)=>s+(t.cost||0),0).toFixed(2),
+      mt.reduce((s,t)=>s+(t.deliveries||0),0),
+    ]);
+    const wsRes = XLSX.utils.aoa_to_sheet(rs);
+    wsRes['!cols'] = [{wch:12},{wch:10},{wch:20},{wch:8},{wch:12},{wch:10},{wch:12},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen');
+
+    // Hoja detalle viajes
+    const dt = [['Fecha','Unidad','Chofer','Origen','Destino','KM','Litros','Costo $','Entregas','Ruta']];
+    mt.sort((a,b)=>a.startDate.localeCompare(b.startDate)).forEach(t => {
+      const v = vs.find(x=>x.id===t.vehicleId);
+      const d = ds.find(x=>x.id===t.driverId);
+      const orig = bs.find(x=>x.id===t.originBranchId)?.name || t.originBranchId;
+      const dest = t.destinationBranchId === 'otro' ? `📍 ${t.customDestName}` : (bs.find(x=>x.id===t.destinationBranchId)?.name || t.destinationBranchId);
+      dt.push([t.startDate, v?.code||'', d?.name||'', orig, dest, t.kmTraveled||0, (t.liters||0).toFixed(2), (t.cost||0).toFixed(2), t.deliveries||0, t.route||'']);
+    });
+    const wsDt = XLSX.utils.aoa_to_sheet(dt);
+    wsDt['!cols'] = [{wch:12},{wch:10},{wch:20},{wch:18},{wch:18},{wch:8},{wch:8},{wch:10},{wch:8},{wch:8}];
+    XLSX.utils.book_append_sheet(wb, wsDt, 'Viajes');
+
+    XLSX.writeFile(wb, `resumen_flota_${a.month}.xlsx`);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -5489,19 +5588,20 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
           <Archive className="w-4 h-4" /> Cerrar mes
         </button>
       </div>
+
       {showModal && (
         <div className="bg-white rounded-xl border-2 border-amber-500/40 p-5">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="font-bold text-amber-200">Cerrar mes</h3>
-            <button onClick={() => setShowModal(false)} className="text-emerald-700"><X className="w-5 h-5" /></button>
+            <h3 className="font-bold text-stone-900">Cerrar mes manualmente</h3>
+            <button onClick={() => setShowModal(false)} className="text-stone-500"><X className="w-5 h-5" /></button>
           </div>
           {available.length === 0 ? <div className="text-sm text-stone-400 py-4">Sin meses por cerrar.</div> :
             <div className="space-y-2">
               {available.map(m => {
                 const c = trips.filter(t => t.startDate.startsWith(m)).length;
-                const l = new Date(m + '-01').toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
+                const l = new Date(m+'-01').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
                 return (
-                  <button key={m} onClick={() => close(m)} className="w-full text-left p-3 border-2 border-stone-200 rounded-lg hover:border-amber-500/40 bg-stone-50">
+                  <button key={m} onClick={() => close(m)} className="w-full text-left p-3 border-2 border-stone-200 rounded-lg hover:border-amber-500 bg-stone-50">
                     <div className="font-bold text-stone-900 capitalize">{l}</div>
                     <div className="text-xs text-stone-500 font-mono">{c} viajes</div>
                   </button>
@@ -5510,25 +5610,88 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
             </div>}
         </div>
       )}
+
       {archivedMonths.length === 0 ? (
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-8 text-center text-stone-400">
           <Archive className="w-10 h-10 mx-auto mb-2 opacity-50" />
           <div className="text-sm">No hay meses archivados.</div>
+          <div className="text-xs mt-1">Los meses anteriores se archivan automáticamente al iniciar el nuevo mes.</div>
         </div>
       ) : (
         <div className="space-y-3">
-          {[...archivedMonths].sort((a, b) => b.month.localeCompare(a.month)).map(a => {
-            const l = new Date(a.month + '-01').toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
+          {[...archivedMonths].sort((a,b)=>b.month.localeCompare(a.month)).map(a => {
+            const l = new Date(a.month+'-01').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
+            const mt = a.tripsSnapshot || [];
+            const vs = a.vehiclesSnapshot || vehicles;
+            const isExpanded = expanded === a.month;
             return (
-              <div key={a.month} className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-                <div className="font-bold text-stone-900 capitalize">{l}</div>
-                <div className="text-xs text-stone-500 font-mono">Cerrado {new Date(a.closedAt).toLocaleDateString('es-VE')}</div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm mt-3">
-                  <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">Viajes</div><div className="font-bold text-stone-900">{a.tripCount}</div></div>
-                  <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">KM</div><div className="font-bold text-stone-900">{a.totalKm.toLocaleString()}</div></div>
-                  <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">Litros</div><div className="font-bold text-stone-900">{a.totalLiters.toFixed(0)}</div></div>
-                  <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">Gasto</div><div className="font-bold text-stone-900">${a.totalCost.toFixed(2)}</div></div>
+              <div key={a.month} className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-black text-stone-900 capitalize text-base">{l}</div>
+                      <div className="text-xs text-stone-400 font-mono flex items-center gap-1.5 mt-0.5">
+                        {a.autoArchived ? '🤖 Archivado automáticamente' : '📁 Archivado manualmente'} · {new Date(a.closedAt).toLocaleDateString('es-VE')}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => downloadExcel(a)} className="flex items-center gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg transition">
+                        <Download className="w-3.5 h-3.5" /> Excel
+                      </button>
+                      <button onClick={() => setExpanded(isExpanded ? null : a.month)} className="text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold px-3 py-1.5 rounded-lg transition">
+                        {isExpanded ? '▲ Cerrar' : '▼ Ver detalle'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm mt-3">
+                    <div className="bg-stone-50 rounded-lg p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">Viajes</div><div className="font-bold text-stone-900">{a.tripCount}</div></div>
+                    <div className="bg-stone-50 rounded-lg p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">KM Total</div><div className="font-bold text-stone-900">{(a.totalKm||0).toLocaleString()}</div></div>
+                    <div className="bg-stone-50 rounded-lg p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">Litros</div><div className="font-bold text-stone-900">{(a.totalLiters||0).toFixed(0)}</div></div>
+                    <div className="bg-stone-50 rounded-lg p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">Gasto</div><div className="font-bold text-emerald-700">${(a.totalCost||0).toFixed(2)}</div></div>
+                  </div>
                 </div>
+
+                {/* Detalle por camión */}
+                {isExpanded && (
+                  <div className="border-t border-stone-200 overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-stone-800 text-stone-200 uppercase tracking-wider">
+                        <tr>
+                          <th className="text-left px-3 py-2">Unidad</th>
+                          <th className="text-right px-3 py-2">Viajes</th>
+                          <th className="text-right px-3 py-2">KM</th>
+                          <th className="text-right px-3 py-2">Litros</th>
+                          <th className="text-right px-3 py-2">Costo $</th>
+                          <th className="text-right px-3 py-2">Entregas</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {vs.map((v,i) => {
+                          const vt = mt.filter(t => t.vehicleId === v.id);
+                          if (vt.length === 0) return null;
+                          return (
+                            <tr key={v.id} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'}`}>
+                              <td className="px-3 py-2"><div className="font-bold">{v.code}</div><div className="text-stone-400">{v.plate}</div></td>
+                              <td className="px-3 py-2 text-right font-mono">{vt.length}</td>
+                              <td className="px-3 py-2 text-right font-mono">{vt.reduce((s,t)=>s+(t.kmTraveled||0),0).toLocaleString()}</td>
+                              <td className="px-3 py-2 text-right font-mono">{vt.reduce((s,t)=>s+(t.liters||0),0).toFixed(1)}</td>
+                              <td className="px-3 py-2 text-right font-mono font-bold text-emerald-700">${vt.reduce((s,t)=>s+(t.cost||0),0).toFixed(2)}</td>
+                              <td className="px-3 py-2 text-right font-mono">{vt.reduce((s,t)=>s+(t.deliveries||0),0)}</td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="border-t-2 border-stone-300 bg-emerald-50">
+                          <td className="px-3 py-2 font-black text-stone-900">TOTAL</td>
+                          <td className="px-3 py-2 text-right font-black font-mono">{mt.length}</td>
+                          <td className="px-3 py-2 text-right font-black font-mono">{mt.reduce((s,t)=>s+(t.kmTraveled||0),0).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right font-black font-mono">{mt.reduce((s,t)=>s+(t.liters||0),0).toFixed(1)}</td>
+                          <td className="px-3 py-2 text-right font-black font-mono text-emerald-700">${mt.reduce((s,t)=>s+(t.cost||0),0).toFixed(2)}</td>
+                          <td className="px-3 py-2 text-right font-black font-mono">{mt.reduce((s,t)=>s+(t.deliveries||0),0)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             );
           })}
