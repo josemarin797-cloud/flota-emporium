@@ -21,6 +21,7 @@ const KEYS = {
   DISC_QUEUE: '__emp:discordQueue',
   CHECKLISTS: 'emp:v4:checklists',
   MAINT_RECORDS: 'emp:v4:maint_records',
+  INCIDENTS: 'emp:v4:incidents',
 };
 
 // ============================================================
@@ -348,6 +349,7 @@ export default function App() {
   const [gpsTracks, setGpsTracks] = useState([]);
   const [checklists, setChecklists] = useState([]);
   const [maintRecords, setMaintRecords] = useState([]);
+  const [incidents, setIncidents] = useState([]);
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
 
@@ -387,6 +389,8 @@ export default function App() {
         // Cargar registros de mantenimiento desde storage
         const mrLocal = await window.storage.get(KEYS.MAINT_RECORDS).catch(() => null);
         if (mrLocal?.value) setMaintRecords(JSON.parse(mrLocal.value));
+        const incLocal = await window.storage.get(KEYS.INCIDENTS).catch(() => null);
+        if (incLocal?.value) setIncidents(JSON.parse(incLocal.value));
       } catch (e) {}
       setLoading(false);
     };
@@ -504,6 +508,7 @@ export default function App() {
   const saveGpsTracks = (d) => { setGpsTracks(d); persist(KEYS.GPS_TRACKS, d); };
   const saveHandoffs = (d) => { setHandoffs(d); persist(KEYS.HANDOFFS, d); };
   const saveMaintRecords = (d) => { setMaintRecords(d); persist(KEYS.MAINT_RECORDS, d); };
+  const saveIncidents = (d) => { setIncidents(d); persist(KEYS.INCIDENTS, d); };
   // saveChecklists: guarda LOCAL siempre + Supabase si está disponible
   const saveChecklists = async (d) => {
     setChecklists(d);
@@ -619,6 +624,7 @@ export default function App() {
         checklists={checklists} saveChecklists={saveChecklists}
         config={config}
         handoffs={handoffs} saveHandoffs={saveHandoffs}
+        incidents={incidents} saveIncidents={saveIncidents}
       />
       <InstallAppButton />
     </>;
@@ -634,10 +640,12 @@ export default function App() {
         checklists={checklists}
         handoffs={handoffs}
         maintRecords={maintRecords}
+        incidents={incidents}
         saveVehicles={saveVehicles} saveDrivers={saveDrivers} saveBranches={saveBranches}
         saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} saveGpsTracks={saveGpsTracks}
         saveArchived={saveArchived} saveConfig={saveConfig} savePhotos={savePhotos} saveChecklists={saveChecklists}
         saveMaintRecords={saveMaintRecords}
+        saveIncidents={saveIncidents}
       />
       <InstallAppButton />
     </>;
@@ -1204,8 +1212,9 @@ function LeafletMap({ markers = [], polylines = [], height = '400px', center = [
 // ============================================================
 // APP DEL CHOFER
 // ============================================================
-function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs }) {
+function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents }) {
   const [tab, setTab] = useState('trip');
+  const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [step, setStep] = useState('select');
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [currentTrip, setCurrentTrip] = useState(null);
@@ -1622,6 +1631,53 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   };
   const deletePhoto = (id) => { if (confirm('¿Eliminar?')) savePhotos(photos.filter(p => p.id !== id)); };
 
+  const handleIncidentSubmit = async (data) => {
+    const vehicle = selectedVehicle ? vehicles.find(v => v.id === selectedVehicle) : currentTrip ? vehicles.find(v => v.id === currentTrip.vehicleId) : null;
+    const incident = {
+      id: `inc_${Date.now()}`,
+      driverId: currentDriver.id, driverName: currentDriver.name,
+      vehicleId: vehicle?.id || '', vehicleCode: vehicle?.code || '—',
+      tripId: currentTrip?.id || null,
+      type: data.type, severity: data.severity,
+      description: data.description, location: data.location,
+      km: data.km || vehicle?.currentKm || 0,
+      date: new Date().toISOString().slice(0, 10),
+      time: new Date().toTimeString().slice(0, 5),
+      createdAt: Date.now(), status: 'Reportado',
+    };
+    saveIncidents([incident, ...incidents]);
+    const wh = config.discordWebhookGeneral;
+    if (wh) {
+      const sevColor = { Leve: 0xf59e0b, Moderado: 0xef4444, Grave: 0x7f1d1d }[data.severity] || 0xef4444;
+      await sendDiscordNotification(wh, {
+        title: `🚨 INCIDENTE · ${vehicle?.code || '—'} · ${data.severity.toUpperCase()}`,
+        description: `**${currentDriver.name}** reportó un incidente`,
+        color: sevColor,
+        fields: [
+          { name: '⚠️ Tipo', value: data.type, inline: true },
+          { name: '🔴 Severidad', value: data.severity, inline: true },
+          { name: '📍 Lugar', value: data.location || '—', inline: true },
+          { name: '📊 KM', value: String(incident.km), inline: true },
+          { name: '🕐 Hora', value: incident.time, inline: true },
+          { name: '📅 Fecha', value: incident.date, inline: true },
+          { name: '📝 Descripción', value: data.description, inline: false },
+        ],
+        footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
+      });
+      if (data.photos?.length > 0) {
+        for (const photo of data.photos) {
+          try {
+            const fd = new FormData();
+            fd.append('files[0]', photo);
+            fd.append('payload_json', JSON.stringify({ content: `📸 Evidencia · ${vehicle?.code} · ${data.severity}` }));
+            await fetch(wh, { method: 'POST', body: fd });
+          } catch(e) {}
+        }
+      }
+    }
+    setShowIncidentForm(false);
+  };
+
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900">
       <header className="bg-gradient-to-r from-[#1a1d1a] via-[#252726] to-[#1a1d1a] border-b border-stone-700 px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-xl">
@@ -1649,12 +1705,27 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         </div>
       </header>
 
+      {/* Modal Incidente */}
+      {showIncidentForm && (
+        <IncidentReportForm
+          vehicles={vehicles} currentTrip={currentTrip} selectedVehicle={selectedVehicle}
+          driver={currentDriver}
+          onSubmit={handleIncidentSubmit}
+          onCancel={() => setShowIncidentForm(false)}
+        />
+      )}
+
       <div className="bg-white border-b border-stone-200 sticky top-[60px] z-20 shadow-sm">
         <div className="max-w-lg mx-auto flex">
           <DriverTabBtn active={tab === 'trip'} onClick={() => setTab('trip')} icon={Navigation} label="Viaje" />
           <DriverTabBtn active={tab === 'photos'} onClick={() => setTab('photos')} icon={Camera} label="Fotos" />
           <DriverTabBtn active={tab === 'history'} onClick={() => setTab('history')} icon={History} label="Historial" />
           <DriverTabBtn active={tab === 'contacts'} onClick={() => setTab('contacts')} icon={Phone} label="Contactos" />
+          <button onClick={() => setShowIncidentForm(true)}
+            className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 bg-rose-600 hover:bg-rose-700 text-white transition">
+            <AlertTriangle className="w-5 h-5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Incidente</span>
+          </button>
         </div>
       </div>
 
@@ -2878,7 +2949,7 @@ function DriverHistoryView({ trips, vehicles, branches }) {
 // ============================================================
 // COORDINADOR
 // ============================================================
-function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords }) {
+function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], incidents = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents }) {
   const [tab, setTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [autoArchiveBanner, setAutoArchiveBanner] = useState(null);
@@ -2924,6 +2995,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     { id: 'drivers', label: 'Choferes', icon: Users },
     { id: 'branches', label: 'Sucursales', icon: MapPin },
     { id: 'maintenance', label: 'Mantenim.', icon: Wrench },
+    { id: 'incidents', label: 'Incidentes', icon: AlertTriangle },
     { id: 'documents', label: 'Documentos', icon: FileText },
     { id: 'history', label: 'Histórico', icon: History },
     { id: 'checklists', label: 'Checklists', icon: CheckCircle2 },
@@ -2987,7 +3059,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-5">
-        {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} />}
+        {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} incidents={incidents} />}
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
         {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
@@ -2995,6 +3067,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
         {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} maintRecords={maintRecords} saveMaintRecords={saveMaintRecords} />}
+        {tab === 'incidents' && <IncidentsTab incidents={incidents} vehicles={vehicles} drivers={drivers} saveIncidents={saveIncidents} />}
         {tab === 'documents' && <DocumentsTab vehicles={vehicles} saveVehicles={saveVehicles} config={config} />}
         {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} />}
         {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} saveChecklists={saveChecklists} sbFetch={sbFetch} />}
@@ -3016,7 +3089,7 @@ function DarkMonthSelector({ selectedMonth, setSelectedMonth }) {
   );
 }
 
-function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selectedMonth, gpsTracks, config, checklists = [], handoffs = [] }) {
+function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selectedMonth, gpsTracks, config, checklists = [], handoffs = [], incidents = [] }) {
   const [selectedChecklist, setSelectedChecklist] = React.useState(null);
   const kpis = useMemo(() => {
     const totalKm = trips.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
@@ -3071,6 +3144,33 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
       {/* SEMÁFORO DE CHEQUEOS HOY */}
       <FleetChecklistWidget vehicles={vehicles} checklists={checklists} drivers={drivers} onSelect={setSelectedChecklist} />
       {selectedChecklist && <ChecklistDetailModal checklist={selectedChecklist} vehicles={vehicles} onClose={() => setSelectedChecklist(null)} />}
+
+      {/* ALERTAS INCIDENTES RECIENTES */}
+      {(() => {
+        const recent = incidents.filter(i => i.status !== 'Resuelto' && (Date.now() - i.createdAt) < 86400000 * 3);
+        if (recent.length === 0) return null;
+        return (
+          <div className="bg-white rounded-xl border-2 border-rose-300 shadow-sm overflow-hidden">
+            <div className="px-3 py-2 bg-rose-50 border-b border-rose-200 flex items-center gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+              <div className="text-xs font-bold text-rose-700 uppercase tracking-wider">Incidentes recientes ({recent.length})</div>
+            </div>
+            <div className="p-3 space-y-2">
+              {recent.slice(0,3).map(inc => (
+                <div key={inc.id} className={`flex items-center justify-between px-3 py-2 rounded-lg ${inc.severity==='Grave'?'bg-rose-100 border border-rose-300':inc.severity==='Moderado'?'bg-rose-50 border border-rose-200':'bg-amber-50 border border-amber-200'}`}>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span>{inc.severity==='Grave'?'🚨':inc.severity==='Moderado'?'🔴':'🟡'}</span>
+                    <span className="font-bold">{inc.vehicleCode}</span>
+                    <span className="text-stone-600">— {inc.type}</span>
+                    <span className="text-stone-400 text-xs">{inc.driverName}</span>
+                  </div>
+                  <span className="text-xs text-stone-500 font-mono">{inc.date} {inc.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ALERTAS DOCUMENTOS VENCIDOS/PRÓXIMOS */}
       {(() => {
@@ -5676,6 +5776,191 @@ const STATUS_STYLE = {
   stone:   'bg-stone-100 text-stone-600 border border-stone-200',
 };
 const STATUS_DOT = { rose: 'bg-rose-500', amber: 'bg-amber-400', emerald: 'bg-emerald-500', stone: 'bg-stone-400' };
+
+// ============================================================
+// REPORTE DE INCIDENTES
+// ============================================================
+const INCIDENT_TYPES = ['Golpe / Raspón', 'Accidente de tránsito', 'Daño mecánico', 'Robo / Vandalismo', 'Volcamiento', 'Falla eléctrica', 'Otro'];
+const INCIDENT_SEVERITIES = ['Leve', 'Moderado', 'Grave'];
+
+function IncidentReportForm({ vehicles, currentTrip, selectedVehicle, driver, onSubmit, onCancel }) {
+  const vehicle = selectedVehicle ? vehicles.find(v => v.id === selectedVehicle) : currentTrip ? vehicles.find(v => v.id === currentTrip.vehicleId) : null;
+  const [form, setForm] = useState({ type: 'Golpe / Raspón', severity: 'Leve', description: '', location: '', km: vehicle?.currentKm || '', vehicleId: vehicle?.id || '' });
+  const [photos, setPhotos] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const valid = form.description.trim().length > 0;
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    await onSubmit({ ...form, photos });
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-end md:items-center justify-center p-0 md:p-4">
+      <div className="bg-white w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="bg-rose-600 px-5 py-4 flex items-center justify-between rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-6 h-6 text-white" />
+            <div>
+              <div className="font-black text-white text-lg">Reportar Incidente</div>
+              <div className="text-rose-200 text-xs">{vehicle ? `${vehicle.code} · ${vehicle.plate}` : 'Sin unidad asignada'}</div>
+            </div>
+          </div>
+          <button onClick={onCancel} className="text-white/70 hover:text-white"><X className="w-6 h-6" /></button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Tipo y severidad */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">Tipo de incidente</label>
+              <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="w-full border-2 border-stone-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:border-rose-400 focus:outline-none">
+                {INCIDENT_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">Severidad</label>
+              <div className="flex flex-col gap-1.5">
+                {INCIDENT_SEVERITIES.map(s => (
+                  <button key={s} onClick={() => setForm({...form, severity: s})}
+                    className={`py-2 rounded-xl text-xs font-bold border-2 transition ${form.severity === s
+                      ? s === 'Leve' ? 'bg-amber-500 border-amber-500 text-white'
+                        : s === 'Moderado' ? 'bg-rose-500 border-rose-500 text-white'
+                        : 'bg-rose-900 border-rose-900 text-white'
+                      : 'bg-stone-50 border-stone-200 text-stone-600'}`}>
+                    {s === 'Leve' ? '🟡' : s === 'Moderado' ? '🔴' : '🚨'} {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Descripción */}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">Descripción *</label>
+            <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={3}
+              placeholder="Describe qué pasó, cómo ocurrió, qué parte del vehículo fue afectada..."
+              className="w-full border-2 border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:border-rose-400 focus:outline-none resize-none" />
+          </div>
+
+          {/* Lugar y KM */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">Lugar / Ubicación</label>
+              <input type="text" value={form.location} onChange={e => setForm({...form, location: e.target.value})}
+                placeholder="Av. Principal, Casarapa..." className="w-full border-2 border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:border-rose-400 focus:outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">KM al momento</label>
+              <input type="number" value={form.km} onChange={e => setForm({...form, km: e.target.value})}
+                className="w-full border-2 border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:border-rose-400 focus:outline-none" />
+            </div>
+          </div>
+
+          {/* Fotos */}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">Fotos del daño</label>
+            <input type="file" accept="image/*" capture="environment" multiple id="incidentPhotos"
+              onChange={e => setPhotos([...photos, ...Array.from(e.target.files)])} className="hidden" />
+            <label htmlFor="incidentPhotos"
+              className="flex items-center justify-center gap-2 py-3 px-4 bg-stone-50 hover:bg-stone-100 border-2 border-dashed border-stone-300 hover:border-rose-400 rounded-xl cursor-pointer text-stone-600 text-sm font-medium transition w-full">
+              <Camera className="w-4 h-4" /> {photos.length > 0 ? `${photos.length} foto(s) cargada(s) — Agregar más` : 'Tomar / seleccionar fotos'}
+            </label>
+            {photos.length > 0 && (
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {photos.map((f,i) => (
+                  <div key={i} className="relative">
+                    <img src={URL.createObjectURL(f)} className="w-20 h-20 object-cover rounded-xl border-2 border-stone-200" />
+                    <button onClick={() => setPhotos(photos.filter((_,j)=>j!==i))} className="absolute -top-1.5 -right-1.5 bg-rose-500 rounded-full w-5 h-5 text-white text-xs flex items-center justify-center font-bold shadow">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Botones */}
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <button onClick={onCancel} className="py-3.5 rounded-xl font-bold text-stone-600 bg-stone-100 border-2 border-stone-200 hover:bg-stone-200 transition">Cancelar</button>
+            <button onClick={handleSubmit} disabled={!valid || submitting}
+              className={`py-3.5 rounded-xl font-black text-white transition ${valid && !submitting ? 'bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-600/30' : 'bg-stone-200 text-stone-400'}`}>
+              {submitting ? '⏳ Enviando...' : '🚨 Reportar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function IncidentsTab({ incidents, vehicles, drivers, saveIncidents }) {
+  const [filter, setFilter] = useState('all');
+  const SEV_STYLE = { Leve: 'bg-amber-100 text-amber-800 border-amber-300', Moderado: 'bg-rose-100 text-rose-800 border-rose-300', Grave: 'bg-rose-900/20 text-rose-900 border-rose-900/40' };
+
+  const filtered = incidents.filter(i => filter === 'all' || i.severity === filter).sort((a,b) => b.createdAt - a.createdAt);
+
+  const updateStatus = (id, status) => saveIncidents(incidents.map(i => i.id === id ? {...i, status} : i));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="font-black text-stone-900 text-lg">Incidentes</h2>
+        <div className="flex gap-2">
+          {['all','Leve','Moderado','Grave'].map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition ${filter===f?'bg-stone-900 text-white border-stone-900':'bg-white text-stone-600 border-stone-200 hover:border-stone-400'}`}>
+              {f==='all'?'Todos':f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-xl border border-stone-200 p-10 text-center text-stone-400">
+          <AlertTriangle className="w-10 h-10 mx-auto mb-2 opacity-30" />
+          <div className="text-sm">Sin incidentes registrados.</div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(inc => {
+            const v = vehicles.find(v => v.id === inc.vehicleId);
+            const d = drivers.find(d => d.id === inc.driverId);
+            return (
+              <div key={inc.id} className={`bg-white rounded-xl border-2 shadow-sm overflow-hidden ${inc.severity==='Grave'?'border-rose-400':inc.severity==='Moderado'?'border-rose-300':'border-amber-300'}`}>
+                <div className={`px-4 py-2 flex items-center justify-between ${inc.severity==='Grave'?'bg-rose-900/10':inc.severity==='Moderado'?'bg-rose-50':'bg-amber-50'}`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{inc.severity==='Grave'?'🚨':inc.severity==='Moderado'?'🔴':'🟡'}</span>
+                    <div>
+                      <div className="font-black text-stone-900">{inc.vehicleCode} — {inc.type}</div>
+                      <div className="text-xs text-stone-500">{inc.date} · {inc.time} · {d?.name || inc.driverName}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold border ${SEV_STYLE[inc.severity]}`}>{inc.severity}</span>
+                    <select value={inc.status} onChange={e => updateStatus(inc.id, e.target.value)}
+                      className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white font-medium">
+                      <option>Reportado</option>
+                      <option>En revisión</option>
+                      <option>Resuelto</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-sm text-stone-800">{inc.description}</p>
+                  <div className="flex gap-4 mt-2 text-xs text-stone-500 font-mono">
+                    {inc.location && <span>📍 {inc.location}</span>}
+                    {inc.km > 0 && <span>📊 {Number(inc.km).toLocaleString()} km</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function DocumentsTab({ vehicles, saveVehicles }) {
   const [selectedVehicle, setSelectedVehicle] = useState(vehicles[0]?.id || null);
