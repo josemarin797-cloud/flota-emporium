@@ -2592,8 +2592,8 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack, 
         notes: isL300 ? 'Bomba gasolinera' : 'Tanque Palma Real',
       };
       saveFuelRecords([rec, ...fuelRecords]);
-      // Discord
-      const wh = getMaintWebhook(vehicle?.id, vehicles, config);
+      // Discord — webhook directo del vehículo
+      const wh = vehicle?.maintenanceWebhook || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
       if (wh) {
         const lastLoad = fuelRecords.filter(r => r.vehicleId === vehicle?.id).sort((a,b) => b.createdAt - a.createdAt)[0];
         const kmSince = lastLoad ? (Number(form.kmEnd) - (lastLoad.km||0)) : null;
