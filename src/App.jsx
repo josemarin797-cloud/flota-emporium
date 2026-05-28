@@ -4782,10 +4782,10 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         // ════════════════════════════════════════════════════════════════
         // HOJA — COMBUSTIBLE
         // ════════════════════════════════════════════════════════════════
-        const NC = 9;
+        const NFC = 9;
         const fc = [];
-        fc.push(['REGISTRO DE COMBUSTIBLE — TRANSPORTE EMPORIUM', ...Array(NC-1).fill('')]);
-        fc.push([`Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(NC-1).fill('')]);
+        fc.push(['REGISTRO DE COMBUSTIBLE — TRANSPORTE EMPORIUM', ...Array(NFC-1).fill('')]);
+        fc.push([`Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(NFC-1).fill('')]);
         fc.push(Array(NC).fill(''));
         fc.push(['Fecha', 'Hora', 'Unidad', 'Placa', 'Chofer', 'KM', 'Litros', 'Precio/L', 'Total $', 'KM desde última carga', 'L/100km real']);
         const fcHeaders = ['Fecha','Hora','Unidad','Placa','Chofer','KM','Litros','Precio/L $','Total $'];
