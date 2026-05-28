@@ -1225,6 +1225,7 @@ function LeafletMap({ markers = [], polylines = [], height = '400px', center = [
 function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords, config }) {
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [liters, setLiters] = useState('');
+  const [tankLevel, setTankLevel] = useState('');
   const [photo, setPhoto] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -1253,6 +1254,7 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
       time: new Date().toTimeString().slice(0, 5),
       km: selectedV?.currentKm || 0,
       liters: Number(litrosVal),
+      tankLevelBefore: tankLevel,
       pricePerLiter,
       createdAt: Date.now(),
       notes: isL300 ? 'Bomba gasolinera' : 'Tanque Palma Real',
@@ -1273,6 +1275,7 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
           { name: '🕐 Hora', value: rec.time, inline: true },
           { name: '📅 Fecha', value: rec.date, inline: true },
           { name: '⛽ Tipo', value: isL300 ? 'Bomba gasolinera' : 'Tanque Palma Real', inline: true },
+          ...(tankLevel ? [{ name: '🪣 Nivel antes de surtir', value: tankLevel, inline: true }] : []),
           ...(kmSinceLastLoad > 0 ? [{ name: '🛣️ KM desde última carga', value: `${kmSinceLastLoad.toLocaleString()} km`, inline: true }] : []),
           ...(realConsumption ? [{ name: '📈 Consumo real', value: `${realConsumption} L/100km`, inline: true }] : []),
         ],
@@ -1292,6 +1295,7 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
     setSaving(false);
     setSaved(true);
     setLiters('');
+    setTankLevel('');
     setPhoto(null);
     setTimeout(() => setSaved(false), 4000);
   };
@@ -1335,6 +1339,28 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
             <span className="font-bold">Última carga:</span> {lastLoad.date} · {lastLoad.liters}L · KM {(lastLoad.km||0).toLocaleString()}
             {kmSinceLastLoad > 0 && <span className="ml-2 text-amber-700 font-bold">· {kmSinceLastLoad.toLocaleString()} km recorridos</span>}
             {realConsumption && <span className="ml-2 text-emerald-700 font-bold">· {realConsumption} L/100km real</span>}
+          </div>
+        )}
+
+        {/* Nivel del tanque antes de surtir */}
+        {selectedVehicleId && (
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">¿Cuánto tenía antes de surtir?</label>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { id: 'vacio',       emoji: '🔴', label: 'Vacío', desc: '~0L'  },
+                { id: 'cuarto',      emoji: '🟡', label: '1/4',   desc: '~25%' },
+                { id: 'mitad',       emoji: '🟠', label: '1/2',   desc: '~50%' },
+                { id: 'tres_cuartos',emoji: '🟢', label: '3/4',   desc: '~75%' },
+              ].map(opt => (
+                <button key={opt.id} onClick={() => setTankLevel(opt.label)}
+                  className={`flex flex-col items-center py-3 rounded-xl border-2 transition ${tankLevel===opt.label?'border-amber-400 bg-amber-100':'border-stone-200 bg-white hover:border-amber-300'}`}>
+                  <span className="text-xl">{opt.emoji}</span>
+                  <span className="text-xs font-black text-stone-900 mt-0.5">{opt.label}</span>
+                  <span className="text-[10px] text-stone-400">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
