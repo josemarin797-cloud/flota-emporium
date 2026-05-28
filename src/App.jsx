@@ -7224,8 +7224,9 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
     alert('✅ App limpia. Puedes empezar a registrar viajes reales.');
   };
 
-  const cancelarViajesActivos = () => {
+  const cancelarViajesActivos = async () => {
     if (!confirm(`¿Cancelar los ${vehicles.filter(v=>v.status==='EN RUTA').length || 'todos los'} viajes activos?\n\nLos camiones quedarán disponibles para nuevos viajes.`)) return;
+    try { const { supabase } = await import('./lib/syncStorage.js'); await supabase.from('app_data').delete().eq('key', 'emp:v4:active_trips'); } catch(e) {}
     saveActiveTrips([]);
     saveVehicles(vehicles.map(v => v.status === 'EN RUTA' ? { ...v, status: 'AL DIA' } : v));
     alert('✅ Viajes activos cancelados.');
