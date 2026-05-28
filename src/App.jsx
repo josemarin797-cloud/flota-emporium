@@ -4518,18 +4518,20 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 
           // Sección: detalle por viaje
           rows.push(['DETALLE DE VIAJES', ...Array(14).fill('')]);
-          rows.push(['Fecha', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'KM Salida', 'KM Llegada', 'T.Viaje', 'Espera Origen', 'Tiempo en Destino', 'Salida Destino', 'T.Espera Suc.', 'KM rec.', 'Litros', 'Costo $', 'Entregas', 'Notas']);
+          rows.push(['Fecha', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'KM Salida', 'KM Llegada', 'T.Viaje', 'Espera Origen', 'Tiempo en Destino', 'Salida Destino', 'T.Espera Suc.', 'KM rec.', 'Litros consumo', 'Costo $', 'Entregas', 'Notas', 'L. Cargados', 'Fuente combustible']);
 
           const sortedTrips = [...vt].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime));
           const detStartR = rows.length;
           sortedTrips.forEach(t => {
             const d = drivers.find(x => x.id === t.driverId);
             const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
-            const dest = branches.find(x => x.id === t.destinationBranchId);
+            const destLabel = resolveDestName(t, branches);
+            // Buscar carga de combustible del mismo día y camión
+            const fuelLoad = fuelRecords?.find(r => r.vehicleId === t.vehicleId && r.date === t.startDate);
             const tDest = t.timeAtDestinationMinutes;
             rows.push([
               t.startDate, d?.shortName || '',
-              o?.name || '', dest?.name || '',
+              o?.name || '', destLabel,
               t.startTime || '', t.endTime || '',
               t.kmStart || 0, t.kmEnd || 0,
               fmtMin(t.tripMinutes),
@@ -4538,7 +4540,9 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               addMin(t.endTime, tDest),
               t.waitMinutes ? fmtMin(t.waitMinutes) : '',
               r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
-              t.deliveries || 0, t.notes || ''
+              t.deliveries || 0, t.notes || '',
+              fuelLoad ? fuelLoad.liters : '',
+              fuelLoad ? fuelLoad.notes : '',
             ]);
           });
           const detEndR = rows.length;
@@ -4669,30 +4673,32 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         detD.push(['DETALLE DE VIAJES DEL MES — TRANSPORTE EMPORIUM', ...Array(12).fill('')]);
         detD.push([`Total: ${trips.length} viajes  ·  ${periodoStr}`, ...Array(12).fill('')]);
         detD.push(Array(13).fill(''));
-        detD.push(['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje', 'T.Origen', 'T.Destino', 'H.Salida Suc.', 'KM', 'Litros', 'Costo $', 'Entregas']);
+        detD.push(['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje', 'T.Origen', 'T.Destino', 'H.Salida Suc.', 'KM', 'Litros', 'Costo $', 'Entregas', 'Combustible cargado']);
 
         let prevDate = '';
         [...trips].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime)).forEach(t => {
           const v = vehicles.find(x => x.id === t.vehicleId);
           const d = drivers.find(x => x.id === t.driverId);
           const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
-          const dest = branches.find(x => x.id === t.destinationBranchId);
+          const destLabel2 = resolveDestName(t, branches);
+          const fuelLoad2 = fuelRecords?.find(r => r.vehicleId === t.vehicleId && r.date === t.startDate);
           const tDest = t.timeAtDestinationMinutes;
           detD.push([
             t.startDate, v?.code || '', d?.shortName || '',
-            o?.name || '', dest?.name || '',
+            o?.name || '', destLabel2,
             t.startTime || '', t.endTime || '',
             fmtMin(t.tripMinutes),
             fmtMin(t.timeAtBranchPrevMinutes),
             fmtMin(tDest),
             addMin(t.endTime, tDest),
             r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
-            t.deliveries || 0
+            t.deliveries || 0,
+            fuelLoad2 ? `${fuelLoad2.liters}L · ${fuelLoad2.notes}` : '',
           ]);
         });
 
         const wsDet = XLSX.utils.aoa_to_sheet(detD);
-        const NCD = 15;
+        const NCD = 16;
         wsDet['!merges'] = [
           { s: { r: 0, c: 0 }, e: { r: 0, c: NCD - 1 } },
           { s: { r: 1, c: 0 }, e: { r: 1, c: NCD - 1 } },
