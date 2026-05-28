@@ -2924,6 +2924,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     { id: 'drivers', label: 'Choferes', icon: Users },
     { id: 'branches', label: 'Sucursales', icon: MapPin },
     { id: 'maintenance', label: 'Mantenim.', icon: Wrench },
+    { id: 'documents', label: 'Documentos', icon: FileText },
     { id: 'history', label: 'Histórico', icon: History },
     { id: 'checklists', label: 'Checklists', icon: CheckCircle2 },
     { id: 'discord', label: 'Discord', icon: MessageCircle },
@@ -2994,6 +2995,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
         {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} maintRecords={maintRecords} saveMaintRecords={saveMaintRecords} />}
+        {tab === 'documents' && <DocumentsTab vehicles={vehicles} saveVehicles={saveVehicles} config={config} />}
         {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} />}
         {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} saveChecklists={saveChecklists} sbFetch={sbFetch} />}
         {tab === 'discord' && <DiscordTab config={config} saveConfig={saveConfig} vehicles={vehicles} />}
@@ -3069,6 +3071,34 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
       {/* SEMÁFORO DE CHEQUEOS HOY */}
       <FleetChecklistWidget vehicles={vehicles} checklists={checklists} drivers={drivers} onSelect={setSelectedChecklist} />
       {selectedChecklist && <ChecklistDetailModal checklist={selectedChecklist} vehicles={vehicles} onClose={() => setSelectedChecklist(null)} />}
+
+      {/* ALERTAS DOCUMENTOS VENCIDOS/PRÓXIMOS */}
+      {(() => {
+        const docAlerts = vehicles.flatMap(v =>
+          (v.documents||[]).map(d => ({ ...d, vehicleCode: v.code, vehicleColor: v.color||'#10b981', ...docStatus(d.expiryDate) }))
+        ).filter(d => d.days !== null && d.days <= 30).sort((a,b) => a.days - b.days);
+        if (docAlerts.length === 0) return null;
+        return (
+          <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+            <div className="px-3 py-2 bg-stone-50 border-b border-stone-200 flex items-center gap-2">
+              <FileText className="w-3.5 h-3.5 text-stone-600" />
+              <div className="text-xs font-bold text-stone-600 uppercase tracking-wider">Documentos — Alertas</div>
+            </div>
+            <div className="p-3 space-y-2">
+              {docAlerts.map((d,i) => (
+                <div key={i} className={`flex items-center justify-between px-3 py-2 rounded-lg ${d.color==='rose'?'bg-rose-50 border border-rose-200':'bg-amber-50 border border-amber-200'}`}>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.vehicleColor }} />
+                    <span className="font-bold">{d.vehicleCode}</span>
+                    <span className="text-stone-600">→ {d.name}</span>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${STATUS_STYLE[d.color]}`}>{d.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ALERTAS MANTENIMIENTO Y TALLER */}
       {(() => {
@@ -5623,6 +5653,223 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
   );
 }
 
+
+// ============================================================
+// DOCUMENTOS POR VEHÍCULO
+// ============================================================
+const DOC_TYPES = ['Ruta de Carga', 'Trimestral', 'Seguro', 'Permiso Sanitario', 'Circulación', 'Revisión Técnica', 'Otro'];
+
+function docStatus(expiryDate) {
+  if (!expiryDate) return { label: 'Sin fecha', color: 'stone', days: null };
+  const today = new Date(); today.setHours(0,0,0,0);
+  const exp = new Date(expiryDate + 'T00:00:00');
+  const days = Math.floor((exp - today) / 86400000);
+  if (days < 0) return { label: `Vencido hace ${Math.abs(days)}d`, color: 'rose', days };
+  if (days <= 30) return { label: `Vence en ${days}d`, color: 'amber', days };
+  return { label: `${days}d restantes`, color: 'emerald', days };
+}
+
+const STATUS_STYLE = {
+  rose:    'bg-rose-100 text-rose-800 border border-rose-300',
+  amber:   'bg-amber-100 text-amber-800 border border-amber-300',
+  emerald: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
+  stone:   'bg-stone-100 text-stone-600 border border-stone-200',
+};
+const STATUS_DOT = { rose: 'bg-rose-500', amber: 'bg-amber-400', emerald: 'bg-emerald-500', stone: 'bg-stone-400' };
+
+function DocumentsTab({ vehicles, saveVehicles }) {
+  const [selectedVehicle, setSelectedVehicle] = useState(vehicles[0]?.id || null);
+  const [showForm, setShowForm] = useState(false);
+  const [editDoc, setEditDoc] = useState(null);
+  const emptyDoc = { id: '', name: 'Ruta de Carga', issueDate: '', expiryDate: '', notes: '' };
+
+  const vehicle = vehicles.find(v => v.id === selectedVehicle);
+  const docs = vehicle?.documents || [];
+
+  // Alertas globales de todos los vehículos
+  const allAlerts = vehicles.flatMap(v =>
+    (v.documents || []).map(d => ({ ...d, vehicleCode: v.code, ...docStatus(d.expiryDate) }))
+  ).filter(d => d.days !== null && d.days <= 30).sort((a,b) => a.days - b.days);
+
+  const saveDoc = (doc) => {
+    const newDoc = { ...doc, id: doc.id || `doc_${Date.now()}` };
+    const newDocs = doc.id ? docs.map(d => d.id === doc.id ? newDoc : d) : [...docs, newDoc];
+    saveVehicles(vehicles.map(v => v.id === selectedVehicle ? { ...v, documents: newDocs } : v));
+    setShowForm(false); setEditDoc(null);
+  };
+
+  const deleteDoc = (id) => {
+    if (!confirm('¿Eliminar documento?')) return;
+    saveVehicles(vehicles.map(v => v.id === selectedVehicle ? { ...v, documents: docs.filter(d => d.id !== id) } : v));
+  };
+
+  const openEdit = (doc) => { setEditDoc({...doc}); setShowForm(true); };
+  const openNew = () => { setEditDoc({...emptyDoc}); setShowForm(true); };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <h2 className="font-black text-stone-900 text-lg">Documentos</h2>
+      </div>
+
+      {/* Alertas globales */}
+      {allAlerts.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-bold text-stone-600 uppercase tracking-wider">⚠️ Alertas activas</div>
+          {allAlerts.map((d,i) => (
+            <div key={i} className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium ${d.color==='rose'?'bg-rose-50 border border-rose-300':'bg-amber-50 border border-amber-300'}`}>
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${STATUS_DOT[d.color]}`} />
+                <span className="font-bold">{d.vehicleCode}</span>
+                <span className="text-stone-600">→ {d.name}</span>
+              </div>
+              <span className={`text-xs font-bold px-2 py-0.5 rounded ${STATUS_STYLE[d.color]}`}>{d.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Semáforo resumen */}
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 text-xs font-bold text-stone-600 uppercase tracking-wider">
+          Estado por unidad
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-stone-800 text-stone-200 text-[10px] uppercase tracking-wider">
+              <tr>
+                <th className="text-left px-4 py-2.5">Vehículo</th>
+                {DOC_TYPES.slice(0,5).map(t => <th key={t} className="text-center px-2 py-2.5 min-w-[80px]">{t}</th>)}
+                <th className="text-center px-2 py-2.5">Docs</th>
+              </tr>
+            </thead>
+            <tbody>
+              {vehicles.map((v,i) => {
+                const vDocs = v.documents || [];
+                return (
+                  <tr key={v.id} className={`border-t border-stone-100 cursor-pointer hover:bg-emerald-50/40 transition ${selectedVehicle===v.id?'bg-emerald-50':i%2===0?'bg-white':'bg-stone-50'}`}
+                    onClick={() => setSelectedVehicle(v.id)}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: v.color||'#10b981' }} />
+                        <div>
+                          <div className="font-bold text-stone-900">{v.code}</div>
+                          <div className="text-[10px] text-stone-400">{v.plate}</div>
+                        </div>
+                      </div>
+                    </td>
+                    {DOC_TYPES.slice(0,5).map(t => {
+                      const doc = vDocs.find(d => d.name === t);
+                      const st = doc ? docStatus(doc.expiryDate) : null;
+                      return (
+                        <td key={t} className="text-center px-2 py-3">
+                          {st ? (
+                            <div className={`inline-block w-6 h-6 rounded-full ${STATUS_DOT[st.color]}`} title={st.label} />
+                          ) : (
+                            <div className="inline-block w-6 h-6 rounded-full bg-stone-200" title="Sin registro" />
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="text-center px-2 py-3 text-xs font-bold text-stone-500">{vDocs.length}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Detalle del vehículo seleccionado */}
+      {vehicle && (
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: vehicle.color||'#10b981' }} />
+              <span className="font-bold text-stone-900">{vehicle.code} — {vehicle.plate}</span>
+              <span className="text-xs text-stone-400">{docs.length} documentos</span>
+            </div>
+            <button onClick={openNew} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
+              <Plus className="w-3.5 h-3.5" /> Agregar
+            </button>
+          </div>
+
+          {/* Formulario inline */}
+          {showForm && editDoc && (
+            <div className="p-4 bg-emerald-50 border-b border-emerald-200">
+              <div className="font-bold text-stone-900 mb-3 text-sm">{editDoc.id ? 'Editar documento' : 'Nuevo documento'}</div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="col-span-2 md:col-span-1">
+                  <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Tipo de documento</label>
+                  <select value={editDoc.name} onChange={e => setEditDoc({...editDoc, name: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                    {DOC_TYPES.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha emisión</label>
+                  <input type="date" value={editDoc.issueDate} onChange={e => setEditDoc({...editDoc, issueDate: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha vencimiento *</label>
+                  <input type="date" value={editDoc.expiryDate} onChange={e => setEditDoc({...editDoc, expiryDate: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+                </div>
+                <div className="col-span-2 md:col-span-3">
+                  <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Notas (opcional)</label>
+                  <input type="text" value={editDoc.notes||''} onChange={e => setEditDoc({...editDoc, notes: e.target.value})} placeholder="Ej: Renovado en oficina central..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end mt-3">
+                <button onClick={() => { setShowForm(false); setEditDoc(null); }} className="px-3 py-1.5 text-sm text-stone-500 border border-stone-200 rounded-lg">Cancelar</button>
+                <button onClick={() => saveDoc(editDoc)} disabled={!editDoc.expiryDate} className="px-4 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold rounded-lg">Guardar</button>
+              </div>
+            </div>
+          )}
+
+          {docs.length === 0 ? (
+            <div className="py-10 text-center text-stone-400 text-sm">Sin documentos registrados. Usa "Agregar" para añadir.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-stone-100 text-[10px] text-stone-600 uppercase tracking-wider font-bold">
+                  <tr>
+                    <th className="text-left px-4 py-2.5">Documento</th>
+                    <th className="text-center px-3 py-2.5">Emisión</th>
+                    <th className="text-center px-3 py-2.5">Vencimiento</th>
+                    <th className="text-center px-3 py-2.5">Estado</th>
+                    <th className="text-left px-3 py-2.5">Notas</th>
+                    <th className="px-2 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {docs.map((d,i) => {
+                    const st = docStatus(d.expiryDate);
+                    return (
+                      <tr key={d.id} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'} hover:bg-emerald-50/30`}>
+                        <td className="px-4 py-3 font-bold text-stone-900">{d.name}</td>
+                        <td className="px-3 py-3 text-center text-stone-500 font-mono text-xs">{d.issueDate || '—'}</td>
+                        <td className="px-3 py-3 text-center font-mono text-xs font-bold text-stone-800">{d.expiryDate || '—'}</td>
+                        <td className="px-3 py-3 text-center">
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${STATUS_STYLE[st.color]}`}>{st.label}</span>
+                        </td>
+                        <td className="px-3 py-3 text-xs text-stone-500">{d.notes||'—'}</td>
+                        <td className="px-2 py-3">
+                          <div className="flex gap-1">
+                            <button onClick={() => openEdit(d)} className="text-stone-300 hover:text-emerald-600 transition"><Edit className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => deleteDoc(d.id)} className="text-stone-300 hover:text-rose-500 transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveArchived }) {
   const [showModal, setShowModal] = useState(false);
