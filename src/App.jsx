@@ -2820,7 +2820,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     const isFuelDest = trip.destinationBranchId === 'surtir' ||
       (trip.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(trip.customDestName || ''));
     const wh2 = isFuelDest
-      ? (getMaintWebhook(trip.vehicleId, vehicles, config))
+      ? (vehicle?.maintenanceWebhook || config.discordWebhookMaintenance || config.discordWebhookGeneral)
       : (config.discordWebhookByVehicle?.[trip.vehicleId] || config.discordWebhookGeneral);
     if (wh2) sendDiscordNotification(wh2, {
       title: `🚪 Salida de sucursal · ${vehicle?.code}`,
