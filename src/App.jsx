@@ -1337,11 +1337,13 @@ function LeafletMap({ markers = [], polylines = [], height = '400px', center = [
         });
         L.marker([m.lat, m.lng], { icon }).addTo(map);
       } else if (m.type === 'vehicle') {
+        const speedColor = m.speed > 100 ? '#ef4444' : m.speed > 80 ? '#f59e0b' : m.color;
+        const speedBadge = m.speed > 0 ? `<div style="background:${speedColor};color:white;font-size:10px;padding:1px 5px;border-radius:10px;margin-top:2px;text-align:center;">${Math.round(m.speed)} km/h${m.speed > 80 ? ' ⚠️' : ''}</div>` : '';
         const icon = L.divIcon({
           className: 'custom-marker',
-          html: `<div style="background:${m.color}; color:white; padding:8px 12px; border-radius:50px; font-size:13px; font-weight:900; box-shadow:0 4px 16px ${m.color}80; border:2px solid white; animation:pulse-marker 2s infinite;">🚛 ${m.code}</div>`,
-          iconSize: [100, 36],
-          iconAnchor: [50, 18],
+          html: `<div style="background:${m.color}; color:white; padding:6px 10px; border-radius:50px; font-size:13px; font-weight:900; box-shadow:0 4px 16px ${m.color}80; border:2px solid ${m.speed > 80 ? '#ef4444' : 'white'}; animation:pulse-marker 2s infinite; text-align:center;">🚛 ${m.code}${speedBadge}</div>`,
+          iconSize: [110, m.speed > 0 ? 52 : 36],
+          iconAnchor: [55, m.speed > 0 ? 26 : 18],
         });
         const marker = L.marker([m.lat, m.lng], { icon }).addTo(map);
         if (m.popup) marker.bindPopup(m.popup);
@@ -1668,27 +1670,40 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         const point = { lat: pos.coords.latitude, lng: pos.coords.longitude, t: Date.now(), speed: speedKmh, accuracy: pos.coords.accuracy };
         setCurrentPosition(point);
 
-        // Alerta por exceso de velocidad (más de 100 km/h)
-        // Solo notificar a Discord 1 vez cada 60 segundos para no spamear
-        if (speedKmh > 100 && Date.now() - lastSpeedAlertRef.current > 60000) {
+        // Alerta por exceso de velocidad
+        // Nivel 1: > 80 km/h → alerta amarilla cada 60 seg
+        // Nivel 2: > 100 km/h → alerta roja cada 60 seg
+        const speedLimit = 80;
+        const speedCritical = 100;
+        if (speedKmh > speedLimit && Date.now() - lastSpeedAlertRef.current > 60000) {
           lastSpeedAlertRef.current = Date.now();
           const v = vehicles.find(x => x.id === (selectedVehicle?.id || currentTrip?.vehicleId));
+          const isCritical = speedKmh > speedCritical;
           // 🔊 ALERTA DE VOZ al chofer
-          speakText('¡Atención! Estás superando el límite. Reduce la velocidad por tu seguridad.');
-          const webhookUrl = v ? config.discordWebhookByVehicle?.[v.id] : '';
+          if (isCritical) {
+            speakText('¡Peligro! Estás a más de cien kilómetros por hora. Reduce la velocidad inmediatamente.');
+          } else {
+            speakText('Atención. Estás superando el límite de velocidad. Reduce la velocidad.');
+          }
+          // 📲 Notificar Discord → canal MANTENIMIENTO del camión
+          const webhookUrl = v?.maintenanceWebhook || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
           if (webhookUrl) {
+            const origen = branches.find(b => b.id === currentTrip?.originBranchId);
+            const destino = branches.find(b => b.id === currentTrip?.destinationBranchId);
+            const ruta = origen && destino ? `${origen.name} → ${destino.name}` : 'En ruta';
             fetch(webhookUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 embeds: [{
-                  title: `🚨 EXCESO DE VELOCIDAD - ${v.code}`,
-                  description: `**${currentDriver.shortName}** está conduciendo a **${Math.round(speedKmh)} km/h** (límite 80).\n📍 Posición: ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`,
-                  color: 16711680, // Rojo
+                  title: `${isCritical ? '🚨🚨 VELOCIDAD CRÍTICA' : '⚠️ EXCESO DE VELOCIDAD'} — ${v?.code || ''}`,
+                  description: `**${currentDriver?.name}** va a **${Math.round(speedKmh)} km/h**\n⛽ Límite: ${speedLimit} km/h\n🗺️ ${ruta}\n📍 ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`,
+                  color: isCritical ? 16711680 : 16776960,
                   timestamp: new Date().toISOString(),
+                  footer: { text: `Transporte Emporium · ${new Date().toLocaleTimeString('es-VE')}` }
                 }],
               }),
-            }).catch(e => console.warn('Discord alert error:', e));
+            }).catch(() => {});
           }
         }
 
@@ -4140,8 +4155,9 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
       if (track && track.points.length > 0) {
         const last = track.points[track.points.length - 1];
         m.push({
-          type: 'vehicle', code: v?.code || '?', lat: last.lat, lng: last.lng, color: v?.color || '#10b981',
-          popup: `<b>${v?.code}</b><br/>${d?.name}`,
+          type: 'vehicle', code: v?.code || '?', lat: last.lat, lng: last.lng,
+          color: v?.color || '#10b981', speed: last.speed || 0,
+          popup: `<b>${v?.code}</b><br/>${d?.name}<br/>${last.speed > 0 ? Math.round(last.speed) + ' km/h' : 'Velocidad no disponible'}`,
         });
       }
     });
@@ -4195,6 +4211,9 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
               const dest = branches.find(x => x.id === t.destinationBranchId);
               const track = gpsTracks.find(g => g.tripId === t.id);
               const points = track?.points?.length || 0;
+              const lastPoint = track?.points?.[track.points.length - 1];
+              const speed = lastPoint?.speed ? Math.round(lastPoint.speed) : null;
+              const speedAlert = speed && speed > 80;
               return (
                 <div key={t.id} className="px-4 py-3 flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-3">
@@ -4202,7 +4221,14 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
                     <div>
                       <div className="font-bold text-stone-900">{v?.code} · {d?.name}</div>
                       <div className="text-xs text-stone-500 font-mono">{o?.name} → {dest?.name}</div>
-                      <div className="text-[10px] text-emerald-700 font-mono mt-0.5">{points} puntos GPS · Salió {t.startTime}</div>
+                      <div className="text-[10px] font-mono mt-0.5 flex items-center gap-2">
+                        <span className="text-emerald-700">{points} pts GPS · Salió {t.startTime}</span>
+                        {speed !== null && (
+                          <span className={`font-bold px-1.5 py-0.5 rounded-full text-white ${speedAlert ? 'bg-red-500 animate-pulse' : 'bg-emerald-600'}`}>
+                            {speed} km/h{speedAlert ? ' ⚠️' : ''}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   {d && <DarkContactButtons driver={d} compact />}
