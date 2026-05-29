@@ -167,7 +167,7 @@ const PHOTO_CATEGORIES = [
 // Obtener webhook de mantenimiento de un vehículo (guardado en el vehículo, no en config)
 const getMaintWebhook = (vehicleId, vehicles, config) => {
   const v = vehicles?.find(x => x.id === vehicleId);
-  return v?.maintenanceWebhook || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
+  return v?.maintenanceWebhook || config?.discordWebhookByVehicle?.[vehicleId] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
 };
 
 // Resolver nombre legible de destino
@@ -523,13 +523,14 @@ export default function App() {
           loadFromStorage(KEYS.GPS_TRACKS),
           loadFromStorage(KEYS.HANDOFFS),
         ]);
-        if (reads[0]) setVehicles(reads[0].map(v => ({ maintenanceWebhook: '', ...v })));
+        const savedCfg = reads[6] ? { ...DEFAULT_CONFIG, ...reads[6] } : DEFAULT_CONFIG;
+        if (reads[0]) setVehicles(reads[0].map(v => ({ ...v, maintenanceWebhook: v.maintenanceWebhook || savedCfg?.discordWebhookByVehicle?.[v.id] || '' })));
         if (reads[1]) setDrivers(reads[1]);
         if (reads[2]) setBranches(reads[2]);
         if (reads[3]) setTrips(reads[3]);
         if (reads[4]) setActiveTrips(reads[4]);
         if (reads[5]) setArchivedMonths(reads[5]);
-        if (reads[6]) setConfig({ ...DEFAULT_CONFIG, ...reads[6] });
+        if (reads[6]) setConfig(savedCfg);
         if (reads[7]) setPhotos(reads[7]);
         if (reads[8]) setGpsTracks(reads[8]);
         if (reads[9]) setHandoffs(reads[9]);
@@ -3597,7 +3598,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
         {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
-        {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} />}
+        {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
         {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} maintRecords={maintRecords} saveMaintRecords={saveMaintRecords} />}
@@ -5421,13 +5422,17 @@ function VehicleForm({ v, onSave, onCancel, title }) {
   );
 }
 
-function VehiclesTab({ vehicles, saveVehicles, trips }) {
+function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig }) {
   const [editing, setEditing] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
 
   const handleSave = (v) => {
     if (v.id) saveVehicles(vehicles.map(x => x.id === v.id ? v : x));
     else saveVehicles([...vehicles, { ...v, id: `v_${Date.now()}` }]);
+    // Guardar webhook también en config para que no se pierda al redeployar
+    if (v.maintenanceWebhook && saveConfig) {
+      saveConfig({ ...config, discordWebhookByVehicle: { ...(config.discordWebhookByVehicle||{}), [v.id]: v.maintenanceWebhook } });
+    }
     setEditing(null);
     setShowAdd(false);
   };
@@ -8568,7 +8573,7 @@ function ChecklistDetailModal({ checklist, vehicles, onClose }) {
 }
 
 async function sendChecklistDiscord(cl, vehicle, driver, config) {
-  const webhookUrl = getMaintWebhook(vehicle?.id, vehicles, config);
+  const webhookUrl = vehicle?.maintenanceWebhook || config?.discordWebhookByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
   if (!webhookUrl) return;
   const crits = cl.criticalCount || 0;
   const warns = cl.warningCount || 0;
