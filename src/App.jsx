@@ -1952,7 +1952,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setShowEndShiftForm(true);
   };
 
-  const handleEndShiftConfirm = async ({ kmFinal, foto, items, novedades }) => {
+  const handleEndShiftConfirm = async ({ kmFinal, foto, items, novedades, combustibleRestante, hayAlerta, cauchoNota, danosNota }) => {
     const { viajesHoy, vehPrincipal, hoy } = endShiftTripData;
     const totalKm = viajesHoy.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
     const totalLitros = viajesHoy.reduce((s,t)=>s+(Number(t.fuelLoaded)||0),0);
@@ -1965,7 +1965,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       id: Date.now().toString(), driverId: currentDriver.id, driverName: currentDriver.name,
       vehicleId: vehPrincipal?.id, vehicleCode: vehPrincipal?.code, vehiclePlate: vehPrincipal?.plate,
       date: hoy, time: hora, timestamp: Date.now(),
-      kmFinal: Number(kmFinal), foto, items, novedades,
+      kmFinal: Number(kmFinal), foto, items, novedades, combustibleRestante, hayAlerta, cauchoNota, danosNota,
       totalViajes: viajesHoy.length, totalKm, totalLitros, totalCosto,
     };
     saveEndShifts && saveEndShifts([record, ...(endShifts||[])]);
@@ -1985,8 +1985,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       const kmDiff = vehPrincipal ? Number(kmFinal) - (vehPrincipal.currentKm||0) : 0;
       sendDiscordNotification(wh, {
         title: '🌙 Cierre de jornada — ' + nombre,
-        description: `📅 ${hoy} ${hora}\n🚛 ${vehPrincipal?.code||'—'} · KM final: ${Number(kmFinal).toLocaleString()}\n✅ ${viajesHoy.length} viajes · ${totalKm} km · $${totalCosto.toFixed(2)}\n${novedades ? '⚠️ Novedad: ' + novedades : '✅ Sin novedades'}`,
-        color: novedades ? 0xf59e0b : 0x10b981,
+        description: `📅 ${hoy} ${hora}\n🚛 ${vehPrincipal?.code||'—'} · KM final: ${Number(kmFinal).toLocaleString()}\n⛽ Combustible restante: ${combustibleRestante||0} L\n🔵 Cauchos: ${items?.cauchos||'—'}${cauchoNota?' — '+cauchoNota:''}\n🔍 Daños: ${items?.danos||'—'}${danosNota?' — '+danosNota:''}\n✅ ${viajesHoy.length} viajes · ${totalKm} km · $${totalCosto.toFixed(2)}\n${novedades ? '📝 '+novedades : ''}`,
+        color: hayAlerta ? 0xef4444 : novedades ? 0xf59e0b : 0x10b981,
       }).catch(()=>{});
       // Foto del camión guardado
       if (foto && wh) {
@@ -7660,36 +7660,31 @@ function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
   const [kmFinal, setKmFinal] = useState(vehicle?.currentKm?.toString() || '');
   const [foto, setFoto] = useState(null);
   const [novedades, setNovedades] = useState('');
-  const [items, setItems] = useState({ estacionado: false, luces: false, puertas: false, sinDanos: false, combustible: false });
+  const [combustibleRestante, setCombustibleRestante] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [simpleItems, setSimpleItems] = useState({ estacionado: false, luces: false, puertas: false });
+  const [cauchos, setCauchos] = useState('');
+  const [cauchoNota, setCauchoNota] = useState('');
+  const [danos, setDanos] = useState('');
+  const [danosNota, setDanosNota] = useState('');
   const hora = new Date().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
   const totalKm = trips.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
-
-  const handleFoto = (e) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => setFoto(ev.target.result);
-    reader.readAsDataURL(file);
-  };
-
-  const allChecked = Object.values(items).every(Boolean);
-  const canSubmit = kmFinal && foto && allChecked;
-
+  const handleFoto = (e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = ev => setFoto(ev.target.result); reader.readAsDataURL(file); };
+  const allSimpleChecked = Object.values(simpleItems).every(Boolean);
+  const cauchoNecesitaNota = (cauchos === 'revisar' || cauchos === 'mal') && !cauchoNota.trim();
+  const danosNecesitaNota = (danos === 'menor' || danos === 'grave') && !danosNota.trim();
+  const canSubmit = kmFinal && foto && allSimpleChecked && cauchos && danos && !cauchoNecesitaNota && !danosNecesitaNota;
   const submit = async () => {
     if (!canSubmit) return;
     setSubmitting(true);
-    await onConfirm({ kmFinal: Number(kmFinal), foto, items, novedades });
+    const hayAlerta = cauchos !== 'bien' || danos !== 'ninguno';
+    await onConfirm({ kmFinal: Number(kmFinal), foto, items: { ...simpleItems, cauchos, danos }, novedades, combustibleRestante: Number(combustibleRestante)||0, hayAlerta, cauchoNota, danosNota });
     setSubmitting(false);
   };
-
-  const checkItems = [
-    { key: 'estacionado', label: '🅿️ Camión estacionado en su sitio' },
-    { key: 'luces', label: '💡 Luces apagadas' },
-    { key: 'puertas', label: '🔒 Puertas cerradas y aseguradas' },
-    { key: 'sinDanos', label: '✅ Sin daños visibles nuevos' },
-    { key: 'combustible', label: '⛽ Combustible restante verificado' },
-  ];
-
+  const BtnOpt = ({ active, color, onClick, children }) => {
+    const colors = { green: active ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-stone-50 border-stone-200 text-stone-500', amber: active ? 'bg-amber-50 border-amber-400 text-amber-800' : 'bg-stone-50 border-stone-200 text-stone-500', red: active ? 'bg-red-50 border-red-400 text-red-800' : 'bg-stone-50 border-stone-200 text-stone-500' };
+    return <button onClick={onClick} className={`flex-1 py-2 px-2 rounded-xl border-2 text-xs font-bold text-center transition ${colors[color]}`}>{children}</button>;
+  };
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 to-stone-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
@@ -7698,70 +7693,72 @@ function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
           <div className="font-black text-lg">{driver.name}</div>
           <div className="text-indigo-200 text-sm">{hora} · {vehicle?.code || '—'} · {trips.length} viajes · {totalKm} km</div>
         </div>
-        <div className="px-5 pt-4 pb-2 space-y-4">
-
-          {/* KM Final */}
+        <div className="px-5 pt-4 pb-2 space-y-4 max-h-[75vh] overflow-y-auto">
           <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1">
-              🔢 KM Final del odómetro <span className="text-red-500">*</span>
-            </label>
-            {vehicle?.lastParkedKm && (
-              <div className="text-xs text-stone-400 mb-1">Último registrado: {vehicle.lastParkedKm.toLocaleString()} km</div>
-            )}
-            <input
-              type="number" value={kmFinal} onChange={e=>setKmFinal(e.target.value)}
-              placeholder="Ej: 142500"
-              className="w-full border-2 border-stone-200 rounded-xl px-3 py-2 text-sm font-mono focus:border-indigo-400 outline-none"
-            />
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1">🔢 KM Final del odómetro <span className="text-red-500">*</span></label>
+            {vehicle?.lastParkedKm && <div className="text-xs text-stone-400 mb-1">Último: {vehicle.lastParkedKm.toLocaleString()} km</div>}
+            <input type="number" value={kmFinal} onChange={e=>setKmFinal(e.target.value)} placeholder="Ej: 142500" className="w-full border-2 border-stone-200 rounded-xl px-3 py-2 text-sm font-mono focus:border-indigo-400 outline-none" />
           </div>
-
-          {/* Chequeo rápido */}
           <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">
-              ✅ Chequeo rápido <span className="text-red-500">*</span>
-            </label>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1">⛽ Combustible restante (litros)</label>
+            <input type="number" value={combustibleRestante} onChange={e=>setCombustibleRestante(e.target.value)} placeholder="Ej: 45" className="w-full border-2 border-stone-200 rounded-xl px-3 py-2 text-sm font-mono focus:border-indigo-400 outline-none" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">✅ Chequeo rápido <span className="text-red-500">*</span></label>
             <div className="space-y-2">
-              {checkItems.map(item => (
-                <button key={item.key} onClick={() => setItems(p=>({...p,[item.key]:!p[item.key]}))}
-                  className={`w-full flex items-center gap-3 p-2.5 rounded-xl border-2 text-sm text-left transition ${items[item.key] ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-stone-50 border-stone-200 text-stone-600'}`}>
-                  <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${items[item.key] ? 'bg-emerald-500 border-emerald-500' : 'border-stone-300'}`}>
-                    {items[item.key] && <span className="text-white text-xs">✓</span>}
-                  </div>
+              {[{key:'estacionado',label:'🅿️ Estacionado en su sitio'},{key:'luces',label:'💡 Luces apagadas'},{key:'puertas',label:'🔒 Puertas cerradas y aseguradas'}].map(item => (
+                <button key={item.key} onClick={() => setSimpleItems(p=>({...p,[item.key]:!p[item.key]}))}
+                  className={`w-full flex items-center gap-3 p-2.5 rounded-xl border-2 text-sm text-left transition ${simpleItems[item.key] ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-stone-50 border-stone-200 text-stone-600'}`}>
+                  <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${simpleItems[item.key] ? 'bg-emerald-500 border-emerald-500' : 'border-stone-300'}`}>{simpleItems[item.key] && <span className="text-white text-xs">✓</span>}</div>
                   {item.label}
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Foto */}
           <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">
-              📸 Foto del camión guardado <span className="text-red-500">*</span>
-            </label>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">🔵 Estado de cauchos <span className="text-red-500">*</span></label>
+            <div className="flex gap-2">
+              <BtnOpt active={cauchos==='bien'} color="green" onClick={()=>{setCauchos('bien');setCauchoNota('');}}>✅ Bien</BtnOpt>
+              <BtnOpt active={cauchos==='revisar'} color="amber" onClick={()=>setCauchos('revisar')}>⚠️ Revisar</BtnOpt>
+              <BtnOpt active={cauchos==='mal'} color="red" onClick={()=>setCauchos('mal')}>🔴 Mal estado</BtnOpt>
+            </div>
+            {(cauchos==='revisar'||cauchos==='mal') && (
+              <input value={cauchoNota} onChange={e=>setCauchoNota(e.target.value)} placeholder="Describe el problema (obligatorio)..."
+                className={`w-full mt-2 border-2 rounded-xl px-3 py-2 text-sm focus:outline-none ${!cauchoNota.trim() ? 'border-red-300' : 'border-amber-300'}`} />
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">🔍 Daños visibles <span className="text-red-500">*</span></label>
+            <div className="flex gap-2">
+              <BtnOpt active={danos==='ninguno'} color="green" onClick={()=>{setDanos('ninguno');setDanosNota('');}}>✅ Ninguno</BtnOpt>
+              <BtnOpt active={danos==='menor'} color="amber" onClick={()=>setDanos('menor')}>⚠️ Menor</BtnOpt>
+              <BtnOpt active={danos==='grave'} color="red" onClick={()=>setDanos('grave')}>🔴 Grave</BtnOpt>
+            </div>
+            {(danos==='menor'||danos==='grave') && (
+              <input value={danosNota} onChange={e=>setDanosNota(e.target.value)} placeholder="Describe el daño (obligatorio)..."
+                className={`w-full mt-2 border-2 rounded-xl px-3 py-2 text-sm focus:outline-none ${!danosNota.trim() ? 'border-red-300' : 'border-amber-300'}`} />
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">📸 Foto del camión guardado <span className="text-red-500">*</span></label>
             {foto ? (
-              <div className="relative">
-                <img src={foto} alt="Camión guardado" className="w-full h-32 object-cover rounded-xl border-2 border-emerald-300" />
-                <button onClick={() => setFoto(null)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button>
-              </div>
+              <div className="relative"><img src={foto} alt="" className="w-full h-32 object-cover rounded-xl border-2 border-emerald-300" /><button onClick={() => setFoto(null)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button></div>
             ) : (
               <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-stone-300 rounded-xl cursor-pointer hover:bg-stone-50">
-                <span className="text-2xl">📷</span>
-                <span className="text-xs text-stone-400 mt-1">Tomar foto del camión</span>
+                <span className="text-2xl">📷</span><span className="text-xs text-stone-400 mt-1">Tomar foto del camión</span>
                 <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFoto} />
               </label>
             )}
           </div>
-
-          {/* Novedades */}
           <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1">Novedades (opcional)</label>
-            <textarea value={novedades} onChange={e=>setNovedades(e.target.value)}
-              placeholder="Ej: rayón en guardabarro derecho..."
-              rows={2} className="w-full border-2 border-stone-200 rounded-xl px-3 py-2 text-sm resize-none focus:border-indigo-400 outline-none" />
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1">Otras novedades (opcional)</label>
+            <textarea value={novedades} onChange={e=>setNovedades(e.target.value)} placeholder="Cualquier otra observación..." rows={2} className="w-full border-2 border-stone-200 rounded-xl px-3 py-2 text-sm resize-none focus:border-indigo-400 outline-none" />
           </div>
         </div>
-
-        <div className="px-5 pb-5 space-y-2">
+        <div className="px-5 pb-5 pt-3 space-y-2 border-t border-stone-100">
+          {(cauchos==='mal'||danos==='grave') && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-2 text-xs text-red-700 font-bold text-center">🚨 Se enviará alerta urgente al coordinador</div>
+          )}
           <button onClick={submit} disabled={!canSubmit || submitting}
             className={`w-full py-3 rounded-xl font-black text-white text-base transition ${canSubmit && !submitting ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-stone-300 cursor-not-allowed'}`}>
             {submitting ? '⏳ Guardando...' : '🌙 Confirmar cierre de jornada'}
@@ -7772,6 +7769,7 @@ function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
     </div>
   );
 }
+
 
 function ChecklistScreen({ vehicle, driver, checklists, saveChecklists, onProceed, onBack, config }) {
   const todayKey = new Date().toISOString().slice(0, 10);
