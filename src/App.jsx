@@ -1955,7 +1955,10 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     viajesHoy.forEach(t => { vehCount[t.vehicleId] = (vehCount[t.vehicleId] || 0) + 1; });
     const vehPrincipalId = viajesHoy.length > 0 ? Object.entries(vehCount).sort((a,b)=>b[1]-a[1])[0][0] : null;
     const vehPrincipal = vehPrincipalId ? vehicles.find(v => v.id === vehPrincipalId) : selectedVehicle;
-    setEndShiftTripData({ viajesHoy, vehPrincipal, hoy });
+    // KM del último viaje del día para pre-llenar el campo
+    const ultimoViaje = viajesHoy.length > 0 ? [...viajesHoy].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0] : null;
+    const kmUltimoViaje = ultimoViaje?.kmEnd || vehPrincipal?.currentKm || '';
+    setEndShiftTripData({ viajesHoy, vehPrincipal, hoy, kmUltimoViaje });
     setShowEndShiftForm(true);
   };
 
@@ -1995,23 +1998,22 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         description: `📅 ${hoy} ${hora}\n🚛 ${vehPrincipal?.code||'—'} · KM final: **${Number(kmFinal).toLocaleString()}**\n⛽ Combustible: **${combustibleRestante||'—'}**\n🔵 Cauchos: ${items?.cauchos==='bien'?'✅ Bien':items?.cauchos==='revisar'?'⚠️ Revisar':'🔴 Mal estado'}${cauchoNota?' — '+cauchoNota:''}\n🔍 Daños: ${items?.danos==='ninguno'?'✅ Ninguno':items?.danos==='menor'?'⚠️ Menor':'🔴 Grave'}${danosNota?' — '+danosNota:''}\n✅ ${viajesHoy.length} viajes · ${totalKm} km · $${totalCosto.toFixed(2)}\n${novedades ? '📝 '+novedades : '✅ Sin novedades'}`,
         color: hayAlerta ? 0xef4444 : novedades ? 0xf59e0b : 0x10b981,
       }).catch(()=>{});
-      // Foto del camión guardado → enviar con cola para garantizar entrega
-      if (foto && wh) {
+      // Fotos → enviar directo + cola como respaldo
+      const sendPhotoDiscord = async (photoData, filename, caption) => {
+        if (!photoData || !wh) return;
         try {
-          const embed2 = { title: `📸 ${vehPrincipal?.code||''} guardado — ${hora}`, color: hayAlerta ? 0xef4444 : 0x10b981 };
-          await idbAdd({ type: 'discord', webhookUrl: wh, content: `🌙 ${nombre} · ${hoy} ${hora} · ⛽ ${combustibleRestante||'—'}`, photoData: foto, filename: 'cierre-jornada.jpg', embed: embed2, queuedAt: new Date().toISOString() });
+          const blob = base64ToBlob(photoData);
+          const fd = new FormData();
+          fd.append('files[0]', blob, filename);
+          fd.append('payload_json', JSON.stringify({ content: caption }));
+          const res = await fetch(wh, { method: 'POST', body: fd });
+          if (!res.ok) throw new Error('failed');
         } catch(e) {
-          try { const blob = await (await fetch(foto)).blob(); const fd = new FormData(); fd.append('files[0]', blob, 'cierre-jornada.jpg'); fd.append('payload_json', JSON.stringify({ content: `📸 ${vehPrincipal?.code||''} guardado — ${hora}` })); fetch(wh, { method:'POST', body: fd }).catch(()=>{}); } catch(e2) {}
+          try { await idbAdd({ type: 'discord', webhookUrl: wh, content: caption, photoData, filename, embed: null, queuedAt: new Date().toISOString() }); } catch(e2) {}
         }
-      }
-      // Foto del chofer (selfie)
-      if (fotoChofer && wh) {
-        try {
-          await idbAdd({ type: 'discord', webhookUrl: wh, content: `🧑 ${nombre} · Selfie cierre jornada`, photoData: fotoChofer, filename: 'chofer-cierre.jpg', embed: null, queuedAt: new Date().toISOString() });
-        } catch(e) {
-          try { const blob = await (await fetch(fotoChofer)).blob(); const fd = new FormData(); fd.append('files[0]', blob, 'chofer-cierre.jpg'); fd.append('payload_json', JSON.stringify({ content: `🧑 ${nombre}` })); fetch(wh, { method:'POST', body: fd }).catch(()=>{}); } catch(e2) {}
-        }
-      }
+      };
+      await sendPhotoDiscord(foto, 'cierre-jornada.jpg', `📸 ${vehPrincipal?.code||''} guardado — ${hora} · ⛽ ${combustibleRestante||'—'}`);
+      await sendPhotoDiscord(fotoChofer, 'chofer-cierre.jpg', `🧑 ${nombre} · Selfie cierre jornada`);
     }
 
     speakText(`¡Excelente jornada ${nombre}! KM registrado: ${Number(kmFinal).toLocaleString()}. Hasta mañana.`);
@@ -2187,7 +2189,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} />}
-          {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
+          {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} kmInicial={endShiftTripData.kmUltimoViaje} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
           {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
@@ -7669,8 +7671,8 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
 // ============================================================
 // FORMULARIO CIERRE DE JORNADA
 // ============================================================
-function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
-  const [kmFinal, setKmFinal] = useState('');
+function EndShiftForm({ driver, vehicle, trips = [], kmInicial = '', onConfirm, onBack }) {
+  const [kmFinal, setKmFinal] = useState(kmInicial ? String(kmInicial) : '');
   const [foto, setFoto] = useState(null);
   const [fotoChofer, setFotoChofer] = useState(null);
   const [novedades, setNovedades] = useState('');
