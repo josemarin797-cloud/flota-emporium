@@ -4723,7 +4723,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 
           // Sección: detalle por viaje
           rows.push(['DETALLE DE VIAJES', ...Array(14).fill('')]);
-          rows.push(['Fecha', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'KM Salida', 'KM Llegada', 'T.Viaje', 'Espera Origen', 'Tiempo en Destino', 'Salida Destino', 'T.Espera Suc.', 'KM rec.', 'Litros consumo', 'Costo $', 'Entregas', 'Notas', 'L. Cargados', 'Fuente combustible']);
+          rows.push(['Fecha', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'KM Salida', 'KM Llegada', 'T.Viaje', 'Espera en lugar', 'KM rec.', 'Litros consumo', 'Costo $', 'Entregas', 'Notas', 'L. Cargados', 'Fuente combustible']);
 
           const sortedTrips = [...vt].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime));
           const detStartR = rows.length;
@@ -4733,16 +4733,12 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
             const destLabel = resolveDestName(t, branches);
             // Buscar carga de combustible del mismo día y camión
             const fuelLoad = fuelRecords?.find(r => r.vehicleId === t.vehicleId && r.date === t.startDate);
-            const tDest = t.timeAtDestinationMinutes;
             rows.push([
               t.startDate, d?.shortName || '',
               o?.name || '', destLabel,
               t.startTime || '', t.endTime || '',
               t.kmStart || 0, t.kmEnd || 0,
               fmtMin(t.tripMinutes),
-              fmtMin(t.timeAtBranchPrevMinutes),
-              fmtMin(tDest),
-              addMin(t.endTime, tDest),
               t.waitMinutes ? fmtMin(t.waitMinutes) : '',
               r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
               t.deliveries || 0, t.notes || '',
@@ -4797,9 +4793,9 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
             for (let c = 0; c < NCV; c++) {
               if (c === 4 || c === 5) sc(ws, ri, c, ST.timeCell(e));        // H.Salida, H.Llegada
               else if (c === 6 || c === 7) sc(ws, ri, c, ST.dataRight(e));  // KM Salida, KM Llegada
-              else if (c >= 8 && c <= 11) sc(ws, ri, c, ST.timeCell(e));    // T.Viaje, Espera, T.Destino, Salida Destino
-              else if (c >= 12 && c <= 15) sc(ws, ri, c, ST.dataRight(e));  // KM rec, Litros, Costo, Entregas
-              else if (c === 17) sc(ws, ri, c, { font: { color: { rgb: '1C1917' }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: e ? 'FFFFFF' : 'F9FAFB' } }, alignment: { wrapText: true }, border: bdr() }); // Notas
+              else if (c === 8 || c === 9) sc(ws, ri, c, ST.timeCell(e));   // T.Viaje, Espera en lugar
+              else if (c >= 10 && c <= 13) sc(ws, ri, c, ST.dataRight(e)); // KM rec, Litros, Costo, Entregas
+              else if (c === 14) sc(ws, ri, c, { font: { color: { rgb: '1C1917' }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: e ? 'FFFFFF' : 'F9FAFB' } }, alignment: { wrapText: true }, border: bdr() }); // Notas
               else sc(ws, ri, c, e ? ST.dataEven : ST.dataOdd);
             }
           });
@@ -4810,7 +4806,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
             for (let c = 0; c < 12; c++) sc(ws, ri, c, c >= 2 && c <= 10 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
           });
           for (let c = 0; c < 12; c++) sc(ws, totalR, c, c >= 6 ? ST.totalRight : ST.totalRow);
-          ws['!cols'] = [{ wch: 12 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 13 }, { wch: 14 }, { wch: 13 }, { wch: 13 }, { wch: 9 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 22 }];
+          ws['!cols'] = [{ wch: 12 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 13 }, { wch: 9 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 22 }, { wch: 10 }, { wch: 18 }];
           ws['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
           XLSX.utils.book_append_sheet(wb, ws, v.code.substring(0, 31));
         });
