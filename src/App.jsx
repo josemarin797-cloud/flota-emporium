@@ -133,11 +133,11 @@ const GLOBAL_PASSWORD = 'emporium'; // Contraseña general para entrar a la app
 const COORDINATOR_PHONE = '+584123932778';
 
 const INITIAL_VEHICLES = [
-  { id: 'v1', code: 'NPR 01', plate: 'A91BF8M', type: 'NPR', performance: 4.76, status: 'AL DIA', currentKm: 142107, lastMaintKm: 141364, maintFreq: 6000, lastGreaseKm: 141364, greaseFreq: 3000, observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#10b981', maintenanceWebhook: '' },
-  { id: 'v2', code: 'NPR 02', plate: 'A21AM9G', type: 'NPR', performance: 4.41, status: 'AL DIA', currentKm: 48831, lastMaintKm: 48831, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#f59e0b', maintenanceWebhook: '' },
-  { id: 'v3', code: 'FUSO 03', plate: 'A37AJ01', type: 'FUSO', performance: 5.0, status: 'AL DIA', currentKm: 168854, lastMaintKm: 168281, maintFreq: 6000, lastGreaseKm: 168281, greaseFreq: 3000, observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#3b82f6', maintenanceWebhook: '' },
-  { id: 'v4', code: 'NPR 04', plate: 'A15AM5G', type: 'NPR', performance: 10.01, status: 'AL DIA', currentKm: 694812, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#a855f7', maintenanceWebhook: '' },
-  { id: 'v5', code: 'L300 05', plate: 'A15BP7M', type: 'L300', performance: 7.69, status: 'AL DIA', currentKm: 145523, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 13, color: '#ec4899', maintenanceWebhook: '' },
+  { id: 'v1', code: 'NPR 01', plate: 'A91BF8M', type: 'NPR', performance: 4.76, status: 'AL DIA', currentKm: 142107, lastMaintKm: 141364, maintFreq: 6000, lastGreaseKm: 141364, greaseFreq: 3000, observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#10b981', maintenanceWebhook: 'https://discord.com/api/webhooks/1509242456087068822/ACGCYCjKC_uNhyQ-0d5whzwI4ClkFLcxSwL0zRWBvITr8N9VRJII9jkkTNmjhzIVEZUQ' },
+  { id: 'v2', code: 'NPR 02', plate: 'A21AM9G', type: 'NPR', performance: 4.41, status: 'AL DIA', currentKm: 48831, lastMaintKm: 48831, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#f59e0b', maintenanceWebhook: 'https://discord.com/api/webhooks/1509242789555081411/Okm2gGABQFwI2CM7MMkqp9UWYbZCbQQelTeheLEk0dlmmTmJk-0aPi7D7yGZSqRZWV2l' },
+  { id: 'v3', code: 'FUSO 03', plate: 'A37AJ01', type: 'FUSO', performance: 5.0, status: 'AL DIA', currentKm: 168854, lastMaintKm: 168281, maintFreq: 6000, lastGreaseKm: 168281, greaseFreq: 3000, observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#3b82f6', maintenanceWebhook: 'https://discord.com/api/webhooks/1509243065666240562/mEomwP3ubonAsNwdtMtd-35l1Psxhb2UtWCkn9kzLRp0O0cBB1hA0XEPpb-wcZURkLOM' },
+  { id: 'v4', code: 'NPR 04', plate: 'A15AM5G', type: 'NPR', performance: 10.01, status: 'AL DIA', currentKm: 694812, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#a855f7', maintenanceWebhook: 'https://discord.com/api/webhooks/1509243206880067869/2DL1QmuxD1RE5vkRZGRYk_vT4wwMt0XT2LBHp_TcW-cxAgaqu_JzRSs1fryaIHniwDHX' },
+  { id: 'v5', code: 'L300 05', plate: 'A15BP7M', type: 'L300', performance: 7.69, status: 'AL DIA', currentKm: 145523, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 13, color: '#ec4899', maintenanceWebhook: 'https://discord.com/api/webhooks/1509243394587758722/SvZTT2UCQI_SSOLI7AHP4c_wrxPRY2eJJN2Z6Om3Tr7PeqvD-JEcHuSnHVTtj9kv9E3L' },
 ];
 
 const INITIAL_DRIVERS = [
@@ -525,7 +525,13 @@ export default function App() {
           loadFromStorage(KEYS.HANDOFFS),
         ]);
         const savedCfg = reads[6] ? { ...DEFAULT_CONFIG, ...reads[6] } : DEFAULT_CONFIG;
-        if (reads[0]) setVehicles(reads[0].map(v => ({ ...v, maintenanceWebhook: v.maintenanceWebhook || '' })));
+        if (reads[0]) {
+          // Webhook del código (INITIAL_VEHICLES) tiene prioridad — nunca se borra
+          setVehicles(reads[0].map(v => {
+            const initial = INITIAL_VEHICLES.find(iv => iv.id === v.id);
+            return { ...v, maintenanceWebhook: initial?.maintenanceWebhook || v.maintenanceWebhook || '' };
+          }));
+        }
         if (reads[1]) setDrivers(reads[1]);
         if (reads[2]) setBranches(reads[2]);
         if (reads[3]) setTrips(reads[3]);
