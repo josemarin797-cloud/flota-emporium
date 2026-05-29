@@ -1991,19 +1991,25 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     if (wh) {
       const kmDiff = vehPrincipal ? Number(kmFinal) - (vehPrincipal.currentKm||0) : 0;
       sendDiscordNotification(wh, {
-        title: '🌙 Cierre de jornada — ' + nombre,
-        description: `📅 ${hoy} ${hora}\n🚛 ${vehPrincipal?.code||'—'} · KM final: ${Number(kmFinal).toLocaleString()}\n⛽ Combustible restante: ${combustibleRestante||'—'}\n🔵 Cauchos: ${items?.cauchos||'—'}${cauchoNota?' — '+cauchoNota:''}\n🔍 Daños: ${items?.danos||'—'}${danosNota?' — '+danosNota:''}\n✅ ${viajesHoy.length} viajes · ${totalKm} km · $${totalCosto.toFixed(2)}\n${novedades ? '📝 '+novedades : ''}`,
+        title: `🌙 Cierre de jornada — ${nombre}${hayAlerta?' 🚨':''}`,
+        description: `📅 ${hoy} ${hora}\n🚛 ${vehPrincipal?.code||'—'} · KM final: **${Number(kmFinal).toLocaleString()}**\n⛽ Combustible: **${combustibleRestante||'—'}**\n🔵 Cauchos: ${items?.cauchos==='bien'?'✅ Bien':items?.cauchos==='revisar'?'⚠️ Revisar':'🔴 Mal estado'}${cauchoNota?' — '+cauchoNota:''}\n🔍 Daños: ${items?.danos==='ninguno'?'✅ Ninguno':items?.danos==='menor'?'⚠️ Menor':'🔴 Grave'}${danosNota?' — '+danosNota:''}\n✅ ${viajesHoy.length} viajes · ${totalKm} km · $${totalCosto.toFixed(2)}\n${novedades ? '📝 '+novedades : '✅ Sin novedades'}`,
         color: hayAlerta ? 0xef4444 : novedades ? 0xf59e0b : 0x10b981,
       }).catch(()=>{});
-      // Foto del camión guardado
+      // Foto del camión guardado → enviar con cola para garantizar entrega
       if (foto && wh) {
         try {
-          const blob = await (await fetch(foto)).blob();
-          const fd = new FormData();
-          fd.append('files[0]', blob, 'cierre-jornada.jpg');
-          fd.append('payload_json', JSON.stringify({ content: `📸 ${vehPrincipal?.code||''} guardado — ${hora}` }));
-          fetch(wh, { method:'POST', body: fd }).catch(()=>{});
-        } catch(e) {}
+          const embed2 = { title: `📸 ${vehPrincipal?.code||''} guardado — ${hora}`, color: hayAlerta ? 0xef4444 : 0x10b981 };
+          await idbAdd({ type: 'discord', webhookUrl: wh, content: `🌙 ${nombre} · ${hoy} ${hora} · ⛽ ${combustibleRestante||'—'}`, photoData: foto, filename: 'cierre-jornada.jpg', embed: embed2, queuedAt: new Date().toISOString() });
+        } catch(e) {
+          // Fallback directo
+          try {
+            const blob = await (await fetch(foto)).blob();
+            const fd = new FormData();
+            fd.append('files[0]', blob, 'cierre-jornada.jpg');
+            fd.append('payload_json', JSON.stringify({ content: `📸 ${vehPrincipal?.code||''} guardado — ${hora}` }));
+            fetch(wh, { method:'POST', body: fd }).catch(()=>{});
+          } catch(e2) {}
+        }
       }
     }
 
@@ -2319,6 +2325,9 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                 <div className="text-right">
                   <div className="text-[10px] text-stone-500 uppercase tracking-wider">KM Actual</div>
                   <div className="text-sm font-bold text-stone-700">{v.currentKm.toLocaleString()}</div>
+                  {v.lastParkedDate === new Date().toISOString().slice(0,10) && (
+                    <div className="text-[9px] text-indigo-500 font-bold mt-0.5">🌙 Cerrado hoy</div>
+                  )}
                 </div>
               </button>
             );
@@ -7681,7 +7690,7 @@ function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
     if (!canSubmit) return;
     setSubmitting(true);
     const hayAlerta = cauchos !== 'bien' || danos !== 'ninguno';
-    await onConfirm({ kmFinal: Number(kmFinal), foto, items: { ...simpleItems, cauchos, danos }, novedades, combustibleRestante: Number(combustibleRestante)||0, hayAlerta, cauchoNota, danosNota });
+    await onConfirm({ kmFinal: Number(kmFinal), foto, items: { ...simpleItems, cauchos, danos }, novedades, combustibleRestante: combustibleRestante || '', hayAlerta, cauchoNota, danosNota });
     setSubmitting(false);
   };
   const BtnOpt = ({ active, color, onClick, children }) => {
