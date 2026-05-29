@@ -1959,7 +1959,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setShowEndShiftForm(true);
   };
 
-  const handleEndShiftConfirm = async ({ kmFinal, foto, items, novedades, combustibleRestante, hayAlerta, cauchoNota, danosNota }) => {
+  const handleEndShiftConfirm = async ({ kmFinal, foto, fotoChofer, items, novedades, combustibleRestante, hayAlerta, cauchoNota, danosNota }) => {
     const { viajesHoy, vehPrincipal, hoy } = endShiftTripData;
     const totalKm = viajesHoy.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
     const totalLitros = viajesHoy.reduce((s,t)=>s+(Number(t.fuelLoaded)||0),0);
@@ -1972,7 +1972,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       id: Date.now().toString(), driverId: currentDriver.id, driverName: currentDriver.name,
       vehicleId: vehPrincipal?.id, vehicleCode: vehPrincipal?.code, vehiclePlate: vehPrincipal?.plate,
       date: hoy, time: hora, timestamp: Date.now(),
-      kmFinal: Number(kmFinal), foto, items, novedades, combustibleRestante, hayAlerta, cauchoNota, danosNota,
+      kmFinal: Number(kmFinal), foto, fotoChofer, items, novedades, combustibleRestante, hayAlerta, cauchoNota, danosNota,
       totalViajes: viajesHoy.length, totalKm, totalLitros, totalCosto,
     };
     saveEndShifts && saveEndShifts([record, ...(endShifts||[])]);
@@ -2001,14 +2001,15 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           const embed2 = { title: `📸 ${vehPrincipal?.code||''} guardado — ${hora}`, color: hayAlerta ? 0xef4444 : 0x10b981 };
           await idbAdd({ type: 'discord', webhookUrl: wh, content: `🌙 ${nombre} · ${hoy} ${hora} · ⛽ ${combustibleRestante||'—'}`, photoData: foto, filename: 'cierre-jornada.jpg', embed: embed2, queuedAt: new Date().toISOString() });
         } catch(e) {
-          // Fallback directo
-          try {
-            const blob = await (await fetch(foto)).blob();
-            const fd = new FormData();
-            fd.append('files[0]', blob, 'cierre-jornada.jpg');
-            fd.append('payload_json', JSON.stringify({ content: `📸 ${vehPrincipal?.code||''} guardado — ${hora}` }));
-            fetch(wh, { method:'POST', body: fd }).catch(()=>{});
-          } catch(e2) {}
+          try { const blob = await (await fetch(foto)).blob(); const fd = new FormData(); fd.append('files[0]', blob, 'cierre-jornada.jpg'); fd.append('payload_json', JSON.stringify({ content: `📸 ${vehPrincipal?.code||''} guardado — ${hora}` })); fetch(wh, { method:'POST', body: fd }).catch(()=>{}); } catch(e2) {}
+        }
+      }
+      // Foto del chofer (selfie)
+      if (fotoChofer && wh) {
+        try {
+          await idbAdd({ type: 'discord', webhookUrl: wh, content: `🧑 ${nombre} · Selfie cierre jornada`, photoData: fotoChofer, filename: 'chofer-cierre.jpg', embed: null, queuedAt: new Date().toISOString() });
+        } catch(e) {
+          try { const blob = await (await fetch(fotoChofer)).blob(); const fd = new FormData(); fd.append('files[0]', blob, 'chofer-cierre.jpg'); fd.append('payload_json', JSON.stringify({ content: `🧑 ${nombre}` })); fetch(wh, { method:'POST', body: fd }).catch(()=>{}); } catch(e2) {}
         }
       }
     }
@@ -7669,8 +7670,9 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
 // FORMULARIO CIERRE DE JORNADA
 // ============================================================
 function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
-  const [kmFinal, setKmFinal] = useState(vehicle?.currentKm?.toString() || '');
-  const [foto, setFoto] = useState(null);
+  const [kmFinal, setKmFinal] = useState(''); // vacío para forzar ingreso manual
+  const [foto, setFoto] = useState(null);       // foto camión (trasera)
+  const [fotoChofer, setFotoChofer] = useState(null); // selfie chofer (frontal)
   const [novedades, setNovedades] = useState('');
   const [combustibleRestante, setCombustibleRestante] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -7678,6 +7680,30 @@ function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
   const [cauchos, setCauchos] = useState('');
   const [cauchoNota, setCauchoNota] = useState('');
   const [danos, setDanos] = useState('');
+  const [danosNota, setDanosNota] = useState('');
+  const hora = new Date().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
+  const totalKm = trips.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
+
+  const handleFoto = (e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = ev => setFoto(ev.target.result); reader.readAsDataURL(file); };
+  const handleFotoChofer = (e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = ev => setFotoChofer(ev.target.result); reader.readAsDataURL(file); };
+
+  const allSimpleChecked = Object.values(simpleItems).every(Boolean);
+  const cauchoNecesitaNota = (cauchos === 'revisar' || cauchos === 'mal') && !cauchoNota.trim();
+  const danosNecesitaNota = (danos === 'menor' || danos === 'grave') && !danosNota.trim();
+  // KM obligatorio y debe ser mayor al actual
+  const kmValido = kmFinal !== '' && Number(kmFinal) > 0;
+  const canSubmit = kmValido && foto && fotoChofer && allSimpleChecked && cauchos && danos && !cauchoNecesitaNota && !danosNecesitaNota;
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    if (vehicle?.currentKm && Number(kmFinal) < vehicle.currentKm) {
+      if (!confirm(`⚠️ El KM ingresado (${Number(kmFinal).toLocaleString()}) es menor al actual (${vehicle.currentKm.toLocaleString()}). ¿Continuar?`)) return;
+    }
+    setSubmitting(true);
+    const hayAlerta = cauchos !== 'bien' || danos !== 'ninguno';
+    await onConfirm({ kmFinal: Number(kmFinal), foto, fotoChofer, items: { ...simpleItems, cauchos, danos }, novedades, combustibleRestante: combustibleRestante || '', hayAlerta, cauchoNota, danosNota });
+    setSubmitting(false);
+  };
   const [danosNota, setDanosNota] = useState('');
   const hora = new Date().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
   const totalKm = trips.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
@@ -7756,6 +7782,17 @@ function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
             {(danos==='menor'||danos==='grave') && (
               <input value={danosNota} onChange={e=>setDanosNota(e.target.value)} placeholder="Describe el daño (obligatorio)..."
                 className={`w-full mt-2 border-2 rounded-xl px-3 py-2 text-sm focus:outline-none ${!danosNota.trim() ? 'border-red-300' : 'border-amber-300'}`} />
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">🤳 Selfie del chofer <span className="text-red-500">*</span></label>
+            {fotoChofer ? (
+              <div className="relative"><img src={fotoChofer} alt="Chofer" className="w-full h-32 object-cover rounded-xl border-2 border-indigo-300" /><button onClick={() => setFotoChofer(null)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button></div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-indigo-300 rounded-xl cursor-pointer hover:bg-indigo-50">
+                <span className="text-2xl">🤳</span><span className="text-xs text-indigo-400 mt-1">Selfie (cámara frontal)</span>
+                <input type="file" accept="image/*" capture="user" className="hidden" onChange={handleFotoChofer} />
+              </label>
             )}
           </div>
           <div>
@@ -8138,6 +8175,12 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
           )}
           {lastEndShift.danosNota && lastEndShift.items?.danos !== 'ninguno' && (
             <div className="text-xs text-red-700 bg-red-50 rounded-lg p-2 mb-1">🔍 {lastEndShift.danosNota}</div>
+          )}
+          {lastEndShift.fotoChofer && (
+            <div className="flex items-center gap-2 mt-2">
+              <img src={lastEndShift.fotoChofer} alt="Chofer" className="w-16 h-16 object-cover rounded-xl border-2 border-indigo-200" />
+              <div className="text-xs text-indigo-600">🧑 {lastEndShift.driverName}</div>
+            </div>
           )}
           {lastEndShift.foto && (
             <img src={lastEndShift.foto} alt="Foto cierre" className="w-full h-24 object-cover rounded-xl mt-2 border border-indigo-200" />
