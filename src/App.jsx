@@ -525,7 +525,7 @@ export default function App() {
           loadFromStorage(KEYS.HANDOFFS),
         ]);
         const savedCfg = reads[6] ? { ...DEFAULT_CONFIG, ...reads[6] } : DEFAULT_CONFIG;
-        if (reads[0]) setVehicles(reads[0].map(v => ({ ...v, maintenanceWebhook: v.maintenanceWebhook || savedCfg?.discordWebhookByVehicle?.[v.id] || '' })));
+        if (reads[0]) setVehicles(reads[0].map(v => ({ ...v, maintenanceWebhook: v.maintenanceWebhook || '' })));
         if (reads[1]) setDrivers(reads[1]);
         if (reads[2]) setBranches(reads[2]);
         if (reads[3]) setTrips(reads[3]);
@@ -5429,10 +5429,6 @@ function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig })
   const handleSave = (v) => {
     if (v.id) saveVehicles(vehicles.map(x => x.id === v.id ? v : x));
     else saveVehicles([...vehicles, { ...v, id: `v_${Date.now()}` }]);
-    // Guardar webhook también en config para que no se pierda al redeployar
-    if (v.maintenanceWebhook && saveConfig) {
-      saveConfig({ ...config, discordWebhookByVehicle: { ...(config.discordWebhookByVehicle||{}), [v.id]: v.maintenanceWebhook } });
-    }
     setEditing(null);
     setShowAdd(false);
   };
