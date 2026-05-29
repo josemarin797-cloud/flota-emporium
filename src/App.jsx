@@ -1986,7 +1986,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       const kmDiff = vehPrincipal ? Number(kmFinal) - (vehPrincipal.currentKm||0) : 0;
       sendDiscordNotification(wh, {
         title: '🌙 Cierre de jornada — ' + nombre,
-        description: `📅 ${hoy} ${hora}\n🚛 ${vehPrincipal?.code||'—'} · KM final: ${Number(kmFinal).toLocaleString()}\n⛽ Combustible restante: ${combustibleRestante||0} L\n🔵 Cauchos: ${items?.cauchos||'—'}${cauchoNota?' — '+cauchoNota:''}\n🔍 Daños: ${items?.danos||'—'}${danosNota?' — '+danosNota:''}\n✅ ${viajesHoy.length} viajes · ${totalKm} km · $${totalCosto.toFixed(2)}\n${novedades ? '📝 '+novedades : ''}`,
+        description: `📅 ${hoy} ${hora}\n🚛 ${vehPrincipal?.code||'—'} · KM final: ${Number(kmFinal).toLocaleString()}\n⛽ Combustible restante: ${combustibleRestante||'—'}\n🔵 Cauchos: ${items?.cauchos||'—'}${cauchoNota?' — '+cauchoNota:''}\n🔍 Daños: ${items?.danos||'—'}${danosNota?' — '+danosNota:''}\n✅ ${viajesHoy.length} viajes · ${totalKm} km · $${totalCosto.toFixed(2)}\n${novedades ? '📝 '+novedades : ''}`,
         color: hayAlerta ? 0xef4444 : novedades ? 0xf59e0b : 0x10b981,
       }).catch(()=>{});
       // Foto del camión guardado
@@ -2170,7 +2170,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           </>}
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
-          {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) setChecklistKm(Number(km)); setStep('start'); }} onBack={() => setStep('select')} config={config} />}
+          {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) setChecklistKm(Number(km)); setStep('start'); }} onBack={() => setStep('select')} config={config} endShifts={endShifts} />}
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} />}
@@ -7697,8 +7697,15 @@ function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
             <input type="number" value={kmFinal} onChange={e=>setKmFinal(e.target.value)} placeholder="Ej: 142500" className="w-full border-2 border-stone-200 rounded-xl px-3 py-2 text-sm font-mono focus:border-indigo-400 outline-none" />
           </div>
           <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1">⛽ Combustible restante (litros)</label>
-            <input type="number" value={combustibleRestante} onChange={e=>setCombustibleRestante(e.target.value)} placeholder="Ej: 45" className="w-full border-2 border-stone-200 rounded-xl px-3 py-2 text-sm font-mono focus:border-indigo-400 outline-none" />
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">⛽ Combustible restante</label>
+            <div className="flex gap-2">
+              {['1/4','1/2','3/4','Full'].map(opt => (
+                <button key={opt} onClick={()=>setCombustibleRestante(opt)}
+                  className={`flex-1 py-2 rounded-xl border-2 text-sm font-bold transition ${combustibleRestante===opt ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-stone-50 border-stone-200 text-stone-500'}`}>
+                  {opt}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">✅ Chequeo rápido <span className="text-red-500">*</span></label>
@@ -7768,17 +7775,19 @@ function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
 }
 
 
-function ChecklistScreen({ vehicle, driver, checklists, saveChecklists, onProceed, onBack, config }) {
+function ChecklistScreen({ vehicle, driver, checklists, saveChecklists, onProceed, onBack, config, endShifts = [] }) {
   const todayKey = new Date().toISOString().slice(0, 10);
   const existing = checklists.find(c => c.vehicleId === vehicle.id && c.date === todayKey);
   // Alerta si el KM actual difiere del registrado al guardar
   const kmAlert = vehicle.lastParkedKm && vehicle.lastParkedDate && vehicle.lastParkedDate !== todayKey
     ? { lastKm: vehicle.lastParkedKm, lastDate: vehicle.lastParkedDate, lastTime: vehicle.lastParkedTime, currentKm: vehicle.currentKm }
     : null;
+  // Último cierre de jornada de este camión
+  const lastEndShift = endShifts.filter(s => s.vehicleId === vehicle.id).sort((a,b) => b.timestamp - a.timestamp)[0] || null;
   if (existing) {
     return <ChecklistAlreadyDone checklist={existing} vehicle={vehicle} driver={driver} onProceed={onProceed} onBack={onBack} />;
   }
-  return <ChecklistForm vehicle={vehicle} driver={driver} saveChecklists={saveChecklists} checklists={checklists} onDone={onProceed} onBack={onBack} config={config} kmAlert={kmAlert} />;
+  return <ChecklistForm vehicle={vehicle} driver={driver} saveChecklists={saveChecklists} checklists={checklists} onDone={onProceed} onBack={onBack} config={config} kmAlert={kmAlert} lastEndShift={lastEndShift} />;
 }
 
 // ============================================================
@@ -7951,7 +7960,7 @@ function SignatureCanvas({ onSignature, cleared }) {
 // ============================================================
 // FORMULARIO COMPLETO DEL CHECKLIST
 // ============================================================
-function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, onBack, config, kmAlert }) {
+function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, onBack, config, kmAlert, lastEndShift }) {
   const now = new Date();
   const todayKey = now.toISOString().slice(0, 10);
   const timeNow = now.toTimeString().slice(0, 5);
@@ -8081,6 +8090,46 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
               </div>
             </div>
           </div>
+        </div>
+      )}
+      {/* CIERRE DE JORNADA ANTERIOR */}
+      {lastEndShift && (
+        <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4">
+          <div className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-2">🌙 Cierre jornada anterior — {lastEndShift.driverName}</div>
+          <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+            <div className="bg-white rounded-lg p-2 border border-indigo-100">
+              <div className="text-indigo-400 font-mono">📅 Fecha</div>
+              <div className="font-bold text-indigo-900">{lastEndShift.date} {lastEndShift.time}</div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-indigo-100">
+              <div className="text-indigo-400 font-mono">🔢 KM guardado</div>
+              <div className="font-bold text-indigo-900">{(lastEndShift.kmFinal||0).toLocaleString()} km</div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-indigo-100">
+              <div className="text-indigo-400 font-mono">🔵 Cauchos</div>
+              <div className={`font-bold ${lastEndShift.items?.cauchos==='mal'?'text-red-600':lastEndShift.items?.cauchos==='revisar'?'text-amber-600':'text-emerald-700'}`}>
+                {lastEndShift.items?.cauchos==='bien'?'✅ Bien':lastEndShift.items?.cauchos==='revisar'?'⚠️ Revisar':lastEndShift.items?.cauchos==='mal'?'🔴 Mal estado':'—'}
+              </div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-indigo-100">
+              <div className="text-indigo-400 font-mono">🔍 Daños</div>
+              <div className={`font-bold ${lastEndShift.items?.danos==='grave'?'text-red-600':lastEndShift.items?.danos==='menor'?'text-amber-600':'text-emerald-700'}`}>
+                {lastEndShift.items?.danos==='ninguno'?'✅ Ninguno':lastEndShift.items?.danos==='menor'?'⚠️ Menor':lastEndShift.items?.danos==='grave'?'🔴 Grave':'—'}
+              </div>
+            </div>
+          </div>
+          {lastEndShift.cauchoNota && lastEndShift.items?.cauchos !== 'bien' && (
+            <div className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 mb-1">🔵 {lastEndShift.cauchoNota}</div>
+          )}
+          {lastEndShift.danosNota && lastEndShift.items?.danos !== 'ninguno' && (
+            <div className="text-xs text-red-700 bg-red-50 rounded-lg p-2 mb-1">🔍 {lastEndShift.danosNota}</div>
+          )}
+          {lastEndShift.foto && (
+            <img src={lastEndShift.foto} alt="Foto cierre" className="w-full h-24 object-cover rounded-xl mt-2 border border-indigo-200" />
+          )}
+          {lastEndShift.novedades && (
+            <div className="text-xs text-stone-600 mt-1">📝 {lastEndShift.novedades}</div>
+          )}
         </div>
       )}
       {/* Header */}
