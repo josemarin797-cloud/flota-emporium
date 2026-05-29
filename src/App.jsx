@@ -17,6 +17,8 @@ const KEYS = {
   PHOTOS: 'emp:v4:photos',
   GPS_TRACKS: 'emp:v4:gps_tracks',
   HANDOFFS:   'emp:v4:handoffs',
+  SHIFT_SIGS: 'emp:v4:shift_signatures',
+  END_SHIFTS: 'emp:v4:end_shifts',
   PENDING:    '__emp:pendingSync',
   DISC_QUEUE: '__emp:discordQueue',
   CHECKLISTS: 'emp:v4:checklists',
@@ -493,6 +495,7 @@ export default function App() {
   const [activeTrips, setActiveTrips] = useState([]);
   const [archivedMonths, setArchivedMonths] = useState([]);
   const [handoffs, setHandoffs] = useState([]);
+  const [endShifts, setEndShifts] = useState([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
   const [syncMsg, setSyncMsg] = useState(null);
@@ -530,6 +533,8 @@ export default function App() {
         if (reads[7]) setPhotos(reads[7]);
         if (reads[8]) setGpsTracks(reads[8]);
         if (reads[9]) setHandoffs(reads[9]);
+        const esLocal = await window.storage.get(KEYS.END_SHIFTS).catch(() => null);
+        if (esLocal?.value) setEndShifts(JSON.parse(esLocal.value));
         // Cargar checklists desde SUPABASE (sincronizados entre todos los dispositivos)
         const sbData = await loadSBChecklists();
         if (sbData !== null) {
@@ -661,6 +666,7 @@ export default function App() {
   const savePhotos = (d) => { setPhotos(d); persist(KEYS.PHOTOS, d); };
   const saveGpsTracks = (d) => { setGpsTracks(d); persist(KEYS.GPS_TRACKS, d); };
   const saveHandoffs = (d) => { setHandoffs(d); persist(KEYS.HANDOFFS, d); };
+  const saveEndShifts = (d) => { setEndShifts(d); persist(KEYS.END_SHIFTS, d); };
   const saveMaintRecords = (d) => { setMaintRecords(d); persist(KEYS.MAINT_RECORDS, d); };
   const saveIncidents = (d) => { setIncidents(d); persist(KEYS.INCIDENTS, d); };
   const saveFuelRecords = (d) => { setFuelRecords(d); persist(KEYS.FUEL_RECORDS, d); };
@@ -787,6 +793,7 @@ export default function App() {
         handoffs={handoffs} saveHandoffs={saveHandoffs}
         incidents={incidents} saveIncidents={saveIncidents}
         fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords}
+        endShifts={endShifts} saveEndShifts={saveEndShifts}
       />
       <InstallAppButton />
     </>;
@@ -810,6 +817,7 @@ export default function App() {
         saveMaintRecords={saveMaintRecords}
         saveIncidents={saveIncidents}
         saveFuelRecords={saveFuelRecords}
+        endShifts={endShifts}
       />
       <InstallAppButton />
     </>;
@@ -1592,7 +1600,7 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
     </div>
   );
 }
-function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents, fuelRecords = [], saveFuelRecords }) {
+function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents, fuelRecords = [], saveFuelRecords, endShifts = [], saveEndShifts }) {
   const [tab, setTab] = useState('trip');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [step, setStep] = useState('select');
@@ -1603,6 +1611,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   const watchIdRef = useRef(null);
   const [showEntregarModal, setShowEntregarModal] = useState(false);
   const [checklistKm, setChecklistKm] = useState(null);
+  const [showEndShiftForm, setShowEndShiftForm] = useState(false);
+  const [endShiftTripData, setEndShiftTripData] = useState(null);
 
   // Al seleccionar vehículo, detectar si está EN TALLER
   const myTrips = useMemo(() => trips.filter(t => t.driverId === currentDriver.id), [trips, currentDriver]);
@@ -1933,32 +1943,65 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   const finalizarJornada = async () => {
     const hoy = new Date().toISOString().slice(0, 10);
     const viajesHoy = trips.filter(t => t.driverId === currentDriver.id && t.startDate === hoy);
-    if (viajesHoy.length === 0) {
-      speakText('No tienes viajes registrados hoy.');
-      return;
-    }
-    const totalKm = viajesHoy.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
-    const totalLitros = viajesHoy.reduce((s, t) => s + (Number(t.fuelLoaded) || 0), 0);
-    const totalCosto = viajesHoy.reduce((s, t) => s + (Number(t.cost) || 0), 0);
-    const totalEntregas = viajesHoy.reduce((s, t) => s + (Number(t.deliveries) || 0), 0);
-    const tiempoMin = viajesHoy.reduce((s, t) => s + (Number(t.tripMinutes) || 0), 0);
-    const horas = Math.floor(tiempoMin / 60);
-    const mins = tiempoMin % 60;
-    const tiempoTxt = horas > 0 ? horas + 'h ' + mins + 'min' : mins + ' min';
-    const rutasCount = {};
-    viajesHoy.forEach(t => { const r = t.route || 'LOCAL'; rutasCount[r] = (rutasCount[r] || 0) + 1; });
-    const rutasTxt = Object.entries(rutasCount).map(([r, c]) => r + ' (' + c + ')').join(', ');
     const vehCount = {};
     viajesHoy.forEach(t => { vehCount[t.vehicleId] = (vehCount[t.vehicleId] || 0) + 1; });
-    const vehPrincipalId = Object.entries(vehCount).sort((a, b) => b[1] - a[1])[0][0];
-    const vehPrincipal = vehicles.find(v => v.id === vehPrincipalId);
+    const vehPrincipalId = viajesHoy.length > 0 ? Object.entries(vehCount).sort((a,b)=>b[1]-a[1])[0][0] : null;
+    const vehPrincipal = vehPrincipalId ? vehicles.find(v => v.id === vehPrincipalId) : selectedVehicle;
+    setEndShiftTripData({ viajesHoy, vehPrincipal, hoy });
+    setShowEndShiftForm(true);
+  };
+
+  const handleEndShiftConfirm = async ({ kmFinal, foto, items, novedades }) => {
+    const { viajesHoy, vehPrincipal, hoy } = endShiftTripData;
+    const totalKm = viajesHoy.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
+    const totalLitros = viajesHoy.reduce((s,t)=>s+(Number(t.fuelLoaded)||0),0);
+    const totalCosto = viajesHoy.reduce((s,t)=>s+(Number(t.cost)||0),0);
     const nombre = currentDriver?.shortName || currentDriver?.name || 'chofer';
-    const fraseVoz = '¡Excelente jornada ' + nombre + '! Hoy recorriste ' + totalKm + ' kilómetros en ' + viajesHoy.length + ' viajes. Recuerda estacionar el vehículo en lugar seguro. Hasta mañana.';
-    setTimeout(() => speakText(fraseVoz), 400);
-    const wh=config.discordWebhookGeneral;
-    if(wh)sendDiscordNotification(wh,{title:'🌙 '+nombre+' '+hoy,description:'✅ '+viajesHoy.length+' viajes 📍 '+totalKm+' km 💰 $'+totalCosto.toFixed(2),color:0x7c3aed}).catch(()=>{});
-    
-   alert('🌙 ¡Excelente jornada ' + nombre + '!\n\n✅ Viajes: ' + viajesHoy.length + '\n📍 Km: ' + totalKm + '\n⛽ Litros: ' + totalLitros + '\n💰 Gasto: $' + totalCosto.toFixed(2) + '\n⏱️ Tiempo: ' + tiempoTxt + '\n🛣️ Rutas: ' + rutasTxt + '\n\nDescansa, hasta mañana.');
+    const hora = new Date().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
+
+    // Guardar registro de cierre
+    const record = {
+      id: Date.now().toString(), driverId: currentDriver.id, driverName: currentDriver.name,
+      vehicleId: vehPrincipal?.id, vehicleCode: vehPrincipal?.code, vehiclePlate: vehPrincipal?.plate,
+      date: hoy, time: hora, timestamp: Date.now(),
+      kmFinal: Number(kmFinal), foto, items, novedades,
+      totalViajes: viajesHoy.length, totalKm, totalLitros, totalCosto,
+    };
+    saveEndShifts && saveEndShifts([record, ...(endShifts||[])]);
+
+    // Actualizar KM y estado del camión → "GUARDADO"
+    if (vehPrincipal && kmFinal) {
+      saveVehicles(vehicles.map(v => v.id === vehPrincipal.id ? {
+        ...v, currentKm: Number(kmFinal),
+        lastParkedKm: Number(kmFinal), lastParkedDate: hoy, lastParkedTime: hora,
+        status: v.status === 'EN TALLER' ? 'EN TALLER' : 'AL DIA',
+      } : v));
+    }
+
+    // Discord
+    const wh = config.discordWebhookGeneral;
+    if (wh) {
+      const kmDiff = vehPrincipal ? Number(kmFinal) - (vehPrincipal.currentKm||0) : 0;
+      sendDiscordNotification(wh, {
+        title: '🌙 Cierre de jornada — ' + nombre,
+        description: `📅 ${hoy} ${hora}\n🚛 ${vehPrincipal?.code||'—'} · KM final: ${Number(kmFinal).toLocaleString()}\n✅ ${viajesHoy.length} viajes · ${totalKm} km · $${totalCosto.toFixed(2)}\n${novedades ? '⚠️ Novedad: ' + novedades : '✅ Sin novedades'}`,
+        color: novedades ? 0xf59e0b : 0x10b981,
+      }).catch(()=>{});
+      // Foto del camión guardado
+      if (foto && wh) {
+        try {
+          const blob = await (await fetch(foto)).blob();
+          const fd = new FormData();
+          fd.append('files[0]', blob, 'cierre-jornada.jpg');
+          fd.append('payload_json', JSON.stringify({ content: `📸 ${vehPrincipal?.code||''} guardado — ${hora}` }));
+          fetch(wh, { method:'POST', body: fd }).catch(()=>{});
+        } catch(e) {}
+      }
+    }
+
+    speakText(`¡Excelente jornada ${nombre}! KM registrado: ${Number(kmFinal).toLocaleString()}. Hasta mañana.`);
+    setShowEndShiftForm(false);
+    setEndShiftTripData(null);
     setCurrentTrip(null);
     setStep('select');
   };
@@ -2130,6 +2173,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} />}
+          {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
           {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
@@ -7605,14 +7649,137 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
 // Si no → muestra el formulario completo (obligatorio).
 // Si sí → muestra quién lo chequeó y permite continuar.
 // ============================================================
-function ChecklistScreen({ vehicle, driver, checklists, saveChecklists, onProceed, onBack, config }) {
-  const todayKey = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
-  const existing = checklists.find(c => c.vehicleId === vehicle.id && c.date === todayKey);
+// ============================================================
+// FORMULARIO CIERRE DE JORNADA
+// ============================================================
+function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
+  const [kmFinal, setKmFinal] = useState(vehicle?.currentKm?.toString() || '');
+  const [foto, setFoto] = useState(null);
+  const [novedades, setNovedades] = useState('');
+  const [items, setItems] = useState({ estacionado: false, luces: false, puertas: false, sinDanos: false, combustible: false });
+  const [submitting, setSubmitting] = useState(false);
+  const hora = new Date().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
+  const totalKm = trips.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
 
+  const handleFoto = (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setFoto(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const allChecked = Object.values(items).every(Boolean);
+  const canSubmit = kmFinal && foto && allChecked;
+
+  const submit = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    await onConfirm({ kmFinal: Number(kmFinal), foto, items, novedades });
+    setSubmitting(false);
+  };
+
+  const checkItems = [
+    { key: 'estacionado', label: '🅿️ Camión estacionado en su sitio' },
+    { key: 'luces', label: '💡 Luces apagadas' },
+    { key: 'puertas', label: '🔒 Puertas cerradas y aseguradas' },
+    { key: 'sinDanos', label: '✅ Sin daños visibles nuevos' },
+    { key: 'combustible', label: '⛽ Combustible restante verificado' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 to-stone-900 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div className="bg-indigo-700 px-5 py-4 text-white">
+          <div className="text-xs font-mono uppercase tracking-wider opacity-80 mb-1">🌙 Cierre de jornada</div>
+          <div className="font-black text-lg">{driver.name}</div>
+          <div className="text-indigo-200 text-sm">{hora} · {vehicle?.code || '—'} · {trips.length} viajes · {totalKm} km</div>
+        </div>
+        <div className="px-5 pt-4 pb-2 space-y-4">
+
+          {/* KM Final */}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1">
+              🔢 KM Final del odómetro <span className="text-red-500">*</span>
+            </label>
+            {vehicle?.lastParkedKm && (
+              <div className="text-xs text-stone-400 mb-1">Último registrado: {vehicle.lastParkedKm.toLocaleString()} km</div>
+            )}
+            <input
+              type="number" value={kmFinal} onChange={e=>setKmFinal(e.target.value)}
+              placeholder="Ej: 142500"
+              className="w-full border-2 border-stone-200 rounded-xl px-3 py-2 text-sm font-mono focus:border-indigo-400 outline-none"
+            />
+          </div>
+
+          {/* Chequeo rápido */}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">
+              ✅ Chequeo rápido <span className="text-red-500">*</span>
+            </label>
+            <div className="space-y-2">
+              {checkItems.map(item => (
+                <button key={item.key} onClick={() => setItems(p=>({...p,[item.key]:!p[item.key]}))}
+                  className={`w-full flex items-center gap-3 p-2.5 rounded-xl border-2 text-sm text-left transition ${items[item.key] ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-stone-50 border-stone-200 text-stone-600'}`}>
+                  <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${items[item.key] ? 'bg-emerald-500 border-emerald-500' : 'border-stone-300'}`}>
+                    {items[item.key] && <span className="text-white text-xs">✓</span>}
+                  </div>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Foto */}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">
+              📸 Foto del camión guardado <span className="text-red-500">*</span>
+            </label>
+            {foto ? (
+              <div className="relative">
+                <img src={foto} alt="Camión guardado" className="w-full h-32 object-cover rounded-xl border-2 border-emerald-300" />
+                <button onClick={() => setFoto(null)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button>
+              </div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-stone-300 rounded-xl cursor-pointer hover:bg-stone-50">
+                <span className="text-2xl">📷</span>
+                <span className="text-xs text-stone-400 mt-1">Tomar foto del camión</span>
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFoto} />
+              </label>
+            )}
+          </div>
+
+          {/* Novedades */}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1">Novedades (opcional)</label>
+            <textarea value={novedades} onChange={e=>setNovedades(e.target.value)}
+              placeholder="Ej: rayón en guardabarro derecho..."
+              rows={2} className="w-full border-2 border-stone-200 rounded-xl px-3 py-2 text-sm resize-none focus:border-indigo-400 outline-none" />
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 space-y-2">
+          <button onClick={submit} disabled={!canSubmit || submitting}
+            className={`w-full py-3 rounded-xl font-black text-white text-base transition ${canSubmit && !submitting ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-stone-300 cursor-not-allowed'}`}>
+            {submitting ? '⏳ Guardando...' : '🌙 Confirmar cierre de jornada'}
+          </button>
+          <button onClick={onBack} className="w-full py-2 text-xs text-stone-400 hover:text-stone-600">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChecklistScreen({ vehicle, driver, checklists, saveChecklists, onProceed, onBack, config }) {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const existing = checklists.find(c => c.vehicleId === vehicle.id && c.date === todayKey);
+  // Alerta si el KM actual difiere del registrado al guardar
+  const kmAlert = vehicle.lastParkedKm && vehicle.lastParkedDate && vehicle.lastParkedDate !== todayKey
+    ? { lastKm: vehicle.lastParkedKm, lastDate: vehicle.lastParkedDate, lastTime: vehicle.lastParkedTime, currentKm: vehicle.currentKm }
+    : null;
   if (existing) {
     return <ChecklistAlreadyDone checklist={existing} vehicle={vehicle} driver={driver} onProceed={onProceed} onBack={onBack} />;
   }
-  return <ChecklistForm vehicle={vehicle} driver={driver} saveChecklists={saveChecklists} checklists={checklists} onDone={onProceed} onBack={onBack} config={config} />;
+  return <ChecklistForm vehicle={vehicle} driver={driver} saveChecklists={saveChecklists} checklists={checklists} onDone={onProceed} onBack={onBack} config={config} kmAlert={kmAlert} />;
 }
 
 // ============================================================
@@ -7785,7 +7952,7 @@ function SignatureCanvas({ onSignature, cleared }) {
 // ============================================================
 // FORMULARIO COMPLETO DEL CHECKLIST
 // ============================================================
-function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, onBack, config }) {
+function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, onBack, config, kmAlert }) {
   const now = new Date();
   const todayKey = now.toISOString().slice(0, 10);
   const timeNow = now.toTimeString().slice(0, 5);
@@ -7901,6 +8068,22 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
 
   return (
     <div className="space-y-4 pb-8">
+      {/* ALERTA KM — camión movido sin autorización */}
+      {kmAlert && kmAlert.currentKm > kmAlert.lastKm && (
+        <div className="bg-red-50 border-2 border-red-400 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">🚨</div>
+            <div>
+              <div className="font-black text-red-800 text-sm">¡El camión fue movido!</div>
+              <div className="text-xs text-red-700 mt-1 space-y-0.5">
+                <div>🌙 Guardado ayer ({kmAlert.lastDate} {kmAlert.lastTime}): <strong>{kmAlert.lastKm.toLocaleString()} km</strong></div>
+                <div>🌅 KM actual: <strong>{(kmAlert.currentKm||0).toLocaleString()} km</strong></div>
+                <div className="font-bold text-red-800">⚠️ Diferencia: +{((kmAlert.currentKm||0) - kmAlert.lastKm).toLocaleString()} km SIN AUTORIZACIÓN</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 transition">
