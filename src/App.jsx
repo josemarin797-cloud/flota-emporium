@@ -166,8 +166,9 @@ const PHOTO_CATEGORIES = [
 
 // Obtener webhook de mantenimiento de un vehículo (guardado en el vehículo, no en config)
 const getMaintWebhook = (vehicleId, vehicles, config) => {
-  // Canal de mantenimiento = config.discordWebhookByVehicle (checklist, combustible, incidentes, taller)
-  return config?.discordWebhookByVehicle?.[vehicleId] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
+  // Canal mantenimiento: primero webhook del camión (Flota→editar), luego global
+  const v = vehicles?.find(x => x.id === vehicleId);
+  return v?.maintenanceWebhook || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
 };
 
 // Resolver nombre legible de destino
@@ -1758,10 +1759,10 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     // Notificación Discord
     const origin = branches.find(b => b.id === data.originBranchId) || (data.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
     const destName = resolveDestName(data, branches);
-    // Discord: viajes van al canal de viajes del camión
+    // Discord: viajes → canal viajes, otro-mant → canal mantenimiento
     const webhookUrl = data.destinationBranchId === 'otro' && data.customDestType === 'mantenimiento'
-      ? (config.discordWebhookByVehicle?.[selectedVehicle.id] || config.discordWebhookMaintenance || config.discordWebhookGeneral)
-      : (selectedVehicle?.maintenanceWebhook || config.discordWebhookGeneral);
+      ? (getMaintWebhook(selectedVehicle?.id, vehicles, config))
+      : (config.discordWebhookByVehicle?.[selectedVehicle.id] || config.discordWebhookGeneral);
     sendDiscordNotification(webhookUrl, {
       title: `🚛 VIAJE INICIADO · ${selectedVehicle.code}`,
       description: `**${currentDriver.name}** salió de **${origin?.name}** rumbo a **${destName}**`,
@@ -1865,8 +1866,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const origin = branches.find(b => b.id === currentTrip.originBranchId) || (currentTrip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
     const destName = resolveDestName(currentTrip, branches);
     const webhookUrl = currentTrip.destinationBranchId === 'otro' && currentTrip.customDestType === 'mantenimiento'
-      ? (config.discordWebhookByVehicle?.[v?.id] || config.discordWebhookMaintenance || config.discordWebhookGeneral)
-      : (v?.maintenanceWebhook || config.discordWebhookGeneral);
+      ? (getMaintWebhook(v?.id, vehicles, config))
+      : (config.discordWebhookByVehicle?.[v?.id] || config.discordWebhookGeneral);
     sendDiscordNotification(webhookUrl, {
       title: `✅ VIAJE COMPLETADO · ${v.code}`,
       description: `**${currentDriver.name}** llegó a **${destName}** desde **${origin?.name}**`,
@@ -7395,8 +7396,8 @@ function DiscordTab({ config, saveConfig, vehicles }) {
 
       {/* Webhooks por unidad */}
       <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
-        <h3 className="font-bold text-stone-900 mb-1">🚛 Canales por unidad — <span className="text-indigo-700">Viajes</span></h3>
-        <p className="text-xs text-stone-600 mb-4">Inicios y llegadas de viajes van al canal del camión. Ej: NPR 01 → <code className="bg-stone-100 px-1 rounded">#npr-01-daniel</code></p>
+        <h3 className="font-bold text-stone-900 mb-1">🚛 Canales por unidad — <span className="text-emerald-700">Viajes</span></h3>
+        <p className="text-xs text-stone-600 mb-4">Inicio y fin de viajes. Ej: NPR 01 → <code className="bg-stone-100 px-1 rounded">#npr-01-daniel</code></p>
         <div className="space-y-3">
           {vehicles.map(v => (
             <div key={v.id} className="flex items-end gap-2">
@@ -8570,7 +8571,7 @@ function ChecklistDetailModal({ checklist, vehicles, onClose }) {
 }
 
 async function sendChecklistDiscord(cl, vehicle, driver, config) {
-  const webhookUrl = config?.discordWebhookByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
+  const webhookUrl = vehicle?.maintenanceWebhook || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
   if (!webhookUrl) return;
   const crits = cl.criticalCount || 0;
   const warns = cl.warningCount || 0;
