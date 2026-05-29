@@ -7670,9 +7670,9 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
 // FORMULARIO CIERRE DE JORNADA
 // ============================================================
 function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
-  const [kmFinal, setKmFinal] = useState(''); // vacío para forzar ingreso manual
-  const [foto, setFoto] = useState(null);       // foto camión (trasera)
-  const [fotoChofer, setFotoChofer] = useState(null); // selfie chofer (frontal)
+  const [kmFinal, setKmFinal] = useState('');
+  const [foto, setFoto] = useState(null);
+  const [fotoChofer, setFotoChofer] = useState(null);
   const [novedades, setNovedades] = useState('');
   const [combustibleRestante, setCombustibleRestante] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -7683,40 +7683,21 @@ function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
   const [danosNota, setDanosNota] = useState('');
   const hora = new Date().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
   const totalKm = trips.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
-
   const handleFoto = (e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = ev => setFoto(ev.target.result); reader.readAsDataURL(file); };
   const handleFotoChofer = (e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = ev => setFotoChofer(ev.target.result); reader.readAsDataURL(file); };
-
   const allSimpleChecked = Object.values(simpleItems).every(Boolean);
   const cauchoNecesitaNota = (cauchos === 'revisar' || cauchos === 'mal') && !cauchoNota.trim();
   const danosNecesitaNota = (danos === 'menor' || danos === 'grave') && !danosNota.trim();
-  // KM obligatorio y debe ser mayor al actual
   const kmValido = kmFinal !== '' && Number(kmFinal) > 0;
   const canSubmit = kmValido && foto && fotoChofer && allSimpleChecked && cauchos && danos && !cauchoNecesitaNota && !danosNecesitaNota;
-
   const submit = async () => {
     if (!canSubmit) return;
     if (vehicle?.currentKm && Number(kmFinal) < vehicle.currentKm) {
-      if (!confirm(`⚠️ El KM ingresado (${Number(kmFinal).toLocaleString()}) es menor al actual (${vehicle.currentKm.toLocaleString()}). ¿Continuar?`)) return;
+      if (!confirm(`⚠️ KM ingresado (${Number(kmFinal).toLocaleString()}) menor al actual (${vehicle.currentKm.toLocaleString()}). ¿Continuar?`)) return;
     }
     setSubmitting(true);
     const hayAlerta = cauchos !== 'bien' || danos !== 'ninguno';
     await onConfirm({ kmFinal: Number(kmFinal), foto, fotoChofer, items: { ...simpleItems, cauchos, danos }, novedades, combustibleRestante: combustibleRestante || '', hayAlerta, cauchoNota, danosNota });
-    setSubmitting(false);
-  };
-  const [danosNota, setDanosNota] = useState('');
-  const hora = new Date().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
-  const totalKm = trips.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
-  const handleFoto = (e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = ev => setFoto(ev.target.result); reader.readAsDataURL(file); };
-  const allSimpleChecked = Object.values(simpleItems).every(Boolean);
-  const cauchoNecesitaNota = (cauchos === 'revisar' || cauchos === 'mal') && !cauchoNota.trim();
-  const danosNecesitaNota = (danos === 'menor' || danos === 'grave') && !danosNota.trim();
-  const canSubmit = kmFinal && foto && allSimpleChecked && cauchos && danos && !cauchoNecesitaNota && !danosNecesitaNota;
-  const submit = async () => {
-    if (!canSubmit) return;
-    setSubmitting(true);
-    const hayAlerta = cauchos !== 'bien' || danos !== 'ninguno';
-    await onConfirm({ kmFinal: Number(kmFinal), foto, items: { ...simpleItems, cauchos, danos }, novedades, combustibleRestante: combustibleRestante || '', hayAlerta, cauchoNota, danosNota });
     setSubmitting(false);
   };
   const BtnOpt = ({ active, color, onClick, children }) => {
@@ -7735,7 +7716,7 @@ function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
           <div>
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1">🔢 KM Final del odómetro <span className="text-red-500">*</span></label>
             {vehicle?.lastParkedKm && <div className="text-xs text-stone-400 mb-1">Último: {vehicle.lastParkedKm.toLocaleString()} km</div>}
-            <input type="number" value={kmFinal} onChange={e=>setKmFinal(e.target.value)} placeholder="Ej: 142500" className="w-full border-2 border-stone-200 rounded-xl px-3 py-2 text-sm font-mono focus:border-indigo-400 outline-none" />
+            <input type="number" value={kmFinal} onChange={e=>setKmFinal(e.target.value)} placeholder="Ingresa el KM del odómetro" className="w-full border-2 border-stone-200 rounded-xl px-3 py-2 text-sm font-mono focus:border-indigo-400 outline-none" />
           </div>
           <div>
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">⛽ Combustible restante</label>
@@ -7825,7 +7806,6 @@ function EndShiftForm({ driver, vehicle, trips = [], onConfirm, onBack }) {
     </div>
   );
 }
-
 
 function ChecklistScreen({ vehicle, driver, checklists, saveChecklists, onProceed, onBack, config, endShifts = [] }) {
   const todayKey = new Date().toISOString().slice(0, 10);
@@ -8770,7 +8750,6 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
       await idbAdd({ type: 'discord', webhookUrl, content: `📷 Foto unidad ${idx+1}`, photoData: extraPhotos[idx], filename: `foto_unidad_${idx+1}.jpg`, embed: null, queuedAt: new Date().toISOString() });
     }
   }
-
 }
 // ============================================================
 // ChecklistCoordTab — vista para el coordinador con PDF
