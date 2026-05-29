@@ -3560,7 +3560,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'fuel_mgmt' && <FuelMgmtTab fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} vehicles={vehicles} trips={trips} config={config} selectedMonth={selectedMonth} />}
         {tab === 'incidents' && <IncidentsTab incidents={incidents} vehicles={vehicles} drivers={drivers} saveIncidents={saveIncidents} />}
         {tab === 'documents' && <DocumentsTab vehicles={vehicles} saveVehicles={saveVehicles} config={config} />}
-        {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} />}
+        {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} maintRecords={maintRecords} />}
         {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} saveChecklists={saveChecklists} sbFetch={sbFetch} />}
         {tab === 'discord' && <DiscordTab config={config} saveConfig={saveConfig} vehicles={vehicles} />}
         {tab === 'settings' && <SettingsTab config={config} saveConfig={saveConfig} saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} savePhotos={savePhotos} saveGpsTracks={saveGpsTracks} saveArchived={saveArchived} vehicles={vehicles} saveVehicles={saveVehicles} />}
@@ -6942,7 +6942,7 @@ function DocumentsTab({ vehicles, saveVehicles }) {
   );
 }
 
-function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveArchived }) {
+function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveArchived, maintRecords = [] }) {
   const [showModal, setShowModal] = useState(false);
   const [expanded, setExpanded] = useState(null);
 
@@ -7020,6 +7020,84 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
     XLSX.writeFile(wb, `resumen_flota_${a.month}.xlsx`);
   };
 
+  const downloadPDF = async (a) => {
+    if (!window.jspdf) {
+      await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+      await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p','mm','a4');
+    const pw = doc.internal.pageSize.getWidth();
+    const GREEN = [22,101,52]; const WHITE = [255,255,255]; const LIGHT = [240,253,244];
+    const mt = a.tripsSnapshot || [];
+    const vs = a.vehiclesSnapshot || vehicles;
+    const ds = a.driversSnapshot || drivers;
+    const label = new Date(a.month+'-15').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
+    const monthMaint = maintRecords.filter(r => r.fecha && r.fecha.startsWith(a.month));
+
+    // PORTADA
+    doc.setFillColor(...GREEN); doc.rect(0,0,pw,55,'F');
+    doc.setTextColor(...WHITE); doc.setFont('helvetica','bold');
+    doc.setFontSize(22); doc.text('TRANSPORTE EMPORIUM', pw/2, 20, {align:'center'});
+    doc.setFontSize(15); doc.text('REPORTE MENSUAL DE FLOTA', pw/2, 32, {align:'center'});
+    doc.setFontSize(13); doc.text(label.toUpperCase(), pw/2, 43, {align:'center'});
+    doc.setTextColor(0); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    doc.text(`Generado: ${new Date().toLocaleString('es-VE')}`, 14, 63);
+    doc.text(`Coordinador: José Marín`, 14, 69);
+
+    // RESUMEN EJECUTIVO
+    let y = 80;
+    doc.setFillColor(...GREEN); doc.rect(14,y,pw-28,8,'F');
+    doc.setTextColor(...WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('RESUMEN EJECUTIVO', 16, y+5.5);
+    doc.setTextColor(0); y += 12;
+    const totalKm = mt.reduce((s,t)=>s+(t.kmTraveled||0),0);
+    const totalLitros = mt.reduce((s,t)=>s+(t.liters||0),0);
+    const totalComb = mt.reduce((s,t)=>s+(t.cost||0),0);
+    const totalMant = monthMaint.reduce((s,r)=>s+(Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0),0);
+    const totalGasto = totalComb + totalMant;
+    doc.autoTable({ startY:y, body:[
+      [{content:'Total viajes',styles:{fontStyle:'bold',fillColor:LIGHT}},{content:mt.length},{content:'KM totales',styles:{fontStyle:'bold',fillColor:LIGHT}},{content:totalKm.toLocaleString()}],
+      [{content:'Litros combustible',styles:{fontStyle:'bold',fillColor:LIGHT}},{content:totalLitros.toFixed(1)},{content:'Costo combustible',styles:{fontStyle:'bold',fillColor:LIGHT}},{content:`$${totalComb.toFixed(2)}`}],
+      [{content:'Costo mantenimiento',styles:{fontStyle:'bold',fillColor:LIGHT}},{content:`$${totalMant.toFixed(2)}`},{content:'GASTO TOTAL',styles:{fontStyle:'bold',fillColor:LIGHT}},{content:`$${totalGasto.toFixed(2)}`,styles:{fontStyle:'bold'}}],
+    ], styles:{fontSize:10,cellPadding:3}, margin:{left:14,right:14} });
+
+    // POR CAMIÓN
+    y = doc.lastAutoTable.finalY + 10;
+    if (y > 230) { doc.addPage(); y = 20; }
+    doc.setFillColor(...GREEN); doc.rect(14,y,pw-28,8,'F');
+    doc.setTextColor(...WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('RENDIMIENTO POR CAMIÓN', 16, y+5.5);
+    doc.setTextColor(0); y += 10;
+    const vRows = []; vs.forEach(v => {
+      const vt = mt.filter(t=>t.vehicleId===v.id); if(!vt.length) return;
+      const mr2 = monthMaint.filter(r=>r.vehicleId===v.id);
+      const mc = mr2.reduce((s,r)=>s+(Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0),0);
+      const fc = vt.reduce((s,t)=>s+(t.cost||0),0);
+      vRows.push([v.code,v.plate,vt.length,vt.reduce((s,t)=>s+(t.kmTraveled||0),0),vt.reduce((s,t)=>s+(t.liters||0),0).toFixed(1),`$${fc.toFixed(2)}`,`$${mc.toFixed(2)}`,`$${(fc+mc).toFixed(2)}`]);
+    });
+    vRows.push([{content:'TOTAL',styles:{fontStyle:'bold'}},'',mt.length,totalKm,totalLitros.toFixed(1),`$${totalComb.toFixed(2)}`,`$${totalMant.toFixed(2)}`,{content:`$${totalGasto.toFixed(2)}`,styles:{fontStyle:'bold'}}]);
+    doc.autoTable({ startY:y, head:[['Camión','Placa','Viajes','KM','Litros','Combustible','Taller','Total']], body:vRows, styles:{fontSize:9}, headStyles:{fillColor:GREEN}, margin:{left:14,right:14} });
+
+    // MANTENIMIENTOS
+    if (monthMaint.length > 0) {
+      y = doc.lastAutoTable.finalY + 10;
+      if (y > 230) { doc.addPage(); y = 20; }
+      doc.setFillColor(...GREEN); doc.rect(14,y,pw-28,8,'F');
+      doc.setTextColor(...WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+      doc.text('MANTENIMIENTOS DEL MES', 16, y+5.5);
+      doc.setTextColor(0); y += 10;
+      const mRows = monthMaint.map(r=>[r.fecha||'',r.vehicleCode||'',r.tipo||'',r.tecnico||'',r.trabajo?.slice(0,30)||'',`$${(Number(r.costoRepuesto)||0).toFixed(2)}`,`$${(Number(r.manoObra)||0).toFixed(2)}`,`$${((Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0)).toFixed(2)}`]);
+      doc.autoTable({ startY:y, head:[['Fecha','Camión','Tipo','Técnico','Trabajo','Repuestos','M.Obra','Total']], body:mRows, styles:{fontSize:8}, headStyles:{fillColor:GREEN}, margin:{left:14,right:14} });
+    }
+
+    // PIE DE PÁGINA
+    const pc = doc.internal.getNumberOfPages();
+    for(let i=1;i<=pc;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150); doc.text(`Transporte Emporium · Reporte ${label} · Pág. ${i}/${pc}`, pw/2, 290, {align:'center'}); }
+
+    doc.save(`Reporte-Flota-${a.month}.pdf`);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -7077,6 +7155,9 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
                     <div className="flex gap-2">
                       <button onClick={() => downloadExcel(a)} className="flex items-center gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg transition">
                         <Download className="w-3.5 h-3.5" /> Excel
+                      </button>
+                      <button onClick={() => downloadPDF(a)} className="flex items-center gap-1 text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg transition">
+                        <Download className="w-3.5 h-3.5" /> PDF
                       </button>
                       <button onClick={() => setExpanded(isExpanded ? null : a.month)} className="text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold px-3 py-1.5 rounded-lg transition">
                         {isExpanded ? '▲ Cerrar' : '▼ Ver detalle'}
