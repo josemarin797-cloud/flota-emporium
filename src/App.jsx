@@ -937,7 +937,7 @@ function WelcomeScreen({ onOk }) {
   // Verificar si ya autenticó en los últimos 30 días
   useEffect(() => {
     const saved = localStorage.getItem('emp:access:ts');
-    if (saved && Date.now() - Number(saved) < 30 * 24 * 60 * 60 * 1000) {
+    if (saved && Date.now() - Number(saved) <  8 * 60 * 60 * 1000) {
       onOk(); // ya autenticado, saltar pantalla
     }
   }, []);
