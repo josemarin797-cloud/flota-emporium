@@ -166,8 +166,8 @@ const PHOTO_CATEGORIES = [
 
 // Obtener webhook de mantenimiento de un vehículo (guardado en el vehículo, no en config)
 const getMaintWebhook = (vehicleId, vehicles, config) => {
-  const v = vehicles?.find(x => x.id === vehicleId);
-  return v?.maintenanceWebhook || config?.discordWebhookByVehicle?.[vehicleId] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
+  // Canal de mantenimiento = config.discordWebhookByVehicle (checklist, combustible, incidentes, taller)
+  return config?.discordWebhookByVehicle?.[vehicleId] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
 };
 
 // Resolver nombre legible de destino
@@ -1758,10 +1758,10 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     // Notificación Discord
     const origin = branches.find(b => b.id === data.originBranchId) || (data.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
     const destName = resolveDestName(data, branches);
-    // Discord: si es Otro → mantenimiento usa canal maint, gestión usa canal viajes
+    // Discord: viajes van al canal de viajes del camión
     const webhookUrl = data.destinationBranchId === 'otro' && data.customDestType === 'mantenimiento'
-      ? (getMaintWebhook(selectedVehicle?.id, vehicles, config))
-      : (config.discordWebhookByVehicle?.[selectedVehicle.id] || config.discordWebhookGeneral);
+      ? (config.discordWebhookByVehicle?.[selectedVehicle.id] || config.discordWebhookMaintenance || config.discordWebhookGeneral)
+      : (selectedVehicle?.maintenanceWebhook || config.discordWebhookGeneral);
     sendDiscordNotification(webhookUrl, {
       title: `🚛 VIAJE INICIADO · ${selectedVehicle.code}`,
       description: `**${currentDriver.name}** salió de **${origin?.name}** rumbo a **${destName}**`,
@@ -1865,8 +1865,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const origin = branches.find(b => b.id === currentTrip.originBranchId) || (currentTrip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
     const destName = resolveDestName(currentTrip, branches);
     const webhookUrl = currentTrip.destinationBranchId === 'otro' && currentTrip.customDestType === 'mantenimiento'
-      ? (getMaintWebhook(v?.id, vehicles, config))
-      : (config.discordWebhookByVehicle?.[v.id] || config.discordWebhookGeneral);
+      ? (config.discordWebhookByVehicle?.[v?.id] || config.discordWebhookMaintenance || config.discordWebhookGeneral)
+      : (v?.maintenanceWebhook || config.discordWebhookGeneral);
     sendDiscordNotification(webhookUrl, {
       title: `✅ VIAJE COMPLETADO · ${v.code}`,
       description: `**${currentDriver.name}** llegó a **${destName}** desde **${origin?.name}**`,
@@ -1979,8 +1979,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       } : v));
     }
 
-    // Discord
-    const wh = config.discordWebhookGeneral;
+    // Discord → canal mantenimiento del camión
+    const wh = getMaintWebhook(vehPrincipal?.id, vehicles, config) || config.discordWebhookGeneral;
     if (wh) {
       const kmDiff = vehPrincipal ? Number(kmFinal) - (vehPrincipal.currentKm||0) : 0;
       sendDiscordNotification(wh, {
@@ -2028,14 +2028,13 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     // Enviar notificación a Discord según categoría
     let webhookUrl = '';
-    let channelName = '';
     if (photo.category === 'maintenance' || photo.category === 'fuel') {
-      webhookUrl = config.discordWebhookMaintenance;
-      channelName = '#info-servicio-Mantenimiento';
+      const vId = vehicleForPhoto?.id;
+      webhookUrl = getMaintWebhook(vId, vehicles, config);
     } else {
-      // Transferencia o Daño/Incidente → canal general
-      webhookUrl = config.discordWebhookGeneral;
-      channelName = '#grupo-transporte-en-general';
+      // Transferencia o Daño/Incidente → canal mantenimiento del camión
+      const vId = vehicleForPhoto?.id;
+      webhookUrl = getMaintWebhook(vId, vehicles, config) || config.discordWebhookGeneral;
     }
     if (!webhookUrl) return;
 
@@ -8573,7 +8572,7 @@ function ChecklistDetailModal({ checklist, vehicles, onClose }) {
 }
 
 async function sendChecklistDiscord(cl, vehicle, driver, config) {
-  const webhookUrl = vehicle?.maintenanceWebhook || config?.discordWebhookByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
+  const webhookUrl = config?.discordWebhookByVehicle?.[vehicle?.id] || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
   if (!webhookUrl) return;
   const crits = cl.criticalCount || 0;
   const warns = cl.warningCount || 0;
