@@ -2364,6 +2364,7 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
 }
 
 function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], drivers = [] }) {
+  const [novedadConfirmada, setNovedadConfirmada] = React.useState(false);
   const pendingHandoff = selectedVehicle
     ? (handoffs || []).find(h => h.vehicleId === selectedVehicle.id && h.status === 'pending' && h.fromDriverId !== currentDriver?.id)
     : null;
@@ -2487,8 +2488,22 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
           </div>
         </div>
       )}
-      <button onClick={onContinue} disabled={!selectedVehicle || !!pendingHandoff || !!(selectedVehicle && activeTrips.find(t => t.vehicleId === selectedVehicle.id && t.driverId !== currentDriver.id))}
-        className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle && !pendingHandoff && !activeTrips.find(t => t.vehicleId === selectedVehicle?.id && t.driverId !== currentDriver.id) ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400 cursor-not-allowed'}`}>
+      {selectedVehicle && !activeTrips.find(t => t.vehicleId === selectedVehicle.id && t.driverId !== currentDriver.id) && selectedVehicle.handover_status === 'novedad' && selectedVehicle.handover_by && (
+        <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-3 space-y-2">
+          <p className="font-bold text-orange-800 text-sm">⚠️ Novedad reportada por {selectedVehicle.handover_by}:</p>
+          <p className="text-orange-700 text-sm">{selectedVehicle.handover_notes}</p>
+          <p className="text-xs text-orange-600 font-semibold">⛽ Combustible: {selectedVehicle.handover_fuel || '—'}</p>
+          <label className="flex items-center gap-2 text-xs text-orange-900 font-bold cursor-pointer mt-1">
+            <input type="checkbox" checked={novedadConfirmada} onChange={e => setNovedadConfirmada(e.target.checked)} className="w-4 h-4 accent-orange-500" />
+            Confirmo que leí la novedad y procedo bajo mi responsabilidad
+          </label>
+        </div>
+      )}
+      {selectedVehicle && !activeTrips.find(t => t.vehicleId === selectedVehicle.id && t.driverId !== currentDriver.id) && selectedVehicle.handover_status === 'disponible' && selectedVehicle.handover_by && (
+        <p className="text-center text-xs text-emerald-600 font-semibold">✅ Chequeado por {selectedVehicle.handover_by} · {selectedVehicle.handover_fuel || ''} combustible</p>
+      )}
+      <button onClick={onContinue} disabled={!selectedVehicle || !!pendingHandoff || !!(selectedVehicle && activeTrips.find(t => t.vehicleId === selectedVehicle.id && t.driverId !== currentDriver.id)) || !!(selectedVehicle && selectedVehicle.handover_status === 'novedad' && !novedadConfirmada)}
+        className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle && !pendingHandoff && !activeTrips.find(t => t.vehicleId === selectedVehicle?.id && t.driverId !== currentDriver.id) && !(selectedVehicle.handover_status === 'novedad' && !novedadConfirmada) ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400 cursor-not-allowed'}`}>
         Continuar <ArrowRight className="w-5 h-5" />
       </button>
       {pendingHandoff && <p className="text-center text-xs text-amber-600 font-semibold">⚠️ Confirma la recepción para continuar</p>}
