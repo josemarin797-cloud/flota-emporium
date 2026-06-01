@@ -87,7 +87,7 @@ const loadSBChecklists = async () => {
 // Guardar un checklist en Supabase (con compresión de imágenes)
 // Cargar estado handover de vehículos desde Supabase
 const loadSBVehicles = async () => {
-  const data = await sbFetch('vehicles?select=id,handover_status,handover_by,handover_km,handover_fuel,handover_notes,handover_photo,handover_at,current_km');
+  const data = await sbFetch('vehicles?select=id,handover_status,handover_by,handover_by_full,handover_to,handover_to_id,handover_km,handover_fuel,handover_notes,handover_photo,handover_at,current_km');
   if (!Array.isArray(data)) return null;
   return data;
 };
@@ -572,6 +572,9 @@ export default function App() {
               ...v,
               handover_status: sb.handover_status || v.handover_status || 'disponible',
               handover_by: sb.handover_by || v.handover_by || '',
+              handover_by_full: sb.handover_by_full || v.handover_by_full || sb.handover_by || v.handover_by || '',
+              handover_to: sb.handover_to || v.handover_to || '',
+              handover_to_id: sb.handover_to_id || v.handover_to_id || '',
               handover_km: sb.handover_km || v.handover_km || 0,
               handover_fuel: sb.handover_fuel || v.handover_fuel || '',
               handover_notes: sb.handover_notes || v.handover_notes || '',
@@ -2032,11 +2035,16 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const handoffTime = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
     const handoffDate = now.toISOString().slice(0, 10);
     const hayNovedad = formData.notes && formData.notes.trim() !== '' && formData.notes.trim().toLowerCase() !== 'sin novedad';
+    const toDriverName = formData.toDriver ? (formData.toDriver.name || formData.toDriver.shortName || '') : '';
+    const toDriverId = formData.toDriver ? (formData.toDriver.id || '') : '';
     const updatedVehicles = vehicles.map(v => v.id === vId ? {
       ...v,
       currentKm: formData.km || v.currentKm,
       handover_status: 'en_espera',
       handover_by: driverName,
+      handover_by_full: currentDriver.name || driverName,
+      handover_to: toDriverName,
+      handover_to_id: toDriverId,
       handover_km: formData.km,
       handover_fuel: formData.fuel,
       handover_notes: formData.notes,
@@ -2049,6 +2057,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       body: JSON.stringify({
         handover_status: 'en_espera',
         handover_by: driverName,
+        handover_by_full: currentDriver.name || driverName,
+        handover_to: toDriverName,
+        handover_to_id: toDriverId,
         handover_km: formData.km,
         handover_fuel: formData.fuel,
         handover_notes: formData.notes,
@@ -2061,13 +2072,14 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     if (wh) {
       const color = hayNovedad ? 0xe74c3c : 0x27ae60;
       sendDiscordNotification(wh, {
-        title: `🔄 En espera de recepción · ${vCode}`,
-        description: `**${driverName}** cedió la unidad — esperando recepción`,
+        title: `🔄 Unidad cedida · ${vCode}`,
+        description: `**${currentDriver.name || driverName}** cede${toDriverName ? ` → **${toDriverName}**` : ' la unidad'}`,
         color,
         fields: [
           { name: '🚛 Unidad', value: vCode, inline: true },
           { name: '⛽ Combustible', value: formData.fuel || '—', inline: true },
           { name: '📍 KM entrega', value: String(formData.km || '—'), inline: true },
+          ...(toDriverName ? [{ name: '👤 Para', value: toDriverName, inline: true }] : []),
           { name: hayNovedad ? '⚠️ Novedad' : '✅ Estado', value: formData.notes || 'Sin novedad', inline: false },
         ]
       }).catch(() => {});
@@ -2076,7 +2088,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       id: `handoff_${Date.now()}`,
       vehicleId: vId, vehicleCode: vCode,
       fromDriverId: currentDriver.id,
-      fromDriverName: driverName,
+      fromDriverName: currentDriver.name || driverName,
+      toDriverId: toDriverId,
+      toDriverNameExpected: toDriverName,
       kmAtHandoff: formData.km,
       fuelAtHandoff: formData.fuel,
       notes: formData.notes,
@@ -2117,14 +2131,15 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     );
     saveHandoffs && saveHandoffs(filtered);
     const wh = config?.discordWebhookByVehicle?.[v.id] || config?.discordWebhookGeneral;
+    const fromNameFull = v.handover_by_full || fromName;
     if (wh) {
       await sendDiscordNotification(wh, {
         title: `✅ Traspaso completado · ${v.code}`,
-        description: `Unidad recibida por **${receiverName}**`,
+        description: `**${currentDriver.name || receiverName}** recibió de **${fromNameFull}**`,
         color: 0x27ae60,
         fields: [
-          { name: '📤 Entregó', value: fromName, inline: true },
-          { name: '📥 Recibió', value: receiverName, inline: true },
+          { name: '📤 Entregó', value: fromNameFull, inline: true },
+          { name: '📥 Recibió', value: currentDriver.name || receiverName, inline: true },
           { name: '📍 KM', value: String(v.handover_km || '—'), inline: true },
           { name: '⛽ Combustible', value: v.handover_fuel || '—', inline: true },
           { name: hayNovedad ? '⚠️ Novedad' : '✅ Estado', value: v.handover_notes || 'Sin novedad', inline: false },
@@ -2379,7 +2394,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} />}
           {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} kmInicial={endShiftTripData.kmUltimoViaje} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
-          {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} config={config} currentTrip={currentTrip} />}
+          {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} config={config} currentTrip={currentTrip} drivers={drivers} />}
           {showRecibirModal && vehiculoParaRecibir && <RecibirUnidadModal vehicle={vehiculoParaRecibir} driver={currentDriver} onSubmit={handleRecibirUnidad} onClose={() => { setShowRecibirModal(false); setVehiculoParaRecibir(null); }} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
@@ -2513,7 +2528,8 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                   if (!confirm(`${v.code} está marcado como EN TALLER.\n\n${v.observations || ''}\n\n¿Estás seguro de usarlo?`)) return;
                 }
                 if (v.handover_status === 'en_espera' && v.handover_by) {
-                  onRecibirUnidad && onRecibirUnidad(v);
+                  const esDestinatario = !v.handover_to_id || v.handover_to_id === currentDriver?.id;
+                  if (esDestinatario) { onRecibirUnidad && onRecibirUnidad(v); }
                   return;
                 }
                 setSelectedVehicle(v);
@@ -2531,7 +2547,16 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                       {v.code}
                       {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔧 EN TALLER</span>}
                       {nombreOcupado && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🚫 En uso · {nombreOcupado}</span>}
-                      {!nombreOcupado && (pendingCesion || v.handover_status === 'en_espera') && <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-full font-bold">🔄 En espera de recepción · {v.handover_by || pendingCesion?.fromDriverName}</span>}
+                      {!nombreOcupado && (pendingCesion || v.handover_status === 'en_espera') && (() => {
+                        const byName = v.handover_by_full || v.handover_by || pendingCesion?.fromDriverName || '';
+                        const toName = v.handover_to || pendingCesion?.toDriverNameExpected || '';
+                        const esDestinatario = v.handover_to_id === currentDriver?.id || pendingCesion?.toDriverId === currentDriver?.id || (!v.handover_to_id && !pendingCesion?.toDriverId);
+                        return (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${esDestinatario ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {esDestinatario ? `📲 Para ti · de ${byName}` : `🔄 Cedido por ${byName}${toName ? ` → ${toName}` : ''}`}
+                          </span>
+                        );
+                      })()}
                       {!nombreOcupado && !pendingCesion && hayNovedad && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⚠️ Novedad · {v.handover_by}</span>}
                       {!nombreOcupado && !pendingCesion && chequeado && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">✅ Listo · {v.handover_fuel || ''}</span>}
                     </div>
@@ -3416,24 +3441,34 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
 // ============================================================
 // MODAL ENTREGAR UNIDAD — Daniel llena y entrega a otro chofer
 // ============================================================
-function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose, config, currentTrip }) {
+function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose, config, currentTrip, drivers = [] }) {
   const autoKm = currentTrip?.kmEnd || vehicle?.currentKm || '';
   const [km, setKm] = React.useState(autoKm ? String(autoKm) : '');
   const [fuel, setFuel] = React.useState('');
   const [notes, setNotes] = React.useState('');
   const [photo, setPhoto] = React.useState(null);
+  const [toDriver, setToDriver] = React.useState(null);
   const [takingPhoto, setTakingPhoto] = React.useState(false);
+  const fileInputRef = React.useRef(null);
   const videoRef = React.useRef(null);
   const streamRef = React.useRef(null);
-  const canSubmit = km !== '' && Number(km) > 0 && fuel !== '';
+  const otrosChoferes = drivers.filter(d => d.id !== driver?.id && d.role !== 'coordinator');
+  const canSubmit = km !== '' && Number(km) > 0 && fuel !== '' && toDriver !== null;
   const fuelOptions = ['1/4', '1/2', '3/4', 'Full'];
+  const handleFilePhoto = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setPhoto(ev.target.result);
+    reader.readAsDataURL(file);
+  };
   const startCamera = async () => {
     setTakingPhoto(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
       streamRef.current = stream;
       setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = stream; }, 100);
-    } catch(e) { setTakingPhoto(false); }
+    } catch(e) { setTakingPhoto(false); fileInputRef.current?.click(); }
   };
   const takePhoto = () => {
     if (!videoRef.current) return;
@@ -3453,10 +3488,26 @@ function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose, config, curre
           <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-2xl">📤</div>
           <div>
             <div className="font-bold text-stone-900 text-lg">Ceder unidad</div>
-            <div className="text-xs text-stone-500">{vehicle?.code} · {driver?.shortName || driver?.name}</div>
+            <div className="text-xs text-stone-500">{vehicle?.code} · {driver?.name || driver?.shortName}</div>
           </div>
         </div>
         <div className="space-y-3">
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Entregar a *</label>
+            <div className="mt-1 space-y-1.5 max-h-36 overflow-y-auto">
+              {otrosChoferes.length === 0 && <p className="text-xs text-stone-400 italic px-1">No hay otros choferes registrados</p>}
+              {otrosChoferes.map(d => (
+                <button key={d.id} onClick={() => setToDriver(d)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 transition-all text-left ${toDriver?.id === d.id ? 'border-amber-500 bg-amber-50' : 'border-stone-200 bg-white hover:border-amber-300'}`}>
+                  <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center font-bold text-stone-700 text-sm flex-shrink-0">
+                    {(d.name || d.shortName || '?')[0].toUpperCase()}
+                  </div>
+                  <span className="font-semibold text-stone-900 text-sm">{d.name || d.shortName}</span>
+                  {toDriver?.id === d.id && <span className="ml-auto text-amber-500 font-bold">✓</span>}
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">KM actual *</label>
             <input type="number" value={km} onChange={e => setKm(e.target.value)} placeholder="ej: 142168"
@@ -3482,6 +3533,7 @@ function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose, config, curre
           </div>
           <div>
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Foto de entrega</label>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFilePhoto} />
             {photo ? (
               <div className="mt-1 relative">
                 <img src={photo} className="w-full rounded-xl object-cover max-h-32" alt="foto entrega" />
@@ -3493,22 +3545,22 @@ function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose, config, curre
                 <button onClick={takePhoto} className="w-full mt-2 py-2 bg-amber-500 text-white rounded-xl font-bold text-sm">📸 Capturar</button>
               </div>
             ) : (
-              <button onClick={startCamera} className="w-full mt-1 py-2 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 text-sm hover:border-amber-400 hover:text-amber-600">
-                📷 Tomar foto
-              </button>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <button onClick={startCamera} className="py-2.5 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 text-sm hover:border-amber-400 hover:text-amber-600">📷 Cámara</button>
+                <button onClick={() => fileInputRef.current?.click()} className="py-2.5 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 text-sm hover:border-amber-400 hover:text-amber-600">🖼️ Archivo</button>
+              </div>
             )}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-4">
-          <button onClick={onClose} className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">
-            Cancelar
-          </button>
-          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel, notes: notes.trim() || 'Sin novedad', photo })}
+          <button onClick={onClose} className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">Cancelar</button>
+          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel, notes: notes.trim() || 'Sin novedad', photo, toDriver })}
             disabled={!canSubmit}
             className={`py-3 rounded-xl font-bold text-white transition-all ${canSubmit ? 'bg-amber-500 hover:bg-amber-600' : 'bg-stone-200 text-stone-400'}`}>
             Ceder ✅
           </button>
         </div>
+        {!canSubmit && <p className="text-center text-xs text-stone-400 mt-1">Selecciona chofer, KM y combustible *</p>}
       </div>
     </div>
   );
