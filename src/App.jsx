@@ -85,6 +85,13 @@ const loadSBChecklists = async () => {
 };
 
 // Guardar un checklist en Supabase (con compresión de imágenes)
+// Cargar estado handover de vehículos desde Supabase
+const loadSBVehicles = async () => {
+  const data = await sbFetch('vehicles?select=id,handover_status,handover_by,handover_km,handover_fuel,handover_notes,handover_photo,handover_at,current_km');
+  if (!Array.isArray(data)) return null;
+  return data;
+};
+
 const saveSBChecklist = async (checklist) => {
   const [signature, finalPhoto] = await Promise.all([
     compressImage(checklist.signature, 600, 0.8),
@@ -555,6 +562,26 @@ export default function App() {
             if (user) { setCurrentUser(user); setView(role); }
           } catch(e) { localStorage.removeItem(KEYS.SESSION); }
         }
+        // Cargar estado handover de vehículos desde Supabase (sincronizado entre dispositivos)
+        const sbVehicles = await loadSBVehicles();
+        if (sbVehicles && sbVehicles.length > 0) {
+          setVehicles(prev => prev.map(v => {
+            const sb = sbVehicles.find(r => r.id === v.id);
+            if (!sb) return v;
+            return {
+              ...v,
+              handover_status: sb.handover_status || v.handover_status || 'disponible',
+              handover_by: sb.handover_by || v.handover_by || '',
+              handover_km: sb.handover_km || v.handover_km || 0,
+              handover_fuel: sb.handover_fuel || v.handover_fuel || '',
+              handover_notes: sb.handover_notes || v.handover_notes || '',
+              handover_photo: sb.handover_photo || v.handover_photo || '',
+              handover_at: sb.handover_at || v.handover_at || '',
+              ...(sb.current_km ? { currentKm: sb.current_km } : {}),
+            };
+          }));
+        }
+
         // Cargar checklists desde SUPABASE (sincronizados entre todos los dispositivos)
         const sbData = await loadSBChecklists();
         if (sbData !== null) {
@@ -742,6 +769,32 @@ export default function App() {
     };
     const interval = setInterval(poll, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Polling de estado handover de vehículos (cada 15s)
+  useEffect(() => {
+    const pollVehicles = async () => {
+      const sbV = await loadSBVehicles();
+      if (sbV && sbV.length > 0) {
+        setVehicles(prev => prev.map(v => {
+          const sb = sbV.find(r => r.id === v.id);
+          if (!sb) return v;
+          return {
+            ...v,
+            handover_status: sb.handover_status || v.handover_status || 'disponible',
+            handover_by: sb.handover_by || v.handover_by || '',
+            handover_km: sb.handover_km || v.handover_km || 0,
+            handover_fuel: sb.handover_fuel || v.handover_fuel || '',
+            handover_notes: sb.handover_notes || v.handover_notes || '',
+            handover_photo: sb.handover_photo || v.handover_photo || '',
+            handover_at: sb.handover_at || v.handover_at || '',
+            ...(sb.current_km ? { currentKm: sb.current_km } : {}),
+          };
+        }));
+      }
+    };
+    const iv = setInterval(pollVehicles, 15000);
+    return () => clearInterval(iv);
   }, []);
 
   const handleLogin = (role, user) => {
