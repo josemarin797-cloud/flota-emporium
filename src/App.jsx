@@ -2348,29 +2348,47 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
         <div className="space-y-2">
           {vehicles.map(v => {
             const enTaller = v.status === 'EN TALLER';
-      const ocupado = activeTrips.find(t => t.vehicleId === v.id && t.driverId !== currentDriver.id);
-          const nombreOcupado = ocupado ? (drivers.find(d => d.id === ocupado.driverId)?.shortName || 'Otro chofer') : null;
+            const ocupado = activeTrips.find(t => t.vehicleId === v.id && t.driverId !== currentDriver.id);
+            const nombreOcupado = ocupado ? (drivers.find(d => d.id === ocupado.driverId)?.shortName || 'Otro chofer') : null;
+            const pendingCesion = (handoffs || []).find(h => h.vehicleId === v.id && h.status === 'pending' && h.fromDriverId !== currentDriver?.id);
+            const hayNovedad = v.handover_status === 'novedad' && v.handover_by;
+            const chequeado = v.handover_status === 'disponible' && v.handover_by;
             const isSelected = selectedVehicle?.id === v.id;
+            let borderClass = 'border-stone-200 hover:border-stone-300 bg-white';
+            if (isSelected) borderClass = 'border-emerald-600 bg-emerald-50 shadow-md';
+            else if (nombreOcupado) borderClass = 'border-red-300 bg-red-50/50 opacity-70';
+            else if (enTaller) borderClass = 'border-rose-200 bg-rose-50/30';
+            else if (pendingCesion) borderClass = 'border-amber-300 bg-amber-50 hover:border-amber-400';
+            else if (hayNovedad) borderClass = 'border-orange-300 bg-orange-50 hover:border-orange-400';
+            else if (chequeado) borderClass = 'border-emerald-200 bg-emerald-50/30 hover:border-emerald-300';
             return (
-              <button key={v.id}disabled={!!nombreOcupado} onClick={() => {
+              <button key={v.id} disabled={!!nombreOcupado} onClick={() => {
                 if (enTaller) {
                   if (!confirm(`${v.code} está marcado como EN TALLER.\n\n${v.observations || ''}\n\n¿Estás seguro de usarlo?`)) return;
                 }
                 setSelectedVehicle(v);
               }}
-                className={`w-full p-3 rounded-xl border-2 flex items-center justify-between transition-all ${isSelected ? 'border-emerald-600 bg-emerald-50 shadow-md' : enTaller ? 'border-rose-200 bg-rose-50/30 hover:border-rose-300' : 'border-stone-200 hover:border-stone-300 bg-white'}`}>
+                className={`w-full p-3 rounded-xl border-2 flex items-center justify-between transition-all ${borderClass}`}>
                 <div className="flex items-center gap-3 text-left">
                   <div className="w-12 h-12 rounded-lg flex items-center justify-center relative" style={{ backgroundColor: v.color + '20', border: `2px solid ${v.color}` }}>
                     <Truck className="w-6 h-6" style={{ color: v.color }} />
                     {enTaller && <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center"><Wrench className="w-2.5 h-2.5 text-white" /></div>}
+                    {nombreOcupado && !enTaller && <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center"><span className="text-white text-[8px] font-bold">!</span></div>}
+                    {pendingCesion && !nombreOcupado && <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center"><span className="text-white text-[8px]">→</span></div>}
                   </div>
                   <div>
-                    <div className="font-bold text-stone-900 text-base flex items-center gap-2">
+                    <div className="font-bold text-stone-900 text-base flex items-center gap-2 flex-wrap">
                       {v.code}
-                      {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EN TALLER</span>}
-                      {nombreOcupado && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🚫 Ocupado por {nombreOcupado}</span>}
+                      {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔧 EN TALLER</span>}
+                      {nombreOcupado && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🚫 En uso · {nombreOcupado}</span>}
+                      {!nombreOcupado && pendingCesion && <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-full font-bold">🔄 Siendo cedido · toca para recibir</span>}
+                      {!nombreOcupado && !pendingCesion && hayNovedad && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⚠️ Novedad · {v.handover_by}</span>}
+                      {!nombreOcupado && !pendingCesion && chequeado && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">✅ Listo · {v.handover_fuel || ''}</span>}
                     </div>
                     <div className="text-xs text-stone-500">{v.plate} · {v.performance} km/L</div>
+                    {pendingCesion && !nombreOcupado && (
+                      <div className="text-xs text-amber-700 mt-0.5">Por: {pendingCesion.fromDriverName} · {pendingCesion.fuelAtHandoff || '—'} combustible · {pendingCesion.notes || 'sin novedad'}</div>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
