@@ -25,6 +25,8 @@ const KEYS = {
   MAINT_RECORDS: 'emp:v4:maint_records',
   INCIDENTS: 'emp:v4:incidents',
   FUEL_RECORDS: 'emp:v4:fuel_records',
+  SESSION: 'emp:v4:session',
+  DRIVER_STATE: 'emp:v4:driver_state',
 };
 
 // ============================================================
@@ -543,6 +545,16 @@ export default function App() {
         if (reads[9]) setHandoffs(reads[9]);
         const esLocal = await window.storage.get(KEYS.END_SHIFTS).catch(() => null);
         if (esLocal?.value) setEndShifts(JSON.parse(esLocal.value));
+        // Restaurar sesión si el usuario estaba logueado
+        const savedSession = localStorage.getItem(KEYS.SESSION);
+        if (savedSession) {
+          try {
+            const { role, userId } = JSON.parse(savedSession);
+            const allDrivers = reads[1] || INITIAL_DRIVERS;
+            const user = allDrivers.find(d => d.id === userId);
+            if (user) { setCurrentUser(user); setView(role); }
+          } catch(e) { localStorage.removeItem(KEYS.SESSION); }
+        }
         // Cargar checklists desde SUPABASE (sincronizados entre todos los dispositivos)
         const sbData = await loadSBChecklists();
         if (sbData !== null) {
@@ -723,6 +735,7 @@ export default function App() {
   const handleLogin = (role, user) => {
     setCurrentUser(user);
     setView(role);
+    localStorage.setItem(KEYS.SESSION, JSON.stringify({ role, userId: user.id }));
     // Saludo de voz al hacer login
     const greeting = getGreetingByTime();
     if (role === 'driver') {
@@ -740,6 +753,8 @@ export default function App() {
   const handleLogout = () => {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setCurrentUser(null);
+    localStorage.removeItem(KEYS.SESSION);
+    localStorage.removeItem(KEYS.DRIVER_STATE);
     setView('login');
   };
   const handleWelcomeOk = () => setView('login');
@@ -1614,7 +1629,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   const [tab, setTab] = useState('trip');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [step, setStep] = useState('select');
-  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [selectedVehicle, setSelectedVehicle] = useState(() => { try { const s = localStorage.getItem(KEYS.DRIVER_STATE + ':' + currentDriver.id); if (s) { const d = JSON.parse(s); return d.vehicleId ? { id: d.vehicleId } : null; } } catch(e) {} return null; });
   const [currentTrip, setCurrentTrip] = useState(null);
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [currentPosition, setCurrentPosition] = useState(null);
@@ -1633,6 +1648,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     if (selectedVehicle) {
       const active = myActiveTrips.find(t => t.vehicleId === selectedVehicle.id);
       if (active) { setCurrentTrip(active); setStep('active'); }
+      localStorage.setItem(KEYS.DRIVER_STATE + ':' + currentDriver.id, JSON.stringify({ vehicleId: selectedVehicle.id }));
     }
   }, [selectedVehicle, myActiveTrips]);
 
