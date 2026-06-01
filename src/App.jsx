@@ -1782,6 +1782,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       customDestType: data.customDestType || '',
     };
     saveActiveTrips([...activeTrips, trip]);
+    sbFetch('active_trips', { method: 'POST', body: JSON.stringify(trip), headers: { 'Prefer': 'resolution=merge-duplicates' } }).catch(() => {});
     setCurrentTrip(trip);
     setStep('active');
 
