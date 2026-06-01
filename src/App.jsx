@@ -2213,7 +2213,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
               } else {
                 setStep('checklist');
               }
-            }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} />
+            }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver}activeTrips={activeTrips} drivers={drivers} />
           </>}
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
@@ -2307,7 +2307,7 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
   );
 }
 
-function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver }) {
+function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], drivers = [] }) {
   const pendingHandoff = selectedVehicle
     ? (handoffs || []).find(h => h.vehicleId === selectedVehicle.id && h.status === 'pending' && h.fromDriverId !== currentDriver?.id)
     : null;
@@ -2335,9 +2335,11 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
         <div className="space-y-2">
           {vehicles.map(v => {
             const enTaller = v.status === 'EN TALLER';
+      const ocupado = activeTrips.find(t => t.vehicleId === v.id && t.driverId !== currentDriver.id);
+          const nombreOcupado = ocupado ? (drivers.find(d => d.id === ocupado.driverId)?.shortName || 'Otro chofer') : null;
             const isSelected = selectedVehicle?.id === v.id;
             return (
-              <button key={v.id} onClick={() => {
+              <button key={v.id}disabled={!!nombreOcupado} onClick={() => {
                 if (enTaller) {
                   if (!confirm(`${v.code} está marcado como EN TALLER.\n\n${v.observations || ''}\n\n¿Estás seguro de usarlo?`)) return;
                 }
@@ -2353,6 +2355,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                     <div className="font-bold text-stone-900 text-base flex items-center gap-2">
                       {v.code}
                       {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EN TALLER</span>}
+                      {nombreOcupado && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🚫 Ocupado por {nombreOcupado}</span>}
                     </div>
                     <div className="text-xs text-stone-500">{v.plate} · {v.performance} km/L</div>
                   </div>
