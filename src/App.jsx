@@ -1782,7 +1782,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       customDestType: data.customDestType || '',
     };
     saveActiveTrips([...activeTrips, trip]);
-    sbFetch('active_trips', { method: 'POST', body: JSON.stringify(trip), headers: { 'Prefer': 'resolution=merge-duplicates' } }).catch(() => {});
+    sbFetch('active_trips', { method: 'POST', body: JSON.stringify({ id: trip.id, driver_id: trip.driverId, vehicle_id: trip.vehicleId, origin_branch_id: trip.originBranchId, destination_branch_id: trip.destinationBranchId, km_start: trip.kmStart, start_time: trip.startTime, start_date: trip.startDate, fuel_loaded: trip.fuelLoaded || 0 }), headers: { 'Prefer': 'resolution=merge-duplicates' } }).catch(() => {});
     setCurrentTrip(trip);
     setStep('active');
 
