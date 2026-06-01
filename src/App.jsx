@@ -2426,11 +2426,14 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
           </div>
         </div>
       )}
-      <button onClick={onContinue} disabled={!selectedVehicle || !!pendingHandoff}
-        className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle && !pendingHandoff ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400'}`}>
+      <button onClick={onContinue} disabled={!selectedVehicle || !!pendingHandoff || !!(selectedVehicle && activeTrips.find(t => t.vehicleId === selectedVehicle.id && t.driverId !== currentDriver.id))}
+        className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle && !pendingHandoff && !activeTrips.find(t => t.vehicleId === selectedVehicle?.id && t.driverId !== currentDriver.id) ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400 cursor-not-allowed'}`}>
         Continuar <ArrowRight className="w-5 h-5" />
       </button>
       {pendingHandoff && <p className="text-center text-xs text-amber-600 font-semibold">⚠️ Confirma la recepción para continuar</p>}
+      {selectedVehicle && activeTrips.find(t => t.vehicleId === selectedVehicle.id && t.driverId !== currentDriver.id) && (
+        <p className="text-center text-xs text-red-600 font-semibold">🚫 Vehículo ocupado — no puedes continuar hasta que sea liberado</p>
+      )}
     </div>
   );
 }
