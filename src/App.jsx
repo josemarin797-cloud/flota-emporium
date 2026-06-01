@@ -1875,6 +1875,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     };
 
     saveTrips([...trips, completed]);
+    sbFetch('trips', { method: 'POST', body: JSON.stringify(completed), headers: { 'Prefer': 'resolution=merge-duplicates' } }).catch(() => {});
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
     if (Number(data.kmEnd) > v.currentKm) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, currentKm: Number(data.kmEnd) } : x));
 
