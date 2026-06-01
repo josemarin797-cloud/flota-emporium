@@ -681,6 +681,18 @@ export default function App() {
   const saveBranches = (d) => { setBranches(d); persist(KEYS.BRANCHES, d); };
   const saveTrips = (d) => { setTrips(d); persist(KEYS.TRIPS, d); };
   const saveActiveTrips = (d) => { setActiveTrips(d); persist(KEYS.ACTIVE_TRIPS, d); };
+  useEffect(() => {
+    const syncAT = async () => {
+      const r = await sbFetch('active_trips?select=*').catch(() => null);
+      if (r?.ok) {
+        const d = await r.json();
+        if (Array.isArray(d)) setActiveTrips(d);
+      }
+    };
+    syncAT();
+    const i = setInterval(syncAT, 10000);
+    return () => clearInterval(i);
+  }, []);
   const saveArchived = (d) => { setArchivedMonths(d); persist(KEYS.ARCHIVED_MONTHS, d); };
   const saveConfig = (d) => { setConfig(d); persist(KEYS.CONFIG, d); };
   const savePhotos = (d) => { setPhotos(d); persist(KEYS.PHOTOS, d); };
