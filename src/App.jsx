@@ -1647,6 +1647,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   const [currentPosition, setCurrentPosition] = useState(null);
   const watchIdRef = useRef(null);
   const [showEntregarModal, setShowEntregarModal] = useState(false);
+  const [showRecibirModal, setShowRecibirModal] = useState(false);
+  const [vehiculoParaRecibir, setVehiculoParaRecibir] = useState(null);
   const [checklistKm, setChecklistKm] = useState(null);
   const [showEndShiftForm, setShowEndShiftForm] = useState(false);
   const [endShiftTripData, setEndShiftTripData] = useState(null);
@@ -1980,7 +1982,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const updatedVehicles = vehicles.map(v => v.id === vId ? {
       ...v,
       currentKm: formData.km || v.currentKm,
-      handover_status: hayNovedad ? 'novedad' : 'disponible',
+      handover_status: 'en_espera',
       handover_by: driverName,
       handover_km: formData.km,
       handover_fuel: formData.fuel,
@@ -1992,7 +1994,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     sbFetch(`vehicles?id=eq.${vId}`, {
       method: 'PATCH',
       body: JSON.stringify({
-        handover_status: hayNovedad ? 'novedad' : 'disponible',
+        handover_status: 'en_espera',
         handover_by: driverName,
         handover_km: formData.km,
         handover_fuel: formData.fuel,
@@ -2006,8 +2008,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     if (wh) {
       const color = hayNovedad ? 0xe74c3c : 0x27ae60;
       sendDiscordNotification(wh, {
-        title: `📤 Unidad cedida · ${vCode}`,
-        description: `**${driverName}** cedió la unidad`,
+        title: `🔄 En espera de recepción · ${vCode}`,
+        description: `**${driverName}** cedió la unidad — esperando recepción`,
         color,
         fields: [
           { name: '🚛 Unidad', value: vCode, inline: true },
@@ -2035,6 +2037,52 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setSelectedVehicle(null);
     setStep('select');
   };
+
+  const handleRecibirUnidad = async (formData) => {
+    const v = vehiculoParaRecibir;
+    if (!v) return;
+    const receiverName = currentDriver.shortName || currentDriver.name;
+    const fromName = v.handover_by || 'chofer anterior';
+    const now = new Date();
+    const handoffTime = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+    const handoffDate = now.toISOString().slice(0, 10);
+    const hayNovedad = v.handover_notes && v.handover_notes.toLowerCase() !== 'sin novedad' && v.handover_notes.trim() !== '';
+    const updatedVehicles = vehicles.map(x => x.id === v.id ? {
+      ...x,
+      handover_status: hayNovedad ? 'novedad' : 'disponible',
+      handover_by: fromName,
+    } : x);
+    saveVehicles(updatedVehicles);
+    sbFetch(`vehicles?id=eq.${v.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ handover_status: hayNovedad ? 'novedad' : 'disponible' })
+    }).catch(() => {});
+    const filtered = (handoffs || []).map(h =>
+      h.vehicleId === v.id && h.status === 'pending'
+        ? { ...h, status: 'confirmed', toDriverId: currentDriver.id, toDriverName: receiverName, receiverPhoto: formData.photo || '', confirmedAt: new Date().toISOString() }
+        : h
+    );
+    saveHandoffs && saveHandoffs(filtered);
+    const wh = config?.discordWebhookByVehicle?.[v.id] || config?.discordWebhookGeneral;
+    if (wh) {
+      await sendDiscordNotification(wh, {
+        title: `✅ Traspaso completado · ${v.code}`,
+        description: `Unidad recibida por **${receiverName}**`,
+        color: 0x27ae60,
+        fields: [
+          { name: '📤 Entregó', value: fromName, inline: true },
+          { name: '📥 Recibió', value: receiverName, inline: true },
+          { name: '📍 KM', value: String(v.handover_km || '—'), inline: true },
+          { name: '⛽ Combustible', value: v.handover_fuel || '—', inline: true },
+          { name: hayNovedad ? '⚠️ Novedad' : '✅ Estado', value: v.handover_notes || 'Sin novedad', inline: false },
+        ]
+      }).catch(() => {});
+    }
+    setShowRecibirModal(false);
+    setVehiculoParaRecibir(null);
+    setSelectedVehicle(v);
+  };
+
  // 🌙 Finalizar Jornada del día — calcula stats + voz + Discord
   const finalizarJornada = async () => {
     const hoy = new Date().toISOString().slice(0, 10);
@@ -2261,7 +2309,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         {tab === 'surtir' && <DriverSurtirTab vehicles={vehicles} currentDriver={currentDriver} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
         {tab === 'trip' && <>
           {step === 'select' && <>
-            <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onContinue={(accion, motivo, km) => {
+            <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onRecibirUnidad={(v) => { setVehiculoParaRecibir(v); setShowRecibirModal(true); }} onContinue={(accion, motivo, km) => {
               if (accion === 'taller') {
                 // ya no se usa desde selección
               } else if (selectedVehicle?.status === 'EN TALLER') {
@@ -2279,6 +2327,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} />}
           {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} kmInicial={endShiftTripData.kmUltimoViaje} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
           {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} config={config} currentTrip={currentTrip} />}
+          {showRecibirModal && vehiculoParaRecibir && <RecibirUnidadModal vehicle={vehiculoParaRecibir} driver={currentDriver} onSubmit={handleRecibirUnidad} onClose={() => { setShowRecibirModal(false); setVehiculoParaRecibir(null); }} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
         {tab === 'history' && <DriverHistoryView trips={myTrips} vehicles={vehicles} branches={branches} />}
@@ -2363,7 +2412,7 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
   );
 }
 
-function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], drivers = [] }) {
+function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], drivers = [], onRecibirUnidad }) {
   const [novedadConfirmada, setNovedadConfirmada] = React.useState(false);
   const pendingHandoff = selectedVehicle
     ? (handoffs || []).find(h => h.vehicleId === selectedVehicle.id && h.status === 'pending' && h.fromDriverId !== currentDriver?.id)
@@ -2402,13 +2451,17 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
             if (isSelected) borderClass = 'border-emerald-600 bg-emerald-50 shadow-md';
             else if (nombreOcupado) borderClass = 'border-red-300 bg-red-50/50 opacity-70';
             else if (enTaller) borderClass = 'border-rose-200 bg-rose-50/30';
-            else if (pendingCesion) borderClass = 'border-amber-300 bg-amber-50 hover:border-amber-400';
+            else if (pendingCesion || v.handover_status === 'en_espera') borderClass = 'border-amber-300 bg-amber-50 hover:border-amber-400';
             else if (hayNovedad) borderClass = 'border-orange-300 bg-orange-50 hover:border-orange-400';
             else if (chequeado) borderClass = 'border-emerald-200 bg-emerald-50/30 hover:border-emerald-300';
             return (
               <button key={v.id} disabled={!!nombreOcupado} onClick={() => {
                 if (enTaller) {
                   if (!confirm(`${v.code} está marcado como EN TALLER.\n\n${v.observations || ''}\n\n¿Estás seguro de usarlo?`)) return;
+                }
+                if (v.handover_status === 'en_espera' && v.handover_by) {
+                  onRecibirUnidad && onRecibirUnidad(v);
+                  return;
                 }
                 setSelectedVehicle(v);
               }}
@@ -2425,7 +2478,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                       {v.code}
                       {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔧 EN TALLER</span>}
                       {nombreOcupado && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🚫 En uso · {nombreOcupado}</span>}
-                      {!nombreOcupado && pendingCesion && <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-full font-bold">🔄 Siendo cedido · toca para recibir</span>}
+                      {!nombreOcupado && (pendingCesion || v.handover_status === 'en_espera') && <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded-full font-bold">🔄 En espera de recepción · {v.handover_by || pendingCesion?.fromDriverName}</span>}
                       {!nombreOcupado && !pendingCesion && hayNovedad && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⚠️ Novedad · {v.handover_by}</span>}
                       {!nombreOcupado && !pendingCesion && chequeado && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">✅ Listo · {v.handover_fuel || ''}</span>}
                     </div>
@@ -3401,6 +3454,100 @@ function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose, config, curre
             disabled={!canSubmit}
             className={`py-3 rounded-xl font-bold text-white transition-all ${canSubmit ? 'bg-amber-500 hover:bg-amber-600' : 'bg-stone-200 text-stone-400'}`}>
             Ceder ✅
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecibirUnidadModal({ vehicle, driver, onSubmit, onClose }) {
+  const [photo, setPhoto] = React.useState(null);
+  const [takingPhoto, setTakingPhoto] = React.useState(false);
+  const [confirmed, setConfirmed] = React.useState(false);
+  const videoRef = React.useRef(null);
+  const streamRef = React.useRef(null);
+  const hayNovedad = vehicle?.handover_notes && vehicle.handover_notes.toLowerCase() !== 'sin novedad' && vehicle.handover_notes.trim() !== '';
+  const canSubmit = !hayNovedad || confirmed;
+  const startCamera = async () => {
+    setTakingPhoto(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      streamRef.current = stream;
+      setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = stream; }, 100);
+    } catch(e) { setTakingPhoto(false); }
+  };
+  const takePhoto = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
+    setPhoto(canvas.toDataURL('image/jpeg', 0.7));
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    setTakingPhoto(false);
+  };
+  React.useEffect(() => () => streamRef.current?.getTracks().forEach(t => t.stop()), []);
+  return (
+    <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-2xl">📥</div>
+          <div>
+            <div className="font-bold text-stone-900 text-lg">Recibir unidad</div>
+            <div className="text-xs text-stone-500">{vehicle?.code} · cedido por {vehicle?.handover_by}</div>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div className="bg-stone-50 rounded-xl p-3 space-y-2 border border-stone-200">
+            <p className="text-xs font-bold text-stone-600 uppercase tracking-wide">Info del vehículo</p>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div><span className="text-stone-400 text-xs">KM entrega</span><p className="font-bold">{(vehicle?.handover_km || 0).toLocaleString()}</p></div>
+              <div><span className="text-stone-400 text-xs">Combustible</span><p className="font-bold">{vehicle?.handover_fuel || '—'}</p></div>
+            </div>
+            {vehicle?.handover_photo && (
+              <img src={vehicle.handover_photo} className="w-full rounded-lg max-h-28 object-cover" alt="foto entrega" />
+            )}
+          </div>
+          {hayNovedad ? (
+            <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-3 space-y-2">
+              <p className="font-bold text-orange-800 text-sm">⚠️ Novedad reportada por {vehicle?.handover_by}:</p>
+              <p className="text-orange-700 text-sm">{vehicle?.handover_notes}</p>
+              <label className="flex items-center gap-2 text-xs text-orange-900 font-bold cursor-pointer mt-1">
+                <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="w-4 h-4 accent-orange-500" />
+                Confirmo que leí la novedad
+              </label>
+            </div>
+          ) : (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+              <p className="text-emerald-700 text-sm font-semibold">✅ Vehículo sin novedades</p>
+            </div>
+          )}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Tu foto al recibir</label>
+            {photo ? (
+              <div className="mt-1 relative">
+                <img src={photo} className="w-full rounded-xl object-cover max-h-28" alt="foto recepción" />
+                <button onClick={() => setPhoto(null)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs font-bold">✕</button>
+              </div>
+            ) : takingPhoto ? (
+              <div className="mt-1">
+                <video ref={videoRef} autoPlay playsInline className="w-full rounded-xl max-h-28 object-cover" />
+                <button onClick={takePhoto} className="w-full mt-2 py-2 bg-blue-500 text-white rounded-xl font-bold text-sm">📸 Capturar</button>
+              </div>
+            ) : (
+              <button onClick={startCamera} className="w-full mt-1 py-2 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 text-sm hover:border-blue-400 hover:text-blue-600">
+                📷 Tomar foto (opcional)
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <button onClick={onClose} className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">Cancelar</button>
+          <button onClick={() => canSubmit && onSubmit({ photo })}
+            disabled={!canSubmit}
+            className={`py-3 rounded-xl font-bold text-white transition-all ${canSubmit ? 'bg-blue-600 hover:bg-blue-700' : 'bg-stone-200 text-stone-400'}`}>
+            Recibir ✅
           </button>
         </div>
       </div>
