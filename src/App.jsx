@@ -1969,20 +1969,63 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const updated = trips.map(t => t.id === tripId ? { ...t, waitMinutes: waitMin } : t);
     saveTrips(updated);
   };
-  const handleEntregarUnidad = (formData) => {
+  const handleEntregarUnidad = async (formData) => {
     const vId = selectedVehicle?.id || currentTrip?.vehicleId;
     const vCode = selectedVehicle?.code || vehicles.find(v => v.id === vId)?.code || '';
+    const driverName = currentDriver.shortName || currentDriver.name;
     const now = new Date();
+    const handoffTime = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+    const handoffDate = now.toISOString().slice(0, 10);
+    const hayNovedad = formData.notes && formData.notes.trim() !== '' && formData.notes.trim().toLowerCase() !== 'sin novedad';
+    const updatedVehicles = vehicles.map(v => v.id === vId ? {
+      ...v,
+      currentKm: formData.km || v.currentKm,
+      handover_status: hayNovedad ? 'novedad' : 'disponible',
+      handover_by: driverName,
+      handover_km: formData.km,
+      handover_fuel: formData.fuel,
+      handover_notes: formData.notes,
+      handover_photo: formData.photo || '',
+      handover_at: `${handoffDate}T${handoffTime}`,
+    } : v);
+    saveVehicles(updatedVehicles);
+    sbFetch(`vehicles?id=eq.${vId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        handover_status: hayNovedad ? 'novedad' : 'disponible',
+        handover_by: driverName,
+        handover_km: formData.km,
+        handover_fuel: formData.fuel,
+        handover_notes: formData.notes,
+        handover_photo: formData.photo || '',
+        handover_at: `${handoffDate}T${handoffTime}`,
+      })
+    }).catch(() => {});
+    sbFetch(`active_trips?vehicle_id=eq.${vId}&driver_id=eq.${currentDriver.id}`, { method: 'DELETE' }).catch(() => {});
+    const wh = config?.discordWebhookByVehicle?.[vId] || config?.discordWebhookGeneral;
+    if (wh) {
+      const color = hayNovedad ? 0xe74c3c : 0x27ae60;
+      sendDiscordNotification(wh, {
+        title: `📤 Unidad cedida · ${vCode}`,
+        description: `**${driverName}** cedió la unidad`,
+        color,
+        fields: [
+          { name: '🚛 Unidad', value: vCode, inline: true },
+          { name: '⛽ Combustible', value: formData.fuel || '—', inline: true },
+          { name: '📍 KM entrega', value: String(formData.km || '—'), inline: true },
+          { name: hayNovedad ? '⚠️ Novedad' : '✅ Estado', value: formData.notes || 'Sin novedad', inline: false },
+        ]
+      }).catch(() => {});
+    }
     const handoff = {
       id: `handoff_${Date.now()}`,
       vehicleId: vId, vehicleCode: vCode,
       fromDriverId: currentDriver.id,
-      fromDriverName: currentDriver.shortName || currentDriver.name,
+      fromDriverName: driverName,
       kmAtHandoff: formData.km,
       fuelAtHandoff: formData.fuel,
       notes: formData.notes,
-      handoffDate: now.toISOString().slice(0, 10),
-      handoffTime: now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
+      handoffDate, handoffTime,
       status: 'pending',
     };
     const filtered = (handoffs || []).filter(h => !(h.vehicleId === vId && h.status === 'pending'));
@@ -2235,7 +2278,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} />}
           {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} kmInicial={endShiftTripData.kmUltimoViaje} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
-          {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
+          {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} config={config} currentTrip={currentTrip} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
         {tab === 'history' && <DriverHistoryView trips={myTrips} vehicles={vehicles} branches={branches} />}
@@ -3252,18 +3295,43 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
 // ============================================================
 // MODAL ENTREGAR UNIDAD — Daniel llena y entrega a otro chofer
 // ============================================================
-function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose }) {
-  const [km, setKm] = React.useState('');
+function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose, config, currentTrip }) {
+  const autoKm = currentTrip?.kmEnd || vehicle?.currentKm || '';
+  const [km, setKm] = React.useState(autoKm ? String(autoKm) : '');
   const [fuel, setFuel] = React.useState('');
-  const [notes, setNotes] = React.useState('sin novedad');
-  const canSubmit = km !== '' && Number(km) > 0;
+  const [notes, setNotes] = React.useState('');
+  const [photo, setPhoto] = React.useState(null);
+  const [takingPhoto, setTakingPhoto] = React.useState(false);
+  const videoRef = React.useRef(null);
+  const streamRef = React.useRef(null);
+  const canSubmit = km !== '' && Number(km) > 0 && fuel !== '';
+  const fuelOptions = ['1/4', '1/2', '3/4', 'Full'];
+  const startCamera = async () => {
+    setTakingPhoto(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      streamRef.current = stream;
+      setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = stream; }, 100);
+    } catch(e) { setTakingPhoto(false); }
+  };
+  const takePhoto = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
+    setPhoto(canvas.toDataURL('image/jpeg', 0.7));
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    setTakingPhoto(false);
+  };
+  React.useEffect(() => () => streamRef.current?.getTracks().forEach(t => t.stop()), []);
   return (
     <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-2xl">📤</div>
           <div>
-            <div className="font-bold text-stone-900 text-lg">Entregar unidad</div>
+            <div className="font-bold text-stone-900 text-lg">Ceder unidad</div>
             <div className="text-xs text-stone-500">{vehicle?.code} · {driver?.shortName || driver?.name}</div>
           </div>
         </div>
@@ -3272,27 +3340,52 @@ function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose }) {
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">KM actual *</label>
             <input type="number" value={km} onChange={e => setKm(e.target.value)} placeholder="ej: 142168"
               className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-amber-400" />
+            {autoKm > 0 && <p className="text-xs text-emerald-600 mt-0.5">✓ Pre-llenado del último viaje</p>}
           </div>
           <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Combustible (litros)</label>
-            <input type="number" value={fuel} onChange={e => setFuel(e.target.value)} placeholder="ej: 45"
-              className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-amber-400" />
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Combustible *</label>
+            <div className="grid grid-cols-4 gap-2 mt-1">
+              {fuelOptions.map(f => (
+                <button key={f} onClick={() => setFuel(f)}
+                  className={`py-2 rounded-xl text-sm font-bold border-2 transition-all ${fuel === f ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-stone-200 text-stone-700 hover:border-amber-300'}`}>
+                  {f}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Observaciones</label>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Novedades / Fallas</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+              placeholder="Ej: llanta baja, AC falla... o deja vacío si no hay novedad"
               className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-400 resize-none" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Foto de entrega</label>
+            {photo ? (
+              <div className="mt-1 relative">
+                <img src={photo} className="w-full rounded-xl object-cover max-h-32" alt="foto entrega" />
+                <button onClick={() => setPhoto(null)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs font-bold">✕</button>
+              </div>
+            ) : takingPhoto ? (
+              <div className="mt-1">
+                <video ref={videoRef} autoPlay playsInline className="w-full rounded-xl max-h-32 object-cover" />
+                <button onClick={takePhoto} className="w-full mt-2 py-2 bg-amber-500 text-white rounded-xl font-bold text-sm">📸 Capturar</button>
+              </div>
+            ) : (
+              <button onClick={startCamera} className="w-full mt-1 py-2 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 text-sm hover:border-amber-400 hover:text-amber-600">
+                📷 Tomar foto
+              </button>
+            )}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-4">
-          <button onClick={onClose}
-            className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">
+          <button onClick={onClose} className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">
             Cancelar
           </button>
-          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel: Number(fuel) || 0, notes })}
+          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel, notes: notes.trim() || 'Sin novedad', photo })}
             disabled={!canSubmit}
             className={`py-3 rounded-xl font-bold text-white transition-all ${canSubmit ? 'bg-amber-500 hover:bg-amber-600' : 'bg-stone-200 text-stone-400'}`}>
-            Entregar ✅
+            Ceder ✅
           </button>
         </div>
       </div>
