@@ -2194,13 +2194,23 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     };
     saveEndShifts && saveEndShifts([record, ...(endShifts||[])]);
 
-    // Actualizar KM y estado del camión → "GUARDADO"
+    // Actualizar KM y estado del camión → "GUARDADO" + limpiar occupied_by
     if (vehPrincipal && kmFinal) {
       saveVehicles(vehicles.map(v => v.id === vehPrincipal.id ? {
         ...v, currentKm: Number(kmFinal),
         lastParkedKm: Number(kmFinal), lastParkedDate: hoy, lastParkedTime: hora,
         status: v.status === 'EN TALLER' ? 'EN TALLER' : 'AL DIA',
+        occupied_by: '', occupied_by_id: '',
+        handover_status: 'disponible', handover_by: '', handover_by_full: '',
+        handover_to: '', handover_to_id: '', handover_km: 0,
+        handover_fuel: '', handover_notes: '', handover_photo: '', handover_at: '',
       } : v));
+      sbFetch && sbFetch(`vehicles?id=eq.${vehPrincipal.id}`, { method: 'PATCH', body: JSON.stringify({
+        occupied_by: '', occupied_by_id: '',
+        handover_status: 'disponible', handover_by: '', handover_by_full: '',
+        handover_to: '', handover_to_id: '', handover_km: 0,
+        handover_fuel: '', handover_notes: '', handover_photo: '', handover_at: '',
+      }) }).catch(()=>{});
     }
 
     // Discord → canal mantenimiento del camión
@@ -2567,7 +2577,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                         const esDestinatario = v.handover_to_id === currentDriver?.id || pendingCesion?.toDriverId === currentDriver?.id || (!v.handover_to_id && !pendingCesion?.toDriverId);
                         return (
                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${esDestinatario ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                            {esDestinatario ? `📲 Para ti · de ${byName}` : `🔄 Cedido por ${byName}${toName ? ` → ${toName}` : ''}`}
+                            {esDestinatario ? `📲 Para ti · de ${byName}` : `⏳ En espera${toName ? ` → ${toName}` : ''}`}
                           </span>
                         );
                       })()}
@@ -3564,15 +3574,21 @@ function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose, config, curre
           <div>
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Foto de entrega</label>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFilePhoto} />
-            {photo ? (
-              <div className="mt-1 relative">
-                <img src={photo} className="w-full rounded-xl object-cover max-h-32" alt="foto entrega" />
-                <button onClick={() => setPhoto(null)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs font-bold">✕</button>
-              </div>
-            ) : takingPhoto ? (
+            {takingPhoto ? (
               <div className="mt-1">
                 <video ref={videoRef} autoPlay playsInline className="w-full rounded-xl max-h-32 object-cover" />
                 <button onClick={takePhoto} className="w-full mt-2 py-2 bg-amber-500 text-white rounded-xl font-bold text-sm">📸 Capturar</button>
+                <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); setTakingPhoto(false); }} className="w-full mt-1 py-1.5 text-xs text-stone-500 hover:text-stone-700">Cancelar</button>
+              </div>
+            ) : photo ? (
+              <div className="mt-1">
+                <div className="relative">
+                  <img src={photo} className="w-full rounded-xl object-cover max-h-32" alt="foto entrega" />
+                </div>
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  <button onClick={startCamera} className="py-2 border border-stone-300 rounded-xl text-stone-500 text-xs hover:border-amber-400 hover:text-amber-600 bg-white">📷 Cambiar cámara</button>
+                  <button onClick={() => fileInputRef.current?.click()} className="py-2 border border-stone-300 rounded-xl text-stone-500 text-xs hover:border-amber-400 hover:text-amber-600 bg-white">🖼️ Cambiar archivo</button>
+                </div>
               </div>
             ) : (
               <div className="mt-1 grid grid-cols-2 gap-2">
@@ -3602,6 +3618,14 @@ function RecibirUnidadModal({ vehicle, driver, onSubmit, onClose }) {
   const [confirmed, setConfirmed] = React.useState(false);
   const videoRef = React.useRef(null);
   const streamRef = React.useRef(null);
+  const fileInputRefRecibir = React.useRef(null);
+  const handleFilePhotoRecibir = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setPhoto(ev.target.result);
+    reader.readAsDataURL(file);
+  };
   const hayNovedad = vehicle?.handover_notes && vehicle.handover_notes.toLowerCase() !== 'sin novedad' && vehicle.handover_notes.trim() !== '';
   const canSubmit = !hayNovedad || confirmed;
   const startCamera = async () => {
@@ -3610,7 +3634,7 @@ function RecibirUnidadModal({ vehicle, driver, onSubmit, onClose }) {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
       streamRef.current = stream;
       setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = stream; }, 100);
-    } catch(e) { setTakingPhoto(false); }
+    } catch(e) { setTakingPhoto(false); fileInputRefRecibir.current?.click(); }
   };
   const takePhoto = () => {
     if (!videoRef.current) return;
@@ -3633,6 +3657,7 @@ function RecibirUnidadModal({ vehicle, driver, onSubmit, onClose }) {
             <div className="text-xs text-stone-500">{vehicle?.code} · cedido por {vehicle?.handover_by}</div>
           </div>
         </div>
+        <input ref={fileInputRefRecibir} type="file" accept="image/*" className="hidden" onChange={handleFilePhotoRecibir} />
         <div className="space-y-3">
           <div className="bg-stone-50 rounded-xl p-3 space-y-2 border border-stone-200">
             <p className="text-xs font-bold text-stone-600 uppercase tracking-wide">Info del vehículo</p>
@@ -3660,20 +3685,25 @@ function RecibirUnidadModal({ vehicle, driver, onSubmit, onClose }) {
           )}
           <div>
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Tu foto al recibir</label>
-            {photo ? (
-              <div className="mt-1 relative">
-                <img src={photo} className="w-full rounded-xl object-cover max-h-28" alt="foto recepción" />
-                <button onClick={() => setPhoto(null)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs font-bold">✕</button>
-              </div>
-            ) : takingPhoto ? (
+            {takingPhoto ? (
               <div className="mt-1">
                 <video ref={videoRef} autoPlay playsInline className="w-full rounded-xl max-h-28 object-cover" />
                 <button onClick={takePhoto} className="w-full mt-2 py-2 bg-blue-500 text-white rounded-xl font-bold text-sm">📸 Capturar</button>
+                <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); setTakingPhoto(false); }} className="w-full mt-1 py-1.5 text-xs text-stone-500 hover:text-stone-700">Cancelar</button>
+              </div>
+            ) : photo ? (
+              <div className="mt-1">
+                <img src={photo} className="w-full rounded-xl object-cover max-h-28" alt="foto recepción" />
+                <div className="mt-1 grid grid-cols-2 gap-2">
+                  <button onClick={startCamera} className="py-2 border border-stone-300 rounded-xl text-stone-500 text-xs hover:border-blue-400 hover:text-blue-600 bg-white">📷 Cambiar cámara</button>
+                  <button onClick={() => fileInputRefRecibir.current?.click()} className="py-2 border border-stone-300 rounded-xl text-stone-500 text-xs hover:border-blue-400 hover:text-blue-600 bg-white">🖼️ Cambiar archivo</button>
+                </div>
               </div>
             ) : (
-              <button onClick={startCamera} className="w-full mt-1 py-2 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 text-sm hover:border-blue-400 hover:text-blue-600">
-                📷 Tomar foto (opcional)
-              </button>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                <button onClick={startCamera} className="py-2.5 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 text-sm hover:border-blue-400 hover:text-blue-600">📷 Cámara</button>
+                <button onClick={() => fileInputRefRecibir.current?.click()} className="py-2.5 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 text-sm hover:border-blue-400 hover:text-blue-600">🖼️ Archivo</button>
+              </div>
             )}
           </div>
         </div>
