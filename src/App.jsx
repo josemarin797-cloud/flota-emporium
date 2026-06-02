@@ -1,4 +1,4 @@
-// v4
+// v5
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Truck, Fuel, Wrench, MapPin, Users, BarChart3, Plus, Download, AlertTriangle, CheckCircle2, Clock, DollarSign, Route, Calendar, Trash2, Edit, X, Save, Search, Award, Play, Square, Navigation, ArrowRight, FileSpreadsheet, Archive, History, Settings, ChevronRight, Timer, Camera, Image as ImageIcon, Phone, MessageCircle, LogOut, Lock, FileText, Map, Radio, Zap, TrendingUp, Activity, Send, ArrowLeft, CheckCircle, CheckCheck, Info, ShieldCheck, ClipboardCheck, Eraser } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
@@ -2579,7 +2579,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
 
       <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
         <div className="space-y-2">
-          {vehicles.map(v => {
+          {[...vehicles].sort((a, b) => (a.id || '').localeCompare(b.id || '', undefined, { numeric: true })).map(v => {
             const enTaller = v.status === 'EN TALLER';
             const ocupado = activeTrips.find(t => t.vehicleId === v.id && t.driverId !== currentDriver.id);
             const nombreOcupado = ocupado ? (drivers.find(d => d.id === ocupado.driverId)?.shortName || 'Otro chofer') : null;
