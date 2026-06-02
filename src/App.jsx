@@ -1,4 +1,4 @@
-// v3
+// v4
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Truck, Fuel, Wrench, MapPin, Users, BarChart3, Plus, Download, AlertTriangle, CheckCircle2, Clock, DollarSign, Route, Calendar, Trash2, Edit, X, Save, Search, Award, Play, Square, Navigation, ArrowRight, FileSpreadsheet, Archive, History, Settings, ChevronRight, Timer, Camera, Image as ImageIcon, Phone, MessageCircle, LogOut, Lock, FileText, Map, Radio, Zap, TrendingUp, Activity, Send, ArrowLeft, CheckCircle, CheckCheck, Info, ShieldCheck, ClipboardCheck, Eraser } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
@@ -87,6 +87,39 @@ const loadSBChecklists = async () => {
 
 // Guardar un checklist en Supabase (con compresión de imágenes)
 // Cargar estado handover de vehículos desde Supabase
+const loadSBTrips = async () => {
+  const data = await sbFetch('trips?order=created_at.desc&limit=1000');
+  if (!Array.isArray(data)) return null;
+  return data.map(r => ({
+    id: r.id,
+    driverId: r.driver_id || r.driverId,
+    vehicleId: r.vehicle_id || r.vehicleId,
+    originBranchId: r.origin_branch_id || r.originBranchId,
+    destinationBranchId: r.destination_branch_id || r.destinationBranchId,
+    customDestName: r.custom_dest_name || r.customDestName || '',
+    customDestType: r.custom_dest_type || r.customDestType || '',
+    kmStart: r.km_start || r.kmStart || 0,
+    kmEnd: r.km_end || r.kmEnd || 0,
+    kmTraveled: r.km_traveled || r.kmTraveled || 0,
+    startDate: r.start_date || r.startDate || '',
+    startTime: r.start_time || r.startTime || '',
+    endDate: r.end_date || r.endDate || '',
+    endTime: r.end_time || r.endTime || '',
+    tripMinutes: r.trip_minutes || r.tripMinutes || 0,
+    timeAtBranchPrevMinutes: r.time_at_branch_prev_minutes || r.timeAtBranchPrevMinutes || null,
+    liters: r.liters || 0,
+    fuelPrice: r.fuel_price || r.fuelPrice || 0,
+    cost: r.cost || 0,
+    deliveries: r.deliveries || 0,
+    tripsCount: r.trips_count || r.tripsCount || 1,
+    route: r.route || 'LOCAL',
+    fuelLoaded: r.fuel_loaded || r.fuelLoaded || 0,
+    notes: r.notes || '',
+    arrivalNotes: r.arrival_notes || r.arrivalNotes || '',
+    createdAt: r.created_at || r.createdAt || Date.now(),
+  }));
+};
+
 const loadSBVehicles = async () => {
   const data = await sbFetch('vehicles?select=id,handover_status,handover_by,handover_by_full,handover_to,handover_to_id,handover_km,handover_fuel,handover_notes,handover_photo,handover_at,current_km,occupied_by,occupied_by_id');
   if (!Array.isArray(data)) return null;
@@ -588,6 +621,15 @@ export default function App() {
           }));
         }
 
+        // Cargar viajes desde SUPABASE (sincronizados entre todos los dispositivos)
+        const sbTrips = await loadSBTrips();
+        if (sbTrips !== null && sbTrips.length > 0) {
+          setTrips(sbTrips);
+        } else {
+          const tripsLocal = await window.storage.get(KEYS.TRIPS).catch(() => null);
+          if (tripsLocal?.value) setTrips(JSON.parse(tripsLocal.value));
+        }
+
         // Cargar checklists desde SUPABASE (sincronizados entre todos los dispositivos)
         const sbData = await loadSBChecklists();
         if (sbData !== null) {
@@ -775,6 +817,16 @@ export default function App() {
     };
     const interval = setInterval(poll, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Polling de viajes cada 30s para sincronizar entre dispositivos
+  useEffect(() => {
+    const pollTrips = async () => {
+      const fresh = await loadSBTrips();
+      if (fresh !== null && fresh.length > 0) setTrips(fresh);
+    };
+    const iv = setInterval(pollTrips, 30000);
+    return () => clearInterval(iv);
   }, []);
 
   // Polling de estado handover de vehículos (cada 15s)
