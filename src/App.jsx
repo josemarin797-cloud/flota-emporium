@@ -1714,9 +1714,9 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
 function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents, fuelRecords = [], saveFuelRecords, endShifts = [], saveEndShifts }) {
   const [tab, setTab] = useState('trip');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
-  const [step, setStep] = useState('select');
+  const [step, setStep] = useState(() => { try { return localStorage.getItem('emp:v4:finish_step') || 'select'; } catch(e) { return 'select'; } });
   const [selectedVehicle, setSelectedVehicle] = useState(() => { try { const s = localStorage.getItem(KEYS.DRIVER_STATE + ':' + currentDriver.id); if (s) { const d = JSON.parse(s); if (d.vehicleId) { const full = vehicles.find(v => v.id === d.vehicleId); return full || { id: d.vehicleId }; } } } catch(e) {} return null; });
-  const [currentTrip, setCurrentTrip] = useState(null);
+  const [currentTrip, setCurrentTrip] = useState(() => { try { const ft = localStorage.getItem('emp:v4:finish_trip'); return ft ? JSON.parse(ft) : null; } catch(e) { return null; } });
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [currentPosition, setCurrentPosition] = useState(null);
   const watchIdRef = useRef(null);
@@ -1738,7 +1738,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       if (active && step !== 'finish') { setCurrentTrip(active); setStep('active'); }
       localStorage.setItem(KEYS.DRIVER_STATE + ':' + currentDriver.id, JSON.stringify({ vehicleId: selectedVehicle.id }));
     }
-  }, [selectedVehicle, myActiveTrips]);
+  }, [selectedVehicle, myActiveTrips, step]);
 
   // Estado para velocidad y alertas
   const lastSpeedAlertRef = useRef(0);
@@ -1980,6 +1980,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     stopGpsTracking();
     setCurrentTrip(completed);
     setStep('finish');
+    localStorage.setItem('emp:v4:finish_step', 'finish');
+    localStorage.setItem('emp:v4:finish_trip', JSON.stringify(completed));
     // 🎙️ Voz al cerrar el viaje
         const mensajesCierre = [
           'Viaje completado.',
@@ -2044,8 +2046,10 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     sbFetch(`vehicles?id=eq.${currentTrip?.vehicleId}`, { method: 'PATCH', body: JSON.stringify({ occupied_by: '', occupied_by_id: '' }) }).catch(() => {});
     saveVehicles(vehicles.map(x => x.id === currentTrip?.vehicleId ? { ...x, occupied_by: '', occupied_by_id: '' } : x));
     
+    localStorage.removeItem('emp:v4:finish_step'); localStorage.removeItem('emp:v4:finish_trip');
     setCurrentTrip(null);
     setStep('select');
+    localStorage.removeItem('emp:v4:finish_step'); localStorage.removeItem('emp:v4:finish_trip');
   };
   const newTrip = () => { setCurrentTrip(null); setStep('start'); }; // mantiene camión seleccionado
   const handleWaitEnd = (tripId, waitMin) => {
