@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', '*.png', '*.svg'],
       manifest: {
         name: 'Flota Emporium',
@@ -26,6 +26,8 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         cleanupOutdatedCaches: true,
+        // skipWaiting y clientsClaim ELIMINADOS — causaban pantalla negra en PC
+        // El SW nuevo espera a que no haya clientes activos antes de activarse
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/cdn\.sheetjs\.com\/.*/i,
@@ -38,8 +40,6 @@ export default defineConfig({
             options: { cacheName: 'fonts-cache', expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 } },
           },
         ],
-        skipWaiting: true,
-        clientsClaim: true,
       },
     }),
   ],
