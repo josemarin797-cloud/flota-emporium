@@ -840,6 +840,8 @@ export default function App() {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setCurrentUser(null);
     localStorage.removeItem(KEYS.SESSION);
+    // Limpiar finish state de todos los choferes
+    Object.keys(localStorage).filter(k => k.startsWith('emp:v4:finish_')).forEach(k => localStorage.removeItem(k));
     localStorage.removeItem(KEYS.DRIVER_STATE);
     setView('login');
   };
