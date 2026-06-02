@@ -5989,15 +5989,17 @@ function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig, s
                     <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Días</div><div className="font-bold text-stone-900">{new Set(vt.map(t=>t.startDate)).size}</div></div>
                   </div>
                   {v.observations && <div className="mt-2 text-xs bg-amber-950/30 border border-amber-700/30 rounded p-2 text-amber-700">{v.observations}</div>}
-                  {/* Estado handover */}
-                  {v.handover_status && v.handover_status !== 'disponible' && (
-                    <div className={`mt-2 flex items-center justify-between gap-2 rounded-xl px-3 py-2 border text-xs font-semibold ${v.handover_status === 'en_espera' ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-orange-50 border-orange-300 text-orange-800'}`}>
+                  {/* Estado handover / ocupado */}
+                  {((v.handover_status && v.handover_status !== 'disponible') || (v.handover_by && v.handover_by !== '') || (v.occupied_by && v.occupied_by !== '')) && (
+                    <div className={`mt-2 flex items-center justify-between gap-2 rounded-xl px-3 py-2 border text-xs font-semibold ${v.handover_status === 'en_espera' ? 'bg-amber-50 border-amber-300 text-amber-800' : v.occupied_by ? 'bg-blue-50 border-blue-300 text-blue-800' : 'bg-orange-50 border-orange-300 text-orange-800'}`}>
                       <span>
-                        {v.handover_status === 'en_espera' ? '🔄' : '⚠️'}
+                        {v.handover_status === 'en_espera' ? '🔄' : v.occupied_by ? '🚛' : '⚠️'}
                         {' '}
                         {v.handover_status === 'en_espera'
                           ? `En espera${v.handover_by_full || v.handover_by ? ` · de ${v.handover_by_full || v.handover_by}` : ''}${v.handover_to ? ` → ${v.handover_to}` : ''}`
-                          : `Novedad · ${v.handover_by_full || v.handover_by || ''}`}
+                          : v.occupied_by
+                            ? `Ocupado por ${v.occupied_by}`
+                            : `Pendiente · ${v.handover_by_full || v.handover_by || ''}`}
                       </span>
                       <button onClick={() => {
                         const updated = vehicles.map(x => x.id === v.id ? { ...x, handover_status: 'disponible', handover_by: '', handover_by_full: '', handover_to: '', handover_to_id: '', handover_km: 0, handover_fuel: '', handover_notes: '', handover_photo: '', handover_at: '', occupied_by: '', occupied_by_id: '' } : x);
