@@ -15,6 +15,7 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <!-- Apple iOS support -->
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Emporium" />
@@ -25,6 +26,27 @@
     <meta name="msapplication-TileImage" content="/icon-192.png" />
 
     <title>Transporte Emporium</title>
+
+    <!-- Auto-limpieza de service worker desactualizado -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(reg) {
+            // Si hay un SW en espera (nueva versión lista), forzar activación
+            if (reg.waiting) {
+              reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+        // Cuando el SW tome control, recargar una sola vez para cargar versión nueva
+        navigator.serviceWorker.addEventListener('controllerchange', function() {
+          if (!sessionStorage.getItem('sw-reloaded')) {
+            sessionStorage.setItem('sw-reloaded', '1');
+            window.location.reload();
+          }
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
