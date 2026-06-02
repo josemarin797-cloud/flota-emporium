@@ -1,4 +1,4 @@
-// v5
+// v6
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Truck, Fuel, Wrench, MapPin, Users, BarChart3, Plus, Download, AlertTriangle, CheckCircle2, Clock, DollarSign, Route, Calendar, Trash2, Edit, X, Save, Search, Award, Play, Square, Navigation, ArrowRight, FileSpreadsheet, Archive, History, Settings, ChevronRight, Timer, Camera, Image as ImageIcon, Phone, MessageCircle, LogOut, Lock, FileText, Map, Radio, Zap, TrendingUp, Activity, Send, ArrowLeft, CheckCircle, CheckCheck, Info, ShieldCheck, ClipboardCheck, Eraser } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
@@ -758,10 +758,24 @@ export default function App() {
   const saveActiveTrips = (d) => { setActiveTrips(d); persist(KEYS.ACTIVE_TRIPS, d); };
   useEffect(() => {
     const syncAT = async () => {
-      const r = await sbFetch('active_trips?select=*').catch(() => null);
-      if (r?.ok) {
-        const d = await r.json();
-        if (Array.isArray(d)) setActiveTrips(d);
+      const data = await sbFetch('active_trips?select=*');
+      if (Array.isArray(data)) {
+        // Mapear campos snake_case a camelCase
+        const mapped = data.map(r => ({
+          id: r.id,
+          driverId: r.driver_id || r.driverId,
+          vehicleId: r.vehicle_id || r.vehicleId,
+          originBranchId: r.origin_branch_id || r.originBranchId,
+          destinationBranchId: r.destination_branch_id || r.destinationBranchId,
+          kmStart: r.km_start || r.kmStart || 0,
+          startTime: r.start_time || r.startTime || '',
+          startDate: r.start_date || r.startDate || '',
+          fuelLoaded: r.fuel_loaded || r.fuelLoaded || 0,
+          customDestName: r.custom_dest_name || r.customDestName || '',
+          customDestType: r.custom_dest_type || r.customDestType || '',
+        }));
+        setActiveTrips(mapped);
+        persist(KEYS.ACTIVE_TRIPS, mapped);
       }
     };
     syncAT();
@@ -1752,7 +1766,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   const [tab, setTab] = useState('trip');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [step, setStep] = useState('select');
-  const [selectedVehicle, setSelectedVehicle] = useState(() => { try { const s = localStorage.getItem(KEYS.DRIVER_STATE + ':' + currentDriver.id); if (s) { const d = JSON.parse(s); return d.vehicleId ? { id: d.vehicleId } : null; } } catch(e) {} return null; });
+  const [selectedVehicle, setSelectedVehicle] = useState(() => { try { const s = localStorage.getItem(KEYS.DRIVER_STATE + ':' + currentDriver.id); if (s) { const d = JSON.parse(s); if (d.vehicleId) { const full = vehicles.find(v => v.id === d.vehicleId); return full || { id: d.vehicleId }; } } } catch(e) {} return null; });
   const [currentTrip, setCurrentTrip] = useState(null);
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [currentPosition, setCurrentPosition] = useState(null);
