@@ -1,3 +1,4 @@
+// v2
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Truck, Fuel, Wrench, MapPin, Users, BarChart3, Plus, Download, AlertTriangle, CheckCircle2, Clock, DollarSign, Route, Calendar, Trash2, Edit, X, Save, Search, Award, Play, Square, Navigation, ArrowRight, FileSpreadsheet, Archive, History, Settings, ChevronRight, Timer, Camera, Image as ImageIcon, Phone, MessageCircle, LogOut, Lock, FileText, Map, Radio, Zap, TrendingUp, Activity, Send, ArrowLeft, CheckCircle, CheckCheck, Info, ShieldCheck, ClipboardCheck, Eraser } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
