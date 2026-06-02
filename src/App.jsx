@@ -4046,7 +4046,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
         {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} saveHandoffs={saveHandoffs} sbFetch={sbFetch} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
-        {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} />}
+        {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} sbFetch={sbFetch} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
         {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} maintRecords={maintRecords} saveMaintRecords={saveMaintRecords} />}
@@ -5886,7 +5886,7 @@ function VehicleForm({ v, onSave, onCancel, title }) {
   );
 }
 
-function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig }) {
+function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig, sbFetch }) {
   const [editing, setEditing] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
 
@@ -5960,6 +5960,25 @@ function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig })
                     <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Días</div><div className="font-bold text-stone-900">{new Set(vt.map(t=>t.startDate)).size}</div></div>
                   </div>
                   {v.observations && <div className="mt-2 text-xs bg-amber-950/30 border border-amber-700/30 rounded p-2 text-amber-700">{v.observations}</div>}
+                  {/* Estado handover */}
+                  {v.handover_status && v.handover_status !== 'disponible' && (
+                    <div className={`mt-2 flex items-center justify-between gap-2 rounded-xl px-3 py-2 border text-xs font-semibold ${v.handover_status === 'en_espera' ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-orange-50 border-orange-300 text-orange-800'}`}>
+                      <span>
+                        {v.handover_status === 'en_espera' ? '🔄' : '⚠️'}
+                        {' '}
+                        {v.handover_status === 'en_espera'
+                          ? `En espera${v.handover_by_full || v.handover_by ? ` · de ${v.handover_by_full || v.handover_by}` : ''}${v.handover_to ? ` → ${v.handover_to}` : ''}`
+                          : `Novedad · ${v.handover_by_full || v.handover_by || ''}`}
+                      </span>
+                      <button onClick={() => {
+                        const updated = vehicles.map(x => x.id === v.id ? { ...x, handover_status: 'disponible', handover_by: '', handover_by_full: '', handover_to: '', handover_to_id: '', handover_km: 0, handover_fuel: '', handover_notes: '', handover_photo: '', handover_at: '' } : x);
+                        saveVehicles(updated);
+                        sbFetch && sbFetch(`vehicles?id=eq.${v.id}`, { method: 'PATCH', body: JSON.stringify({ handover_status: 'disponible', handover_by: '', handover_by_full: '', handover_to: '', handover_to_id: '', handover_km: 0, handover_fuel: '', handover_notes: '', handover_photo: '', handover_at: '' }) }).catch(()=>{});
+                      }} className="bg-white border border-stone-300 text-stone-600 hover:text-red-600 hover:border-red-300 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all flex-shrink-0">
+                        Limpiar ✕
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
