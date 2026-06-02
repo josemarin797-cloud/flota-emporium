@@ -881,7 +881,7 @@ export default function App() {
         savePhotos={savePhotos} saveGpsTracks={saveGpsTracks}
         checklists={checklists} saveChecklists={saveChecklists}
         config={config}
-        handoffs={handoffs} saveHandoffs={saveHandoffs}
+        handoffs={handoffs} saveHandoffs={saveHandoffs} sbFetch={sbFetch}
         incidents={incidents} saveIncidents={saveIncidents}
         fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords}
         endShifts={endShifts} saveEndShifts={saveEndShifts}
@@ -3930,7 +3930,7 @@ function DriverHistoryView({ trips, vehicles, branches }) {
 // ============================================================
 // COORDINADOR
 // ============================================================
-function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], incidents = [], fuelRecords = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents, saveFuelRecords }) {
+function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], saveHandoffs, sbFetch, maintRecords = [], incidents = [], fuelRecords = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents, saveFuelRecords }) {
   const [tab, setTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [autoArchiveBanner, setAutoArchiveBanner] = useState(null);
