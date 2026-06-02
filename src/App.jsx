@@ -1969,6 +1969,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     saveTrips([...trips, completed]);
     sbFetch('trips', { method: 'POST', body: JSON.stringify(completed), headers: { 'Prefer': 'resolution=merge-duplicates' } }).catch(() => {});
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
+    sbFetch(`active_trips?id=eq.${currentTrip.id}`, { method: 'DELETE' }).catch(() => {});
+    sbFetch(`vehicles?id=eq.${currentTrip.vehicleId}`, { method: 'PATCH', body: JSON.stringify({ occupied_by: '', occupied_by_id: '' }) }).catch(() => {});
+    saveVehicles(vehicles.map(x => x.id === currentTrip.vehicleId ? { ...x, occupied_by: '', occupied_by_id: '' } : x));
     if (Number(data.kmEnd) > v.currentKm) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, currentKm: Number(data.kmEnd) } : x));
 
     // Asociar GPS track con el viaje completado
@@ -2038,6 +2041,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     saveGpsTracks(gpsTracks.filter(g => g.tripId !== currentTrip.id));
     stopGpsTracking();
     sbFetch('active_trips?id=eq.' + (currentTrip?.id||''), { method: 'DELETE' }).catch(() => {});
+    sbFetch(`vehicles?id=eq.${currentTrip?.vehicleId}`, { method: 'PATCH', body: JSON.stringify({ occupied_by: '', occupied_by_id: '' }) }).catch(() => {});
+    saveVehicles(vehicles.map(x => x.id === currentTrip?.vehicleId ? { ...x, occupied_by: '', occupied_by_id: '' } : x));
     
     setCurrentTrip(null);
     setStep('select');
