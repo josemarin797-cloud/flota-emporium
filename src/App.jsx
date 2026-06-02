@@ -1735,7 +1735,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   useEffect(() => {
     if (selectedVehicle) {
       const active = myActiveTrips.find(t => t.vehicleId === selectedVehicle.id);
-      if (active) { setCurrentTrip(active); setStep('active'); }
+      if (active && step !== 'finish') { setCurrentTrip(active); setStep('active'); }
       localStorage.setItem(KEYS.DRIVER_STATE + ':' + currentDriver.id, JSON.stringify({ vehicleId: selectedVehicle.id }));
     }
   }, [selectedVehicle, myActiveTrips]);
