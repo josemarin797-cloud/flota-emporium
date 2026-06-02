@@ -898,7 +898,7 @@ export default function App() {
         trips={trips} activeTrips={activeTrips} archivedMonths={archivedMonths} photos={photos} gpsTracks={gpsTracks}
         config={config}
         checklists={checklists}
-        handoffs={handoffs}
+        handoffs={handoffs} saveHandoffs={saveHandoffs} sbFetch={sbFetch}
         maintRecords={maintRecords}
         incidents={incidents}
         fuelRecords={fuelRecords}
