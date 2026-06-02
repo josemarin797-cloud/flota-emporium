@@ -4043,7 +4043,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
       <main className="max-w-7xl mx-auto px-4 py-5">
         {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} incidents={incidents} />}
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
-        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
+        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} saveHandoffs={saveHandoffs} sbFetch={sbFetch} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
         {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
@@ -4481,6 +4481,7 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
                     <th className="text-left px-3 py-2">Obs. entrega</th>
                     <th className="text-left px-3 py-2">Obs. recepción</th>
                     <th className="text-center px-2 py-2">Estado</th>
+                    {saveHandoffs && <th className="px-2 py-2"></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -4499,6 +4500,14 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
                           ? <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">✅ Confirmado</span>
                           : <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full">⏳ Pendiente</span>}
                       </td>
+                      {saveHandoffs && (
+                        <td className="px-2 py-2.5 text-center">
+                          <button onClick={() => { if (confirm(`¿Eliminar este traspaso de ${h.vehicleCode}?`)) { saveHandoffs(handoffs.filter(x => x.id !== h.id)); sbFetch && sbFetch(`handoffs?id=eq.${h.id}`, { method: 'DELETE' }).catch(()=>{}); } }}
+                            className="text-stone-300 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50" title="Eliminar">
+                            🗑️
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -4700,7 +4709,7 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
 // ============================================================
 // VIAJES TABLE
 // ============================================================
-function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [], maintRecords = [], fuelRecords = [] }) {
+function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [], saveHandoffs, sbFetch, maintRecords = [], fuelRecords = [] }) {
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
   // Refrescar cada minuto para actualizar los cronómetros "aún ahí"
