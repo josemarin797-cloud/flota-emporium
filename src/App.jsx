@@ -555,48 +555,60 @@ export default function App() {
   useEffect(() => {
     const load = async () => {
       try {
-        const reads = await Promise.all([
-          loadFromStorage(KEYS.VEHICLES),
-          loadFromStorage(KEYS.DRIVERS),
-          loadFromStorage(KEYS.BRANCHES),
-          loadFromStorage(KEYS.TRIPS),
-          loadFromStorage(KEYS.ACTIVE_TRIPS),
-          loadFromStorage(KEYS.ARCHIVED_MONTHS),
-          loadFromStorage(KEYS.CONFIG),
-          loadFromStorage(KEYS.PHOTOS),
-          loadFromStorage(KEYS.GPS_TRACKS),
-          loadFromStorage(KEYS.HANDOFFS),
-        ]);
-        const savedCfg = reads[6] ? { ...DEFAULT_CONFIG, ...reads[6] } : DEFAULT_CONFIG;
-        if (reads[0]) {
-          // Webhook del código (INITIAL_VEHICLES) tiene prioridad — nunca se borra
-          setVehicles(reads[0].map(v => {
+        // Cargar datos locales primero (rápido, sin esperar red)
+        const vLocal = loadFromStorage(KEYS.VEHICLES);
+        const dLocal = loadFromStorage(KEYS.DRIVERS);
+        const bLocal = loadFromStorage(KEYS.BRANCHES);
+        const tLocal = loadFromStorage(KEYS.TRIPS);
+        const atLocal = loadFromStorage(KEYS.ACTIVE_TRIPS);
+        const amLocal = loadFromStorage(KEYS.ARCHIVED_MONTHS);
+        const cfgLocal = loadFromStorage(KEYS.CONFIG);
+        const pLocal = loadFromStorage(KEYS.PHOTOS);
+        const gLocal = loadFromStorage(KEYS.GPS_TRACKS);
+        const hLocal = loadFromStorage(KEYS.HANDOFFS);
+        const esLocal = loadFromStorage(KEYS.END_SHIFTS);
+        const mrLocal = loadFromStorage(KEYS.MAINT_RECORDS);
+        const incLocal = loadFromStorage(KEYS.INCIDENTS);
+        const frLocal = loadFromStorage(KEYS.FUEL_RECORDS);
+        const clLocal = loadFromStorage(KEYS.CHECKLISTS);
+
+        const savedCfg = cfgLocal ? { ...DEFAULT_CONFIG, ...cfgLocal } : DEFAULT_CONFIG;
+        if (vLocal) {
+          setVehicles(vLocal.map(v => {
             const initial = INITIAL_VEHICLES.find(iv => iv.id === v.id);
             return { ...v, maintenanceWebhook: initial?.maintenanceWebhook || v.maintenanceWebhook || '' };
           }));
         }
-        if (reads[1]) setDrivers(reads[1]);
-        if (reads[2]) setBranches(reads[2]);
-        if (reads[3]) setTrips(reads[3]);
-        if (reads[4]) setActiveTrips(reads[4]);
-        if (reads[5]) setArchivedMonths(reads[5]);
-        if (reads[6]) setConfig(savedCfg);
-        if (reads[7]) setPhotos(reads[7]);
-        if (reads[8]) setGpsTracks(reads[8]);
-        if (reads[9]) setHandoffs(reads[9]);
-        const esLocal = await window.storage.get(KEYS.END_SHIFTS).catch(() => null);
-        if (esLocal?.value) setEndShifts(JSON.parse(esLocal.value));
-        // Restaurar sesión si el usuario estaba logueado
+        if (dLocal) setDrivers(dLocal);
+        if (bLocal) setBranches(bLocal);
+        if (tLocal) setTrips(tLocal);
+        if (atLocal) setActiveTrips(atLocal);
+        if (amLocal) setArchivedMonths(amLocal);
+        if (cfgLocal) setConfig(savedCfg);
+        if (pLocal) setPhotos(pLocal);
+        if (gLocal) setGpsTracks(gLocal);
+        if (hLocal) setHandoffs(hLocal);
+        if (esLocal) setEndShifts(esLocal);
+        if (mrLocal) setMaintRecords(mrLocal);
+        if (incLocal) setIncidents(incLocal);
+        if (frLocal) setFuelRecords(frLocal);
+        if (clLocal) setChecklists(clLocal);
+
+        // Restaurar sesión
         const savedSession = localStorage.getItem(KEYS.SESSION);
         if (savedSession) {
           try {
             const { role, userId } = JSON.parse(savedSession);
-            const allDrivers = reads[1] || INITIAL_DRIVERS;
+            const allDrivers = dLocal || INITIAL_DRIVERS;
             const user = allDrivers.find(d => d.id === userId);
             if (user) { setCurrentUser(user); setView(role); }
           } catch(e) { localStorage.removeItem(KEYS.SESSION); }
         }
-        // Cargar estado handover de vehículos desde Supabase (sincronizado entre dispositivos)
+      } catch (e) {}
+      setLoading(false);
+
+      // Cargar desde Supabase en segundo plano (sin bloquear la UI)
+      try {
         const sbVehicles = await loadSBVehicles();
         if (sbVehicles && sbVehicles.length > 0) {
           setVehicles(prev => prev.map(v => {
@@ -620,68 +632,21 @@ export default function App() {
             };
           }));
         }
-
-        // Cargar viajes desde SUPABASE (sincronizados entre todos los dispositivos)
         const sbTrips = await loadSBTrips();
-        if (sbTrips !== null && sbTrips.length > 0) {
-          setTrips(sbTrips);
-        } else {
-          const tripsLocal = await window.storage.get(KEYS.TRIPS).catch(() => null);
-          if (tripsLocal?.value) setTrips(JSON.parse(tripsLocal.value));
-        }
-
-        // Cargar checklists desde SUPABASE (sincronizados entre todos los dispositivos)
+        if (sbTrips !== null && sbTrips.length > 0) setTrips(sbTrips);
         const sbData = await loadSBChecklists();
-        if (sbData !== null) {
-          setChecklists(sbData);
-        } else {
-          const local = await window.storage.get(KEYS.CHECKLISTS).catch(() => null);
-          if (local?.value) setChecklists(JSON.parse(local.value));
-        }
-        // Cargar registros de mantenimiento desde storage
-        const mrLocal = await window.storage.get(KEYS.MAINT_RECORDS).catch(() => null);
-        if (mrLocal?.value) setMaintRecords(JSON.parse(mrLocal.value));
-        const incLocal = await window.storage.get(KEYS.INCIDENTS).catch(() => null);
-        if (incLocal?.value) setIncidents(JSON.parse(incLocal.value));
-        const frLocal = await window.storage.get(KEYS.FUEL_RECORDS).catch(() => null);
-        if (frLocal?.value) setFuelRecords(JSON.parse(frLocal.value));
-      } catch (e) {}
-      setLoading(false);
+        if (sbData !== null) setChecklists(sbData);
+      } catch(e) {}
     };
     load();
   }, []);
 
-  // ── Offline-first storage ──────────────────────────────────────────
-  const persist = async (key, data) => {
-    const serialized = JSON.stringify(data);
-    // 1. Guardar en localStorage PRIMERO (siempre funciona, offline o no)
-    try { localStorage.setItem(key, serialized); } catch (e) {}
-    // 2. Intentar sincronizar con cloud storage
-    try {
-      await window.storage.set(key, serialized);
-      // Éxito: quitar de pendientes
-      try {
-        const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
-        localStorage.setItem(KEYS.PENDING, JSON.stringify(pending.filter(k => k !== key)));
-      } catch (e) {}
-    } catch (e) {
-      // Sin internet: marcar como pendiente de sync
-      try {
-        const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
-        if (!pending.includes(key)) localStorage.setItem(KEYS.PENDING, JSON.stringify([...pending, key]));
-      } catch (e2) {}
-    }
+  // ── Storage (localStorage directo) ────────────────────────────────
+  const persist = (key, data) => {
+    try { localStorage.setItem(key, JSON.stringify(data)); } catch (e) {}
   };
 
-  const loadFromStorage = async (key) => {
-    try {
-      const result = await window.storage.get(key);
-      if (result?.value) {
-        try { localStorage.setItem(key, result.value); } catch (e) {}
-        return JSON.parse(result.value);
-      }
-    } catch (e) {}
-    // Fallback: localStorage
+  const loadFromStorage = (key) => {
     try {
       const local = localStorage.getItem(key);
       return local ? JSON.parse(local) : null;
@@ -689,23 +654,7 @@ export default function App() {
   };
 
   const syncPendingData = async () => {
-    // Sync datos al cloud storage
-    try {
-      const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
-      if (pending.length) {
-        let synced = 0;
-        for (const key of [...pending]) {
-          const data = localStorage.getItem(key);
-          if (data) {
-            try { await window.storage.set(key, data); synced++; } catch (e) { break; }
-          }
-        }
-        if (synced > 0) {
-          const remaining = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
-          localStorage.setItem(KEYS.PENDING, JSON.stringify(remaining.slice(synced)));
-        }
-      }
-    } catch (e) {}
+    // Sync pendiente (solo Discord y fotos — localStorage ya guarda directo)
 
     // Subir fotos pendientes de IndexedDB
     try {
