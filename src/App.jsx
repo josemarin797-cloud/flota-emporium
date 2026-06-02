@@ -88,7 +88,7 @@ const loadSBChecklists = async () => {
 // Guardar un checklist en Supabase (con compresión de imágenes)
 // Cargar estado handover de vehículos desde Supabase
 const loadSBVehicles = async () => {
-  const data = await sbFetch('vehicles?select=id,handover_status,handover_by,handover_by_full,handover_to,handover_to_id,handover_km,handover_fuel,handover_notes,handover_photo,handover_at,current_km');
+  const data = await sbFetch('vehicles?select=id,handover_status,handover_by,handover_by_full,handover_to,handover_to_id,handover_km,handover_fuel,handover_notes,handover_photo,handover_at,current_km,occupied_by,occupied_by_id');
   if (!Array.isArray(data)) return null;
   return data;
 };
@@ -581,6 +581,8 @@ export default function App() {
               handover_notes: sb.handover_notes || v.handover_notes || '',
               handover_photo: sb.handover_photo || v.handover_photo || '',
               handover_at: sb.handover_at || v.handover_at || '',
+              occupied_by: sb.occupied_by !== undefined ? sb.occupied_by : (v.occupied_by || ''),
+              occupied_by_id: sb.occupied_by_id !== undefined ? sb.occupied_by_id : (v.occupied_by_id || ''),
               ...(sb.current_km ? { currentKm: sb.current_km } : {}),
             };
           }));
@@ -1842,6 +1844,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     };
     saveActiveTrips([...activeTrips, trip]);
     sbFetch('active_trips', { method: 'POST', body: JSON.stringify({ id: trip.id, driver_id: trip.driverId, vehicle_id: trip.vehicleId, origin_branch_id: trip.originBranchId, destination_branch_id: trip.destinationBranchId, km_start: trip.kmStart, start_time: trip.startTime, start_date: trip.startDate, fuel_loaded: trip.fuelLoaded || 0 }), headers: { 'Prefer': 'resolution=merge-duplicates' } }).catch(() => {});
+    // Marcar vehículo como ocupado
+    sbFetch(`vehicles?id=eq.${trip.vehicleId}`, { method: 'PATCH', body: JSON.stringify({ occupied_by: currentDriver.name || currentDriver.shortName || '', occupied_by_id: currentDriver.id || '' }) }).catch(() => {});
+    saveVehicles(vehicles.map(v => v.id === trip.vehicleId ? { ...v, occupied_by: currentDriver.name || currentDriver.shortName || '', occupied_by_id: currentDriver.id || '' } : v));
     setCurrentTrip(trip);
     setStep('active');
 
@@ -2119,11 +2124,15 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       ...x,
       handover_status: hayNovedad ? 'novedad' : 'disponible',
       handover_by: fromName,
+      handover_to: '',
+      handover_to_id: '',
+      occupied_by: currentDriver.name || receiverName,
+      occupied_by_id: currentDriver.id || '',
     } : x);
     saveVehicles(updatedVehicles);
     sbFetch(`vehicles?id=eq.${v.id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ handover_status: hayNovedad ? 'novedad' : 'disponible' })
+      body: JSON.stringify({ handover_status: hayNovedad ? 'novedad' : 'disponible', handover_to: '', handover_to_id: '', occupied_by: currentDriver.name || receiverName, occupied_by_id: currentDriver.id || '' })
     }).catch(() => {});
     const filtered = (handoffs || []).map(h =>
       h.vehicleId === v.id && h.status === 'pending'
@@ -2378,7 +2387,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         {tab === 'surtir' && <DriverSurtirTab vehicles={vehicles} currentDriver={currentDriver} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
         {tab === 'trip' && <>
           {step === 'select' && <>
-            <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onRecibirUnidad={(v) => { setVehiculoParaRecibir(v); setShowRecibirModal(true); }} onContinue={(accion, motivo, km) => {
+            <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onRecibirUnidad={(v) => { setVehiculoParaRecibir(v); setShowRecibirModal(true); }} onCederUnidad={(v) => { setSelectedVehicle(v); setShowEntregarModal(true); }} onContinue={(accion, motivo, km) => {
               if (accion === 'taller') {
                 // ya no se usa desde selección
               } else if (selectedVehicle?.status === 'EN TALLER') {
@@ -2481,7 +2490,7 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
   );
 }
 
-function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], drivers = [], onRecibirUnidad }) {
+function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], drivers = [], onRecibirUnidad, onCederUnidad }) {
   const [novedadConfirmada, setNovedadConfirmada] = React.useState(false);
   const pendingHandoff = selectedVehicle
     ? (handoffs || []).find(h => h.vehicleId === selectedVehicle.id && h.status === 'pending' && h.fromDriverId !== currentDriver?.id)
@@ -2533,6 +2542,10 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                   if (esDestinatario) { onRecibirUnidad && onRecibirUnidad(v); }
                   return;
                 }
+                // Bloquear si está ocupado por otro chofer
+                if (v.occupied_by && v.occupied_by_id && v.occupied_by_id !== currentDriver?.id) {
+                  return;
+                }
                 setSelectedVehicle(v);
               }}
                 className={`w-full p-3 rounded-xl border-2 flex items-center justify-between transition-all ${borderClass}`}>
@@ -2558,12 +2571,24 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                           </span>
                         );
                       })()}
+                      {v.occupied_by && v.occupied_by_id !== currentDriver?.id && !pendingCesion && v.handover_status !== 'en_espera' && (
+                        <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔒 Ocupado · {v.occupied_by}</span>
+                      )}
+                      {v.occupied_by && v.occupied_by_id === currentDriver?.id && !pendingCesion && v.handover_status !== 'en_espera' && (
+                        <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🚛 Tuyo</span>
+                      )}
                       {!nombreOcupado && !pendingCesion && hayNovedad && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⚠️ Novedad · {v.handover_by}</span>}
                       {!nombreOcupado && !pendingCesion && chequeado && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">✅ Listo · {v.handover_fuel || ''}</span>}
                     </div>
                     <div className="text-xs text-stone-500">{v.plate} · {v.performance} km/L</div>
                     {pendingCesion && !nombreOcupado && (
                       <div className="text-xs text-amber-700 mt-0.5">Por: {pendingCesion.fromDriverName} · {pendingCesion.fuelAtHandoff || '—'} combustible · {pendingCesion.notes || 'sin novedad'}</div>
+                    )}
+                    {v.occupied_by_id === currentDriver?.id && !pendingCesion && v.handover_status !== 'en_espera' && onCederUnidad && (
+                      <button onClick={(e) => { e.stopPropagation(); onCederUnidad(v); }}
+                        className="mt-1 text-[10px] bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300 px-2 py-0.5 rounded-full font-bold transition-all">
+                        🔄 Ceder unidad
+                      </button>
                     )}
                   </div>
                 </div>
@@ -3378,6 +3403,10 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
             <button onClick={() => endWaiting(false)}
               className="w-full py-3 bg-white/20 hover:bg-white/30 rounded-xl font-bold flex items-center justify-center gap-2">
               🌙 Finalizar Jornada de hoy
+            </button>
+            <button onClick={() => { endWaiting(true); setTimeout(() => setShowEntregarModal(true), 200); }}
+              className="w-full py-3 bg-amber-500 hover:bg-amber-600 rounded-xl font-bold flex items-center justify-center gap-2">
+              🔄 Ceder unidad
             </button>
           </div>
         </div>
@@ -5971,9 +6000,9 @@ function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig, s
                           : `Novedad · ${v.handover_by_full || v.handover_by || ''}`}
                       </span>
                       <button onClick={() => {
-                        const updated = vehicles.map(x => x.id === v.id ? { ...x, handover_status: 'disponible', handover_by: '', handover_by_full: '', handover_to: '', handover_to_id: '', handover_km: 0, handover_fuel: '', handover_notes: '', handover_photo: '', handover_at: '' } : x);
+                        const updated = vehicles.map(x => x.id === v.id ? { ...x, handover_status: 'disponible', handover_by: '', handover_by_full: '', handover_to: '', handover_to_id: '', handover_km: 0, handover_fuel: '', handover_notes: '', handover_photo: '', handover_at: '', occupied_by: '', occupied_by_id: '' } : x);
                         saveVehicles(updated);
-                        sbFetch && sbFetch(`vehicles?id=eq.${v.id}`, { method: 'PATCH', body: JSON.stringify({ handover_status: 'disponible', handover_by: '', handover_by_full: '', handover_to: '', handover_to_id: '', handover_km: 0, handover_fuel: '', handover_notes: '', handover_photo: '', handover_at: '' }) }).catch(()=>{});
+                        sbFetch && sbFetch(`vehicles?id=eq.${v.id}`, { method: 'PATCH', body: JSON.stringify({ handover_status: 'disponible', handover_by: '', handover_by_full: '', handover_to: '', handover_to_id: '', handover_km: 0, handover_fuel: '', handover_notes: '', handover_photo: '', handover_at: '', occupied_by: '', occupied_by_id: '' }) }).catch(()=>{});
                       }} className="bg-white border border-stone-300 text-stone-600 hover:text-red-600 hover:border-red-300 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all flex-shrink-0">
                         Limpiar ✕
                       </button>
