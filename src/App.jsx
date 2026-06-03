@@ -2279,7 +2279,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         {tab === 'surtir' && <DriverSurtirTab vehicles={vehicles} currentDriver={currentDriver} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
         {tab === 'trip' && <>
           {step === 'select' && <>
-            <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onContinue={(accion, motivo, km) => {
+            <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} activeTrips={activeTrips} onContinue={(accion, motivo, km) => {
               if (accion === 'taller') {
                 // ya no se usa desde selección
               } else if (selectedVehicle?.status === 'EN TALLER') {
@@ -2381,7 +2381,7 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
   );
 }
 
-function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver }) {
+function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [] }) {
   const pendingHandoff = selectedVehicle
     ? (handoffs || []).find(h => h.vehicleId === selectedVehicle.id && h.status === 'pending' && h.fromDriverId !== currentDriver?.id)
     : null;
@@ -2395,13 +2395,16 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
     saveHandoffs(updated);
   };
 
-  // Verificar si un vehículo está en espera para otro chofer
+  // Verificar si un vehículo está en espera de traspaso
   const getVehiclePending = (vehicleId) =>
     (handoffs || []).find(h => h.vehicleId === vehicleId && h.status === 'pending');
 
+  // Verificar si un vehículo tiene viaje activo de OTRO chofer
+  const getActiveByOther = (vehicleId) =>
+    activeTrips.find(t => t.vehicleId === vehicleId && t.driverId !== currentDriver?.id);
+
   return (
     <div className="space-y-4">
-      {/* Paso 1 indicador */}
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
         <div className="bg-emerald-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">1</div>
         <div>
@@ -2416,23 +2419,29 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
             const enTaller = v.status === 'EN TALLER';
             const isSelected = selectedVehicle?.id === v.id;
             const pendingForV = getVehiclePending(v.id);
-            // Está en espera para OTRO chofer (no para mí)
+            const activeByOther = getActiveByOther(v.id);
+
+            // Está en espera para OTRO chofer
             const waitingForOther = pendingForV && pendingForV.toDriverId && pendingForV.toDriverId !== currentDriver?.id;
             // Está en espera para MÍ
             const waitingForMe = pendingForV && pendingForV.toDriverId === currentDriver?.id;
-            // Está en espera sin destinatario específico (legado)
+            // Está en espera sin destinatario específico
             const waitingGeneral = pendingForV && !pendingForV.toDriverId;
+            // Tiene viaje activo de otro chofer
+            const occupiedByOther = !!activeByOther && !waitingForOther && !waitingForMe;
+
+            const isBlocked = waitingForOther || occupiedByOther;
 
             return (
               <button key={v.id} onClick={() => {
-                if (waitingForOther) return; // bloqueado
+                if (isBlocked) return;
                 if (enTaller) {
                   if (!confirm(`${v.code} está marcado como EN TALLER.\n\n${v.observations || ''}\n\n¿Estás seguro de usarlo?`)) return;
                 }
                 setSelectedVehicle(v);
               }}
                 className={`w-full p-3 rounded-xl border-2 flex items-center justify-between transition-all ${
-                  waitingForOther ? 'border-orange-200 bg-orange-50/50 opacity-60 cursor-not-allowed' :
+                  isBlocked ? 'border-red-200 bg-red-50/50 opacity-60 cursor-not-allowed' :
                   waitingForMe ? 'border-emerald-400 bg-emerald-50 shadow-md animate-pulse' :
                   isSelected ? 'border-emerald-600 bg-emerald-50 shadow-md' :
                   enTaller ? 'border-rose-200 bg-rose-50/30 hover:border-rose-300' :
@@ -2443,17 +2452,20 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                     <Truck className="w-6 h-6" style={{ color: v.color }} />
                     {enTaller && <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center"><Wrench className="w-2.5 h-2.5 text-white" /></div>}
                     {(waitingForMe || waitingGeneral) && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center text-white text-[8px] font-bold">!</div>}
+                    {occupiedByOther && <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[8px] font-bold">🔒</div>}
                   </div>
                   <div>
-                    <div className="font-bold text-stone-900 text-base flex items-center gap-2">
+                    <div className="font-bold text-stone-900 text-base flex items-center gap-2 flex-wrap">
                       {v.code}
                       {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EN TALLER</span>}
                       {waitingForMe && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">⏳ Para ti</span>}
                       {waitingForOther && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera por {pendingForV.toDriverNameExpected}</span>}
                       {waitingGeneral && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera</span>}
+                      {occupiedByOther && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔒 En uso</span>}
                     </div>
                     <div className="text-xs text-stone-500">{v.plate} · {v.performance} km/L</div>
                     {waitingForOther && <div className="text-[10px] text-orange-600 font-medium">Reservado para {pendingForV.toDriverNameExpected}</div>}
+                    {occupiedByOther && <div className="text-[10px] text-red-600 font-medium">En viaje con {activeByOther.driverName || 'otro chofer'}</div>}
                   </div>
                 </div>
                 <div className="text-right">
