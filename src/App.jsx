@@ -1721,9 +1721,9 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
 function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents, fuelRecords = [], saveFuelRecords, endShifts = [], saveEndShifts }) {
   const [tab, setTab] = useState('trip');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
-  const [step, setStep] = useState('select');
+  const [step, setStep] = useState(() => { try { const s = localStorage.getItem(KEYS.DRIVER_STATE + ':' + currentDriver.id); if (s) { const d = JSON.parse(s); if (d.step && d.step !== 'active') return d.step; } } catch(e) {} return 'select'; });
   const [selectedVehicle, setSelectedVehicle] = useState(() => { try { const s = localStorage.getItem(KEYS.DRIVER_STATE + ':' + currentDriver.id); if (s) { const d = JSON.parse(s); if (d.vehicleId) { const full = vehicles.find(v => v.id === d.vehicleId); return full || { id: d.vehicleId }; } } } catch(e) {} return null; });
-  const [currentTrip, setCurrentTrip] = useState(null);
+  const [currentTrip, setCurrentTrip] = useState(() => { try { const s = localStorage.getItem(KEYS.DRIVER_STATE + ':' + currentDriver.id); if (s) { const d = JSON.parse(s); if (d.currentTrip) return d.currentTrip; } } catch(e) {} return null; });
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [currentPosition, setCurrentPosition] = useState(null);
   const watchIdRef = useRef(null);
@@ -1740,10 +1740,16 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   const myPhotos = useMemo(() => photos.filter(p => p.driverId === currentDriver.id), [photos, currentDriver]);
 
   useEffect(() => {
-    if (selectedVehicle) {
-      localStorage.setItem(KEYS.DRIVER_STATE + ':' + currentDriver.id, JSON.stringify({ vehicleId: selectedVehicle.id }));
-    }
-  }, [selectedVehicle]);
+    try {
+      const prev = JSON.parse(localStorage.getItem(KEYS.DRIVER_STATE + ':' + currentDriver.id) || '{}');
+      localStorage.setItem(KEYS.DRIVER_STATE + ':' + currentDriver.id, JSON.stringify({
+        ...prev,
+        vehicleId: selectedVehicle?.id || prev.vehicleId,
+        step: step,
+        currentTrip: (step === 'finish' && currentTrip) ? currentTrip : (step === 'active' && currentTrip) ? currentTrip : null,
+      }));
+    } catch(e) {}
+  }, [selectedVehicle, step, currentTrip]);
 
   // Estado para velocidad y alertas
   const lastSpeedAlertRef = useRef(0);
