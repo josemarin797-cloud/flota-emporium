@@ -734,7 +734,7 @@ export default function App() {
       }
     };
     syncAT();
-    const i = setInterval(syncAT, 10000);
+    const i = setInterval(syncAT, 60000);
     return () => clearInterval(i);
   }, []);
   const saveArchived = (d) => { setArchivedMonths(d); persist(KEYS.ARCHIVED_MONTHS, d); };
