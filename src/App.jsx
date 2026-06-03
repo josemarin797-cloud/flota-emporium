@@ -2416,7 +2416,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
 
       <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
         <div className="space-y-2">
-          {vehicles.map(v => {
+          {[...vehicles].sort((a, b) => a.id.localeCompare(b.id)).map(v => {
             const enTaller = v.status === 'EN TALLER';
             const isSelected = selectedVehicle?.id === v.id;
             const pendingForV = getVehiclePending(v.id);
