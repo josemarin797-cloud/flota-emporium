@@ -673,7 +673,34 @@ export default function App() {
   const saveConfig = (d) => { setConfig(d); persist(KEYS.CONFIG, d); };
   const savePhotos = (d) => { setPhotos(d); persist(KEYS.PHOTOS, d); };
   const saveGpsTracks = (d) => { setGpsTracks(d); persist(KEYS.GPS_TRACKS, d); };
-  const saveHandoffs = (d) => { setHandoffs(d); persist(KEYS.HANDOFFS, d); };
+  const saveHandoffs = async (d) => {
+    setHandoffs(d);
+    persist(KEYS.HANDOFFS, d);
+    // Sincronizar con Supabase — upsert de cada handoff
+    try {
+      for (const h of d) {
+        await sbFetch('handoffs', {
+          method: 'POST',
+          headers: { 'Prefer': 'resolution=merge-duplicates' },
+          body: JSON.stringify({
+            id: h.id,
+            vehicle_id: h.vehicleId,
+            vehicle_code: h.vehicleCode,
+            from_driver_id: h.fromDriverId,
+            from_driver_name: h.fromDriverName,
+            to_driver_id: h.toDriverId || '',
+            to_driver_name_expected: h.toDriverNameExpected || '',
+            km_at_handoff: h.kmAtHandoff || 0,
+            fuel_at_handoff: h.fuelAtHandoff || '',
+            notes: h.notes || '',
+            handoff_date: h.handoffDate || '',
+            handoff_time: h.handoffTime || '',
+            status: h.status || 'pending',
+          }),
+        });
+      }
+    } catch(e) {}
+  };
   const saveEndShifts = (d) => { setEndShifts(d); persist(KEYS.END_SHIFTS, d); };
   const saveMaintRecords = (d) => { setMaintRecords(d); persist(KEYS.MAINT_RECORDS, d); };
   const saveIncidents = (d) => { setIncidents(d); persist(KEYS.INCIDENTS, d); };
@@ -718,6 +745,37 @@ export default function App() {
     };
     const interval = setInterval(poll, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Polling de handoffs desde Supabase cada 15s para sincronizar entre dispositivos
+  useEffect(() => {
+    const pollHandoffs = async () => {
+      try {
+        const data = await sbFetch('handoffs?select=*&order=created_at.desc&limit=100');
+        if (Array.isArray(data) && data.length > 0) {
+          const mapped = data.map(r => ({
+            id: r.id,
+            vehicleId: r.vehicle_id || r.vehicleId,
+            vehicleCode: r.vehicle_code || r.vehicleCode,
+            fromDriverId: r.from_driver_id || r.fromDriverId,
+            fromDriverName: r.from_driver_name || r.fromDriverName,
+            toDriverId: r.to_driver_id || r.toDriverId || '',
+            toDriverNameExpected: r.to_driver_name_expected || r.toDriverNameExpected || '',
+            kmAtHandoff: r.km_at_handoff || r.kmAtHandoff || 0,
+            fuelAtHandoff: r.fuel_at_handoff || r.fuelAtHandoff || '',
+            notes: r.notes || '',
+            handoffDate: r.handoff_date || r.handoffDate || '',
+            handoffTime: r.handoff_time || r.handoffTime || '',
+            status: r.status || 'pending',
+          }));
+          setHandoffs(mapped);
+          persist(KEYS.HANDOFFS, mapped);
+        }
+      } catch(e) {}
+    };
+    pollHandoffs();
+    const iv = setInterval(pollHandoffs, 15000);
+    return () => clearInterval(iv);
   }, []);
 
   const handleLogin = (role, user) => {
