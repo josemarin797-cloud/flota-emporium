@@ -1950,6 +1950,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       vehicleId: vId, vehicleCode: vCode,
       fromDriverId: currentDriver.id,
       fromDriverName: currentDriver.shortName || currentDriver.name,
+      toDriverId: formData.toDriver?.id || '',
+      toDriverNameExpected: formData.toDriver?.shortName || formData.toDriver?.name || '',
       kmAtHandoff: formData.km,
       fuelAtHandoff: formData.fuel,
       notes: formData.notes,
@@ -1965,7 +1967,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       try {
         await sendDiscordNotification(webhookUrl, {
           title: `📤 ENTREGA DE UNIDAD · ${vCode}`,
-          description: `**${currentDriver.shortName || currentDriver.name}** entregó la unidad`,
+          description: `**${currentDriver.shortName || currentDriver.name}** entregó la unidad a **${formData.toDriver?.shortName || formData.toDriver?.name || '—'}**`,
           color: 0xf59e0b,
           fields: [
             { name: '🔢 KM al entregar', value: String(formData.km), inline: true },
@@ -1975,7 +1977,6 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           ],
           footer: { text: `Transporte Emporium · ${now.toLocaleDateString('es-VE')}` },
         });
-        // Enviar fotos si hay
         if (formData.photos && formData.photos.length > 0) {
           for (const photo of formData.photos) {
             try {
@@ -2237,7 +2238,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} />}
           {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} kmInicial={endShiftTripData.kmUltimoViaje} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
-          {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
+          {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} drivers={drivers} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
         {tab === 'history' && <DriverHistoryView trips={myTrips} vehicles={vehicles} branches={branches} />}
@@ -2335,6 +2336,11 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
     );
     saveHandoffs(updated);
   };
+
+  // Verificar si un vehículo está en espera para otro chofer
+  const getVehiclePending = (vehicleId) =>
+    (handoffs || []).find(h => h.vehicleId === vehicleId && h.status === 'pending');
+
   return (
     <div className="space-y-4">
       {/* Paso 1 indicador */}
@@ -2351,25 +2357,45 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
           {vehicles.map(v => {
             const enTaller = v.status === 'EN TALLER';
             const isSelected = selectedVehicle?.id === v.id;
+            const pendingForV = getVehiclePending(v.id);
+            // Está en espera para OTRO chofer (no para mí)
+            const waitingForOther = pendingForV && pendingForV.toDriverId && pendingForV.toDriverId !== currentDriver?.id;
+            // Está en espera para MÍ
+            const waitingForMe = pendingForV && pendingForV.toDriverId === currentDriver?.id;
+            // Está en espera sin destinatario específico (legado)
+            const waitingGeneral = pendingForV && !pendingForV.toDriverId;
+
             return (
               <button key={v.id} onClick={() => {
+                if (waitingForOther) return; // bloqueado
                 if (enTaller) {
                   if (!confirm(`${v.code} está marcado como EN TALLER.\n\n${v.observations || ''}\n\n¿Estás seguro de usarlo?`)) return;
                 }
                 setSelectedVehicle(v);
               }}
-                className={`w-full p-3 rounded-xl border-2 flex items-center justify-between transition-all ${isSelected ? 'border-emerald-600 bg-emerald-50 shadow-md' : enTaller ? 'border-rose-200 bg-rose-50/30 hover:border-rose-300' : 'border-stone-200 hover:border-stone-300 bg-white'}`}>
+                className={`w-full p-3 rounded-xl border-2 flex items-center justify-between transition-all ${
+                  waitingForOther ? 'border-orange-200 bg-orange-50/50 opacity-60 cursor-not-allowed' :
+                  waitingForMe ? 'border-emerald-400 bg-emerald-50 shadow-md animate-pulse' :
+                  isSelected ? 'border-emerald-600 bg-emerald-50 shadow-md' :
+                  enTaller ? 'border-rose-200 bg-rose-50/30 hover:border-rose-300' :
+                  'border-stone-200 hover:border-stone-300 bg-white'
+                }`}>
                 <div className="flex items-center gap-3 text-left">
                   <div className="w-12 h-12 rounded-lg flex items-center justify-center relative" style={{ backgroundColor: v.color + '20', border: `2px solid ${v.color}` }}>
                     <Truck className="w-6 h-6" style={{ color: v.color }} />
                     {enTaller && <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center"><Wrench className="w-2.5 h-2.5 text-white" /></div>}
+                    {(waitingForMe || waitingGeneral) && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center text-white text-[8px] font-bold">!</div>}
                   </div>
                   <div>
                     <div className="font-bold text-stone-900 text-base flex items-center gap-2">
                       {v.code}
                       {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EN TALLER</span>}
+                      {waitingForMe && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">⏳ Para ti</span>}
+                      {waitingForOther && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera por {pendingForV.toDriverNameExpected}</span>}
+                      {waitingGeneral && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera</span>}
                     </div>
                     <div className="text-xs text-stone-500">{v.plate} · {v.performance} km/L</div>
+                    {waitingForOther && <div className="text-[10px] text-orange-600 font-medium">Reservado para {pendingForV.toDriverNameExpected}</div>}
                   </div>
                 </div>
                 <div className="text-right">
@@ -3230,13 +3256,17 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
 // ============================================================
 // MODAL ENTREGAR UNIDAD — Daniel llena y entrega a otro chofer
 // ============================================================
-function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose }) {
+function EntregarUnidadModal({ vehicle, driver, drivers = [], onSubmit, onClose }) {
   const [km, setKm] = React.useState(() => String(vehicle?.currentKm || ''));
   const [fuel, setFuel] = React.useState('');
   const [notes, setNotes] = React.useState('sin novedad');
   const [photos, setPhotos] = React.useState([]);
+  const [toDriver, setToDriver] = React.useState(null);
   const fileRef = React.useRef();
-  const canSubmit = km !== '' && Number(km) > 0 && fuel !== '';
+  const canSubmit = km !== '' && Number(km) > 0 && fuel !== '' && toDriver !== null;
+
+  // Filtrar choferes — excluir al que entrega
+  const otherDrivers = (drivers || []).filter(d => d.id !== driver?.id);
 
   const FUEL_OPTIONS = [
     { label: '1/4', value: '1/4', color: 'bg-red-100 border-red-400 text-red-700' },
@@ -3265,6 +3295,21 @@ function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose }) {
           </div>
         </div>
         <div className="space-y-3">
+          {/* Chofer que recibe */}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Entregar a *</label>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              {otherDrivers.map(d => (
+                <button key={d.id} onClick={() => setToDriver(d)}
+                  className={`py-2.5 px-3 rounded-xl font-bold text-sm border-2 transition-all flex items-center gap-2 ${toDriver?.id === d.id ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-300'}`}>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold ${toDriver?.id === d.id ? 'bg-emerald-600' : 'bg-stone-400'}`}>
+                    {(d.shortName || d.name || '?')[0].toUpperCase()}
+                  </div>
+                  <span className="truncate">{d.shortName || d.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
           <div>
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">KM actual *</label>
             <input type="number" value={km} onChange={e => setKm(e.target.value)} placeholder="ej: 142168"
@@ -3311,7 +3356,7 @@ function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose }) {
             className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">
             Cancelar
           </button>
-          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel, notes, photos: photos.map(p => p.file) })}
+          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel, notes, photos: photos.map(p => p.file), toDriver })}
             disabled={!canSubmit}
             className={`py-3 rounded-xl font-bold text-white transition-all ${canSubmit ? 'bg-amber-500 hover:bg-amber-600' : 'bg-stone-200 text-stone-400'}`}>
             Entregar ✅
