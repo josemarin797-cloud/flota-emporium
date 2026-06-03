@@ -2296,7 +2296,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} />}
           {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} kmInicial={endShiftTripData.kmUltimoViaje} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
-          {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} drivers={drivers} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
+          {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} drivers={drivers} trips={trips} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
         {tab === 'history' && <DriverHistoryView trips={myTrips} vehicles={vehicles} branches={branches} />}
@@ -3326,8 +3326,14 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
 // ============================================================
 // MODAL ENTREGAR UNIDAD — Daniel llena y entrega a otro chofer
 // ============================================================
-function EntregarUnidadModal({ vehicle, driver, drivers = [], onSubmit, onClose }) {
-  const [km, setKm] = React.useState(() => String(vehicle?.currentKm || ''));
+function EntregarUnidadModal({ vehicle, driver, drivers = [], trips = [], onSubmit, onClose }) {
+  const lastKm = React.useMemo(() => {
+    const vTrips = (trips || []).filter(t => t.vehicleId === vehicle?.id && t.kmEnd);
+    if (vTrips.length === 0) return vehicle?.currentKm || '';
+    const last = vTrips.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+    return last.kmEnd || vehicle?.currentKm || '';
+  }, [trips, vehicle]);
+  const [km, setKm] = React.useState(() => String(lastKm));
   const [fuel, setFuel] = React.useState('');
   const [notes, setNotes] = React.useState('sin novedad');
   const [photos, setPhotos] = React.useState([]);
@@ -3818,7 +3824,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-5">
-        {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} incidents={incidents} />}
+        {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} incidents={incidents} saveHandoffs={saveHandoffs} sbFetch={sbFetch} />}
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
         {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
@@ -3849,7 +3855,7 @@ function DarkMonthSelector({ selectedMonth, setSelectedMonth }) {
   );
 }
 
-function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selectedMonth, gpsTracks, config, checklists = [], handoffs = [], incidents = [] }) {
+function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selectedMonth, gpsTracks, config, checklists = [], handoffs = [], incidents = [], saveHandoffs, sbFetch }) {
   const [selectedChecklist, setSelectedChecklist] = React.useState(null);
   const kpis = useMemo(() => {
     const totalKm = trips.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
@@ -4238,12 +4244,27 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
       {(() => {
         const monthHandoffs = handoffs.filter(h => h.handoffDate && h.handoffDate.startsWith(selectedMonth));
         if (monthHandoffs.length === 0) return null;
+        const handleDeleteHandoffs = async () => {
+          if (!confirm(`¿Borrar los ${monthHandoffs.length} traspaso(s) de ${monthLabel}?`)) return;
+          const remaining = handoffs.filter(h => !h.handoffDate?.startsWith(selectedMonth));
+          saveHandoffs && saveHandoffs(remaining);
+          // Borrar de Supabase también
+          try {
+            for (const h of monthHandoffs) {
+              await sbFetch(`handoffs?id=eq.${h.id}`, { method: 'DELETE' });
+            }
+          } catch(e) {}
+        };
         return (
           <div className="bg-white rounded-2xl border border-amber-200 overflow-hidden shadow-sm">
             <div className="px-4 py-3 border-b border-amber-100 bg-amber-50 flex items-center gap-2">
               <span className="text-lg">📤</span>
               <span className="font-bold text-stone-900 text-sm">Traspasos de unidad — {monthLabel}</span>
-              <span className="ml-auto bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">{monthHandoffs.length} traspaso{monthHandoffs.length !== 1 ? 's' : ''}</span>
+              <span className="ml-2 bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">{monthHandoffs.length} traspaso{monthHandoffs.length !== 1 ? 's' : ''}</span>
+              <button onClick={handleDeleteHandoffs}
+                className="ml-auto text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-1 rounded-lg hover:bg-rose-100 transition-all">
+                🗑️ Borrar traspasos
+              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -4266,9 +4287,13 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
                       <td className="px-3 py-2.5 font-mono text-xs text-stone-600">{h.handoffDate}<br/>{h.handoffTime}</td>
                       <td className="px-3 py-2.5 font-bold text-stone-900">{h.vehicleCode}</td>
                       <td className="px-3 py-2.5 text-stone-700">{h.fromDriverName}</td>
-                      <td className="px-3 py-2.5 text-stone-700">{h.toDriverName || <span className="text-stone-400 italic">Pendiente</span>}</td>
+                      <td className="px-3 py-2.5 text-stone-700">
+                        {h.toDriverName || h.toDriverNameExpected
+                          ? <span>{h.toDriverName || h.toDriverNameExpected}{h.status !== 'confirmed' && <span className="ml-1 text-[10px] text-amber-600">(esperando)</span>}</span>
+                          : <span className="text-stone-400 italic">—</span>}
+                      </td>
                       <td className="px-2 py-2.5 text-right font-mono text-stone-700">{h.kmAtHandoff?.toLocaleString() || '-'}</td>
-                      <td className="px-2 py-2.5 text-right text-stone-700">{h.fuelAtHandoff ? `${h.fuelAtHandoff}L` : '-'}</td>
+                      <td className="px-2 py-2.5 text-right text-stone-700">{h.fuelAtHandoff ? `${h.fuelAtHandoff}` : '-'}</td>
                       <td className="px-3 py-2.5 text-xs text-stone-600">{h.notes || '-'}</td>
                       <td className="px-3 py-2.5 text-xs text-stone-600">{h.receptionNotes || '-'}</td>
                       <td className="px-2 py-2.5 text-center">
