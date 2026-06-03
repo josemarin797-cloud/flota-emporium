@@ -722,11 +722,11 @@ export default function App() {
           customDestName: r.custom_dest_name || r.customDestName || '',
           customDestType: r.custom_dest_type || r.customDestType || '',
         }));
-        // Preservar viajes locales recientes (<30s) que aun no llegaron a Supabase
+        // Preservar viajes locales recientes (<120s) que aun no llegaron a Supabase
         setActiveTrips(prev => {
           const sbIds = new Set(mapped.map(t => t.id));
           const now = Date.now();
-          const recentLocal = prev.filter(t => !sbIds.has(t.id) && t.id.startsWith('at_') && (now - parseInt(t.id.replace('at_',''),10)) < 30000);
+          const recentLocal = prev.filter(t => !sbIds.has(t.id) && t.id.startsWith('at_') && (now - parseInt(t.id.replace('at_',''),10)) < 120000);
           const merged = [...mapped, ...recentLocal];
           persist(KEYS.ACTIVE_TRIPS, merged);
           return merged;
@@ -1865,7 +1865,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       customDestType: data.customDestType || '',
     };
     saveActiveTrips([...activeTrips, trip]);
-    sbFetch('active_trips', { method: 'POST', body: JSON.stringify({ id: trip.id, driver_id: trip.driverId, vehicle_id: trip.vehicleId, origin_branch_id: trip.originBranchId, destination_branch_id: trip.destinationBranchId, km_start: trip.kmStart, start_time: trip.startTime, start_date: trip.startDate, fuel_loaded: trip.fuelLoaded || 0 }), headers: { 'Prefer': 'resolution=merge-duplicates' } }).catch(() => {});
+    sbFetch('active_trips', { method: 'POST', body: JSON.stringify({ id: trip.id, driver_id: trip.driverId, vehicle_id: trip.vehicleId, origin_branch_id: trip.originBranchId, destination_branch_id: trip.destinationBranchId, km_start: trip.kmStart, start_time: trip.startTime, start_date: trip.startDate, fuel_loaded: trip.fuelLoaded || 0, custom_dest_name: trip.customDestName || '', custom_dest_type: trip.customDestType || '' }), headers: { 'Prefer': 'resolution=merge-duplicates' } }).catch(() => {});
     // Marcar vehículo como ocupado
     sbFetch(`vehicles?id=eq.${trip.vehicleId}`, { method: 'PATCH', body: JSON.stringify({ occupied_by: currentDriver.name || currentDriver.shortName || '', occupied_by_id: currentDriver.id || '' }) }).catch(() => {});
     saveVehicles(vehicles.map(v => v.id === trip.vehicleId ? { ...v, occupied_by: currentDriver.name || currentDriver.shortName || '', occupied_by_id: currentDriver.id || '' } : v));
