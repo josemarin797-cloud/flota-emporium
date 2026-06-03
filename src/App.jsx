@@ -1975,6 +1975,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     };
 
     saveTrips([...trips, completed]);
+    setCurrentTrip(completed);
+    setStep('finish');
     sbFetch('trips', { method: 'POST', body: JSON.stringify(completed), headers: { 'Prefer': 'resolution=merge-duplicates' } }).catch(() => {});
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
     sbFetch(`active_trips?id=eq.${currentTrip.id}`, { method: 'DELETE' }).catch(() => {});
@@ -1986,8 +1988,6 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     saveGpsTracks(gpsTracks.map(g => g.tripId === currentTrip.id ? { ...g, tripId: completed.id, completed: true } : g));
 
     stopGpsTracking();
-    setCurrentTrip(completed);
-    setStep('finish');
     // 🎙️ Voz al cerrar el viaje
         const mensajesCierre = [
           'Viaje completado.',
