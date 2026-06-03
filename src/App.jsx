@@ -709,7 +709,6 @@ export default function App() {
     const syncAT = async () => {
       const data = await sbFetch('active_trips?select=*');
       if (Array.isArray(data)) {
-        // Mapear campos snake_case a camelCase
         const mapped = data.map(r => ({
           id: r.id,
           driverId: r.driver_id || r.driverId,
@@ -723,8 +722,15 @@ export default function App() {
           customDestName: r.custom_dest_name || r.customDestName || '',
           customDestType: r.custom_dest_type || r.customDestType || '',
         }));
-        setActiveTrips(mapped);
-        persist(KEYS.ACTIVE_TRIPS, mapped);
+        // Preservar viajes locales recientes (<30s) que aun no llegaron a Supabase
+        setActiveTrips(prev => {
+          const sbIds = new Set(mapped.map(t => t.id));
+          const now = Date.now();
+          const recentLocal = prev.filter(t => !sbIds.has(t.id) && t.id.startsWith('at_') && (now - parseInt(t.id.replace('at_',''),10)) < 30000);
+          const merged = [...mapped, ...recentLocal];
+          persist(KEYS.ACTIVE_TRIPS, merged);
+          return merged;
+        });
       }
     };
     syncAT();
