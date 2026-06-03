@@ -1746,7 +1746,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       if (!active && step !== 'finish' && step !== 'select' && step !== 'start' && step !== 'checklist') { setStep('finish'); }
       localStorage.setItem(KEYS.DRIVER_STATE + ':' + currentDriver.id, JSON.stringify({ vehicleId: selectedVehicle.id }));
     }
-  }, [selectedVehicle, myActiveTrips, step]);
+  }, [selectedVehicle]);
 
   // Estado para velocidad y alertas
   const lastSpeedAlertRef = useRef(0);
