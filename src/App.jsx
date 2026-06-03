@@ -1865,13 +1865,13 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       customDestType: data.customDestType || '',
     };
     saveActiveTrips([...activeTrips, trip]);
+    setCurrentTrip(trip);
+    setStep('active');
     sbFetch('active_trips', { method: 'POST', body: JSON.stringify({ id: trip.id, driver_id: trip.driverId, vehicle_id: trip.vehicleId, origin_branch_id: trip.originBranchId, destination_branch_id: trip.destinationBranchId, km_start: trip.kmStart, start_time: trip.startTime, start_date: trip.startDate, fuel_loaded: trip.fuelLoaded || 0, custom_dest_name: trip.customDestName || '', custom_dest_type: trip.customDestType || '' }), headers: { 'Prefer': 'resolution=merge-duplicates' } }).catch(() => {});
     // Marcar vehículo como ocupado
     sbFetch(`vehicles?id=eq.${trip.vehicleId}`, { method: 'PATCH', body: JSON.stringify({ occupied_by: currentDriver.name || currentDriver.shortName || '', occupied_by_id: currentDriver.id || '' }) }).catch(() => {});
     saveVehicles(vehicles.map(v => v.id === trip.vehicleId ? { ...v, occupied_by: currentDriver.name || currentDriver.shortName || '', occupied_by_id: currentDriver.id || '' } : v));
-    setCurrentTrip(trip);
-    setStep('active');
-
+    
     // Iniciar GPS
     startGpsTracking(trip.id);
 
@@ -1937,6 +1937,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
               await idbAdd({ type: 'discord', webhookUrl, content, photoData: base64, filename: photo.name || 'photo.jpg', queuedAt: new Date().toISOString() });
             } catch(e2) {}
           }
+
         }
       }
     }
