@@ -1939,10 +1939,12 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const updated = trips.map(t => t.id === tripId ? { ...t, waitMinutes: waitMin } : t);
     saveTrips(updated);
   };
-  const handleEntregarUnidad = (formData) => {
+  const handleEntregarUnidad = async (formData) => {
     const vId = selectedVehicle?.id || currentTrip?.vehicleId;
     const vCode = selectedVehicle?.code || vehicles.find(v => v.id === vId)?.code || '';
     const now = new Date();
+    const handoffTime = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+    const handoffDate = now.toISOString().slice(0, 10);
     const handoff = {
       id: `handoff_${Date.now()}`,
       vehicleId: vId, vehicleCode: vCode,
@@ -1951,12 +1953,42 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       kmAtHandoff: formData.km,
       fuelAtHandoff: formData.fuel,
       notes: formData.notes,
-      handoffDate: now.toISOString().slice(0, 10),
-      handoffTime: now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
+      handoffDate, handoffTime,
       status: 'pending',
     };
     const filtered = (handoffs || []).filter(h => !(h.vehicleId === vId && h.status === 'pending'));
     saveHandoffs && saveHandoffs([...filtered, handoff]);
+
+    // Notificación Discord a canal mantenimiento
+    const webhookUrl = getMaintWebhook(vId, vehicles, config);
+    if (webhookUrl) {
+      try {
+        await sendDiscordNotification(webhookUrl, {
+          title: `📤 ENTREGA DE UNIDAD · ${vCode}`,
+          description: `**${currentDriver.shortName || currentDriver.name}** entregó la unidad`,
+          color: 0xf59e0b,
+          fields: [
+            { name: '🔢 KM al entregar', value: String(formData.km), inline: true },
+            { name: '⛽ Combustible', value: formData.fuel, inline: true },
+            { name: '🕐 Hora', value: handoffTime, inline: true },
+            { name: '📝 Observaciones', value: formData.notes || 'sin novedad', inline: false },
+          ],
+          footer: { text: `Transporte Emporium · ${now.toLocaleDateString('es-VE')}` },
+        });
+        // Enviar fotos si hay
+        if (formData.photos && formData.photos.length > 0) {
+          for (const photo of formData.photos) {
+            try {
+              const fd = new FormData();
+              fd.append('files[0]', photo);
+              fd.append('payload_json', JSON.stringify({ content: `📷 Foto entrega · ${vCode} · ${currentDriver.shortName || currentDriver.name}` }));
+              await fetch(webhookUrl, { method: 'POST', body: fd });
+            } catch(e) {}
+          }
+        }
+      } catch(e) {}
+    }
+
     setShowEntregarModal(false);
     setCurrentTrip(null);
     setSelectedVehicle(null);
@@ -3199,13 +3231,32 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
 // MODAL ENTREGAR UNIDAD — Daniel llena y entrega a otro chofer
 // ============================================================
 function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose }) {
-  const [km, setKm] = React.useState('');
+  const [km, setKm] = React.useState(() => String(vehicle?.currentKm || ''));
   const [fuel, setFuel] = React.useState('');
   const [notes, setNotes] = React.useState('sin novedad');
-  const canSubmit = km !== '' && Number(km) > 0;
+  const [photos, setPhotos] = React.useState([]);
+  const fileRef = React.useRef();
+  const canSubmit = km !== '' && Number(km) > 0 && fuel !== '';
+
+  const FUEL_OPTIONS = [
+    { label: '1/4', value: '1/4', color: 'bg-red-100 border-red-400 text-red-700' },
+    { label: '1/2', value: '1/2', color: 'bg-amber-100 border-amber-400 text-amber-700' },
+    { label: '3/4', value: '3/4', color: 'bg-yellow-100 border-yellow-400 text-yellow-700' },
+    { label: 'Full', value: 'Full', color: 'bg-green-100 border-green-400 text-green-700' },
+  ];
+
+  const handlePhoto = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => setPhotos(prev => [...prev, { file, preview: ev.target.result }]);
+      reader.readAsDataURL(file);
+    });
+  };
+
   return (
     <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-2xl">📤</div>
           <div>
@@ -3220,14 +3271,39 @@ function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose }) {
               className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-amber-400" />
           </div>
           <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Combustible (litros)</label>
-            <input type="number" value={fuel} onChange={e => setFuel(e.target.value)} placeholder="ej: 45"
-              className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-amber-400" />
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Nivel de combustible *</label>
+            <div className="grid grid-cols-4 gap-2 mt-1">
+              {FUEL_OPTIONS.map(opt => (
+                <button key={opt.value} onClick={() => setFuel(opt.value)}
+                  className={`py-2.5 rounded-xl font-bold text-sm border-2 transition-all ${fuel === opt.value ? opt.color + ' scale-105' : 'bg-stone-50 border-stone-200 text-stone-500'}`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Observaciones</label>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Observaciones / Novedades</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
               className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-400 resize-none" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Fotos (opcional)</label>
+            <button onClick={() => fileRef.current?.click()}
+              className="w-full mt-1 border-2 border-dashed border-stone-300 rounded-xl py-3 text-sm text-stone-500 hover:border-amber-400 hover:text-amber-600 transition-all flex items-center justify-center gap-2">
+              📷 Tomar / seleccionar foto
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple onChange={handlePhoto} className="hidden" />
+            {photos.length > 0 && (
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {photos.map((p, i) => (
+                  <div key={i} className="relative">
+                    <img src={p.preview} className="w-16 h-16 object-cover rounded-lg border border-stone-200" />
+                    <button onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
+                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-4">
@@ -3235,7 +3311,7 @@ function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose }) {
             className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">
             Cancelar
           </button>
-          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel: Number(fuel) || 0, notes })}
+          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel, notes, photos: photos.map(p => p.file) })}
             disabled={!canSubmit}
             className={`py-3 rounded-xl font-bold text-white transition-all ${canSubmit ? 'bg-amber-500 hover:bg-amber-600' : 'bg-stone-200 text-stone-400'}`}>
             Entregar ✅
