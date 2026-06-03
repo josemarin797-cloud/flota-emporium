@@ -1,4 +1,3 @@
-// v6
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Truck, Fuel, Wrench, MapPin, Users, BarChart3, Plus, Download, AlertTriangle, CheckCircle2, Clock, DollarSign, Route, Calendar, Trash2, Edit, X, Save, Search, Award, Play, Square, Navigation, ArrowRight, FileSpreadsheet, Archive, History, Settings, ChevronRight, Timer, Camera, Image as ImageIcon, Phone, MessageCircle, LogOut, Lock, FileText, Map, Radio, Zap, TrendingUp, Activity, Send, ArrowLeft, CheckCircle, CheckCheck, Info, ShieldCheck, ClipboardCheck, Eraser } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
@@ -26,8 +25,6 @@ const KEYS = {
   MAINT_RECORDS: 'emp:v4:maint_records',
   INCIDENTS: 'emp:v4:incidents',
   FUEL_RECORDS: 'emp:v4:fuel_records',
-  SESSION: 'emp:v4:session',
-  DRIVER_STATE: 'emp:v4:driver_state',
 };
 
 // ============================================================
@@ -86,46 +83,6 @@ const loadSBChecklists = async () => {
 };
 
 // Guardar un checklist en Supabase (con compresión de imágenes)
-// Cargar estado handover de vehículos desde Supabase
-const loadSBTrips = async () => {
-  const data = await sbFetch('trips?order=created_at.desc&limit=1000');
-  if (!Array.isArray(data)) return null;
-  return data.map(r => ({
-    id: r.id,
-    driverId: r.driver_id || r.driverId,
-    vehicleId: r.vehicle_id || r.vehicleId,
-    originBranchId: r.origin_branch_id || r.originBranchId,
-    destinationBranchId: r.destination_branch_id || r.destinationBranchId,
-    customDestName: r.custom_dest_name || r.customDestName || '',
-    customDestType: r.custom_dest_type || r.customDestType || '',
-    kmStart: r.km_start || r.kmStart || 0,
-    kmEnd: r.km_end || r.kmEnd || 0,
-    kmTraveled: r.km_traveled || r.kmTraveled || 0,
-    startDate: r.start_date || r.startDate || '',
-    startTime: r.start_time || r.startTime || '',
-    endDate: r.end_date || r.endDate || '',
-    endTime: r.end_time || r.endTime || '',
-    tripMinutes: r.trip_minutes || r.tripMinutes || 0,
-    timeAtBranchPrevMinutes: r.time_at_branch_prev_minutes || r.timeAtBranchPrevMinutes || null,
-    liters: r.liters || 0,
-    fuelPrice: r.fuel_price || r.fuelPrice || 0,
-    cost: r.cost || 0,
-    deliveries: r.deliveries || 0,
-    tripsCount: r.trips_count || r.tripsCount || 1,
-    route: r.route || 'LOCAL',
-    fuelLoaded: r.fuel_loaded || r.fuelLoaded || 0,
-    notes: r.notes || '',
-    arrivalNotes: r.arrival_notes || r.arrivalNotes || '',
-    createdAt: r.created_at || r.createdAt || Date.now(),
-  }));
-};
-
-const loadSBVehicles = async () => {
-  const data = await sbFetch('vehicles?select=id,handover_status,handover_by,handover_by_full,handover_to,handover_to_id,handover_km,handover_fuel,handover_notes,handover_photo,handover_at,current_km,occupied_by,occupied_by_id');
-  if (!Array.isArray(data)) return null;
-  return data;
-};
-
 const saveSBChecklist = async (checklist) => {
   const [signature, finalPhoto] = await Promise.all([
     compressImage(checklist.signature, 600, 0.8),
@@ -555,98 +512,89 @@ export default function App() {
   useEffect(() => {
     const load = async () => {
       try {
-        // Cargar datos locales primero (rápido, sin esperar red)
-        const vLocal = loadFromStorage(KEYS.VEHICLES);
-        const dLocal = loadFromStorage(KEYS.DRIVERS);
-        const bLocal = loadFromStorage(KEYS.BRANCHES);
-        const tLocal = loadFromStorage(KEYS.TRIPS);
-        const atLocal = loadFromStorage(KEYS.ACTIVE_TRIPS);
-        const amLocal = loadFromStorage(KEYS.ARCHIVED_MONTHS);
-        const cfgLocal = loadFromStorage(KEYS.CONFIG);
-        const pLocal = loadFromStorage(KEYS.PHOTOS);
-        const gLocal = loadFromStorage(KEYS.GPS_TRACKS);
-        const hLocal = loadFromStorage(KEYS.HANDOFFS);
-        const esLocal = loadFromStorage(KEYS.END_SHIFTS);
-        const mrLocal = loadFromStorage(KEYS.MAINT_RECORDS);
-        const incLocal = loadFromStorage(KEYS.INCIDENTS);
-        const frLocal = loadFromStorage(KEYS.FUEL_RECORDS);
-        const clLocal = loadFromStorage(KEYS.CHECKLISTS);
-
-        const savedCfg = cfgLocal ? { ...DEFAULT_CONFIG, ...cfgLocal } : DEFAULT_CONFIG;
-        if (vLocal) {
-          setVehicles(vLocal.map(v => {
+        const reads = await Promise.all([
+          loadFromStorage(KEYS.VEHICLES),
+          loadFromStorage(KEYS.DRIVERS),
+          loadFromStorage(KEYS.BRANCHES),
+          loadFromStorage(KEYS.TRIPS),
+          loadFromStorage(KEYS.ACTIVE_TRIPS),
+          loadFromStorage(KEYS.ARCHIVED_MONTHS),
+          loadFromStorage(KEYS.CONFIG),
+          loadFromStorage(KEYS.PHOTOS),
+          loadFromStorage(KEYS.GPS_TRACKS),
+          loadFromStorage(KEYS.HANDOFFS),
+        ]);
+        const savedCfg = reads[6] ? { ...DEFAULT_CONFIG, ...reads[6] } : DEFAULT_CONFIG;
+        if (reads[0]) {
+          // Webhook del código (INITIAL_VEHICLES) tiene prioridad — nunca se borra
+          setVehicles(reads[0].map(v => {
             const initial = INITIAL_VEHICLES.find(iv => iv.id === v.id);
             return { ...v, maintenanceWebhook: initial?.maintenanceWebhook || v.maintenanceWebhook || '' };
           }));
         }
-        if (dLocal) setDrivers(dLocal);
-        if (bLocal) setBranches(bLocal);
-        if (tLocal) setTrips(tLocal);
-        if (atLocal) setActiveTrips(atLocal);
-        if (amLocal) setArchivedMonths(amLocal);
-        if (cfgLocal) setConfig(savedCfg);
-        if (pLocal) setPhotos(pLocal);
-        if (gLocal) setGpsTracks(gLocal);
-        if (hLocal) setHandoffs(hLocal);
-        if (esLocal) setEndShifts(esLocal);
-        if (mrLocal) setMaintRecords(mrLocal);
-        if (incLocal) setIncidents(incLocal);
-        if (frLocal) setFuelRecords(frLocal);
-        if (clLocal) setChecklists(clLocal);
-
-        // Restaurar sesión
-        const savedSession = localStorage.getItem(KEYS.SESSION);
-        if (savedSession) {
-          try {
-            const { role, userId } = JSON.parse(savedSession);
-            const allDrivers = dLocal || INITIAL_DRIVERS;
-            const user = allDrivers.find(d => d.id === userId);
-            if (user) { setCurrentUser(user); setView(role); }
-          } catch(e) { localStorage.removeItem(KEYS.SESSION); }
+        if (reads[1]) setDrivers(reads[1]);
+        if (reads[2]) setBranches(reads[2]);
+        if (reads[3]) setTrips(reads[3]);
+        if (reads[4]) setActiveTrips(reads[4]);
+        if (reads[5]) setArchivedMonths(reads[5]);
+        if (reads[6]) setConfig(savedCfg);
+        if (reads[7]) setPhotos(reads[7]);
+        if (reads[8]) setGpsTracks(reads[8]);
+        if (reads[9]) setHandoffs(reads[9]);
+        const esLocal = await window.storage.get(KEYS.END_SHIFTS).catch(() => null);
+        if (esLocal?.value) setEndShifts(JSON.parse(esLocal.value));
+        // Cargar checklists desde SUPABASE (sincronizados entre todos los dispositivos)
+        const sbData = await loadSBChecklists();
+        if (sbData !== null) {
+          setChecklists(sbData);
+        } else {
+          const local = await window.storage.get(KEYS.CHECKLISTS).catch(() => null);
+          if (local?.value) setChecklists(JSON.parse(local.value));
         }
+        // Cargar registros de mantenimiento desde storage
+        const mrLocal = await window.storage.get(KEYS.MAINT_RECORDS).catch(() => null);
+        if (mrLocal?.value) setMaintRecords(JSON.parse(mrLocal.value));
+        const incLocal = await window.storage.get(KEYS.INCIDENTS).catch(() => null);
+        if (incLocal?.value) setIncidents(JSON.parse(incLocal.value));
+        const frLocal = await window.storage.get(KEYS.FUEL_RECORDS).catch(() => null);
+        if (frLocal?.value) setFuelRecords(JSON.parse(frLocal.value));
       } catch (e) {}
       setLoading(false);
-
-      // Cargar desde Supabase en segundo plano (sin bloquear la UI)
-      try {
-        const sbVehicles = await loadSBVehicles();
-        if (sbVehicles && sbVehicles.length > 0) {
-          setVehicles(prev => prev.map(v => {
-            const sb = sbVehicles.find(r => r.id === v.id);
-            if (!sb) return v;
-            return {
-              ...v,
-              handover_status: sb.handover_status || v.handover_status || 'disponible',
-              handover_by: sb.handover_by || v.handover_by || '',
-              handover_by_full: sb.handover_by_full || v.handover_by_full || sb.handover_by || v.handover_by || '',
-              handover_to: sb.handover_to || v.handover_to || '',
-              handover_to_id: sb.handover_to_id || v.handover_to_id || '',
-              handover_km: sb.handover_km || v.handover_km || 0,
-              handover_fuel: sb.handover_fuel || v.handover_fuel || '',
-              handover_notes: sb.handover_notes || v.handover_notes || '',
-              handover_photo: sb.handover_photo || v.handover_photo || '',
-              handover_at: sb.handover_at || v.handover_at || '',
-              occupied_by: sb.occupied_by !== undefined ? sb.occupied_by : (v.occupied_by || ''),
-              occupied_by_id: sb.occupied_by_id !== undefined ? sb.occupied_by_id : (v.occupied_by_id || ''),
-              ...(sb.current_km ? { currentKm: sb.current_km } : {}),
-            };
-          }));
-        }
-        const sbTrips = await loadSBTrips();
-        if (sbTrips !== null && sbTrips.length > 0) setTrips(sbTrips);
-        const sbData = await loadSBChecklists();
-        if (sbData !== null) setChecklists(sbData);
-      } catch(e) {}
     };
     load();
   }, []);
 
-  // ── Storage (localStorage directo) ────────────────────────────────
-  const persist = (key, data) => {
-    try { localStorage.setItem(key, JSON.stringify(data)); } catch (e) {}
+  // ── Offline-first storage ──────────────────────────────────────────
+  const persist = async (key, data) => {
+    const serialized = JSON.stringify(data);
+    // 1. Guardar en localStorage PRIMERO (siempre funciona, offline o no)
+    try { localStorage.setItem(key, serialized); } catch (e) {}
+    // 2. Intentar sincronizar con cloud storage
+    try {
+      await window.storage.set(key, serialized);
+      // Éxito: quitar de pendientes
+      try {
+        const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+        localStorage.setItem(KEYS.PENDING, JSON.stringify(pending.filter(k => k !== key)));
+      } catch (e) {}
+    } catch (e) {
+      // Sin internet: marcar como pendiente de sync
+      try {
+        const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+        if (!pending.includes(key)) localStorage.setItem(KEYS.PENDING, JSON.stringify([...pending, key]));
+      } catch (e2) {}
+    }
   };
 
-  const loadFromStorage = (key) => {
+  const loadFromStorage = async (key) => {
+    try {
+      const result = await window.storage.get(key);
+      if (result?.value) {
+        try { localStorage.setItem(key, result.value); } catch (e) {}
+        return JSON.parse(result.value);
+      }
+    } catch (e) {}
+    // Fallback: localStorage
     try {
       const local = localStorage.getItem(key);
       return local ? JSON.parse(local) : null;
@@ -654,7 +602,23 @@ export default function App() {
   };
 
   const syncPendingData = async () => {
-    // Sync pendiente (solo Discord y fotos — localStorage ya guarda directo)
+    // Sync datos al cloud storage
+    try {
+      const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+      if (pending.length) {
+        let synced = 0;
+        for (const key of [...pending]) {
+          const data = localStorage.getItem(key);
+          if (data) {
+            try { await window.storage.set(key, data); synced++; } catch (e) { break; }
+          }
+        }
+        if (synced > 0) {
+          const remaining = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+          localStorage.setItem(KEYS.PENDING, JSON.stringify(remaining.slice(synced)));
+        }
+      }
+    } catch (e) {}
 
     // Subir fotos pendientes de IndexedDB
     try {
@@ -705,38 +669,6 @@ export default function App() {
   const saveBranches = (d) => { setBranches(d); persist(KEYS.BRANCHES, d); };
   const saveTrips = (d) => { setTrips(d); persist(KEYS.TRIPS, d); };
   const saveActiveTrips = (d) => { setActiveTrips(d); persist(KEYS.ACTIVE_TRIPS, d); };
-  useEffect(() => {
-    const syncAT = async () => {
-      const data = await sbFetch('active_trips?select=*');
-      if (Array.isArray(data)) {
-        const mapped = data.map(r => ({
-          id: r.id,
-          driverId: r.driver_id || r.driverId,
-          vehicleId: r.vehicle_id || r.vehicleId,
-          originBranchId: r.origin_branch_id || r.originBranchId,
-          destinationBranchId: r.destination_branch_id || r.destinationBranchId,
-          kmStart: r.km_start || r.kmStart || 0,
-          startTime: r.start_time || r.startTime || '',
-          startDate: r.start_date || r.startDate || '',
-          fuelLoaded: r.fuel_loaded || r.fuelLoaded || 0,
-          customDestName: r.custom_dest_name || r.customDestName || '',
-          customDestType: r.custom_dest_type || r.customDestType || '',
-        }));
-        // Preservar viajes locales recientes (<120s) que aun no llegaron a Supabase
-        setActiveTrips(prev => {
-          const sbIds = new Set(mapped.map(t => t.id));
-          const now = Date.now();
-          const recentLocal = prev.filter(t => !sbIds.has(t.id) && t.id.startsWith('at_') && (now - parseInt(t.id.replace('at_',''),10)) < 120000);
-          const merged = [...mapped, ...recentLocal];
-          persist(KEYS.ACTIVE_TRIPS, merged);
-          return merged;
-        });
-      }
-    };
-    syncAT();
-    const i = setInterval(syncAT, 60000);
-    return () => clearInterval(i);
-  }, []);
   const saveArchived = (d) => { setArchivedMonths(d); persist(KEYS.ARCHIVED_MONTHS, d); };
   const saveConfig = (d) => { setConfig(d); persist(KEYS.CONFIG, d); };
   const savePhotos = (d) => { setPhotos(d); persist(KEYS.PHOTOS, d); };
@@ -788,46 +720,9 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Polling de viajes cada 30s para sincronizar entre dispositivos
-  useEffect(() => {
-    const pollTrips = async () => {
-      const fresh = await loadSBTrips();
-      if (fresh !== null && fresh.length > 0) setTrips(fresh);
-    };
-    const iv = setInterval(pollTrips, 30000);
-    return () => clearInterval(iv);
-  }, []);
-
-  // Polling de estado handover de vehículos (cada 15s)
-  useEffect(() => {
-    const pollVehicles = async () => {
-      const sbV = await loadSBVehicles();
-      if (sbV && sbV.length > 0) {
-        setVehicles(prev => prev.map(v => {
-          const sb = sbV.find(r => r.id === v.id);
-          if (!sb) return v;
-          return {
-            ...v,
-            handover_status: sb.handover_status || v.handover_status || 'disponible',
-            handover_by: sb.handover_by || v.handover_by || '',
-            handover_km: sb.handover_km || v.handover_km || 0,
-            handover_fuel: sb.handover_fuel || v.handover_fuel || '',
-            handover_notes: sb.handover_notes || v.handover_notes || '',
-            handover_photo: sb.handover_photo || v.handover_photo || '',
-            handover_at: sb.handover_at || v.handover_at || '',
-            ...(sb.current_km ? { currentKm: sb.current_km } : {}),
-          };
-        }));
-      }
-    };
-    const iv = setInterval(pollVehicles, 15000);
-    return () => clearInterval(iv);
-  }, []);
-
   const handleLogin = (role, user) => {
     setCurrentUser(user);
     setView(role);
-    localStorage.setItem(KEYS.SESSION, JSON.stringify({ role, userId: user.id }));
     // Saludo de voz al hacer login
     const greeting = getGreetingByTime();
     if (role === 'driver') {
@@ -845,9 +740,6 @@ export default function App() {
   const handleLogout = () => {
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     setCurrentUser(null);
-    localStorage.removeItem(KEYS.SESSION);
-    // Limpiar finish state de todos los choferes
-    localStorage.removeItem(KEYS.DRIVER_STATE);
     setView('login');
   };
   const handleWelcomeOk = () => setView('login');
@@ -906,7 +798,7 @@ export default function App() {
         savePhotos={savePhotos} saveGpsTracks={saveGpsTracks}
         checklists={checklists} saveChecklists={saveChecklists}
         config={config}
-        handoffs={handoffs} saveHandoffs={saveHandoffs} sbFetch={sbFetch}
+        handoffs={handoffs} saveHandoffs={saveHandoffs}
         incidents={incidents} saveIncidents={saveIncidents}
         fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords}
         endShifts={endShifts} saveEndShifts={saveEndShifts}
@@ -923,7 +815,7 @@ export default function App() {
         trips={trips} activeTrips={activeTrips} archivedMonths={archivedMonths} photos={photos} gpsTracks={gpsTracks}
         config={config}
         checklists={checklists}
-        handoffs={handoffs} saveHandoffs={saveHandoffs} sbFetch={sbFetch}
+        handoffs={handoffs}
         maintRecords={maintRecords}
         incidents={incidents}
         fuelRecords={fuelRecords}
@@ -1721,15 +1613,13 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
 function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents, fuelRecords = [], saveFuelRecords, endShifts = [], saveEndShifts }) {
   const [tab, setTab] = useState('trip');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
-  const [step, setStep] = useState(() => { try { const s = localStorage.getItem(KEYS.DRIVER_STATE + ':' + currentDriver.id); if (s) { const d = JSON.parse(s); if (d.step && d.step !== 'active') return d.step; } } catch(e) {} return 'select'; });
-  const [selectedVehicle, setSelectedVehicle] = useState(() => { try { const s = localStorage.getItem(KEYS.DRIVER_STATE + ':' + currentDriver.id); if (s) { const d = JSON.parse(s); if (d.vehicleId) { const full = vehicles.find(v => v.id === d.vehicleId); return full || { id: d.vehicleId }; } } } catch(e) {} return null; });
-  const [currentTrip, setCurrentTrip] = useState(() => { try { const s = localStorage.getItem(KEYS.DRIVER_STATE + ':' + currentDriver.id); if (s) { const d = JSON.parse(s); if (d.currentTrip) return d.currentTrip; } } catch(e) {} return null; });
+  const [step, setStep] = useState('select');
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [currentTrip, setCurrentTrip] = useState(null);
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [currentPosition, setCurrentPosition] = useState(null);
   const watchIdRef = useRef(null);
   const [showEntregarModal, setShowEntregarModal] = useState(false);
-  const [showRecibirModal, setShowRecibirModal] = useState(false);
-  const [vehiculoParaRecibir, setVehiculoParaRecibir] = useState(null);
   const [checklistKm, setChecklistKm] = useState(null);
   const [showEndShiftForm, setShowEndShiftForm] = useState(false);
   const [endShiftTripData, setEndShiftTripData] = useState(null);
@@ -1740,16 +1630,11 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   const myPhotos = useMemo(() => photos.filter(p => p.driverId === currentDriver.id), [photos, currentDriver]);
 
   useEffect(() => {
-    try {
-      const prev = JSON.parse(localStorage.getItem(KEYS.DRIVER_STATE + ':' + currentDriver.id) || '{}');
-      localStorage.setItem(KEYS.DRIVER_STATE + ':' + currentDriver.id, JSON.stringify({
-        ...prev,
-        vehicleId: selectedVehicle?.id || prev.vehicleId,
-        step: step,
-        currentTrip: (step === 'finish' && currentTrip) ? currentTrip : (step === 'active' && currentTrip) ? currentTrip : null,
-      }));
-    } catch(e) {}
-  }, [selectedVehicle, step, currentTrip]);
+    if (selectedVehicle) {
+      const active = myActiveTrips.find(t => t.vehicleId === selectedVehicle.id);
+      if (active && step !== 'finish') { setCurrentTrip(active); setStep('active'); }
+    }
+  }, [selectedVehicle, myActiveTrips]);
 
   // Estado para velocidad y alertas
   const lastSpeedAlertRef = useRef(0);
@@ -1871,11 +1756,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     saveActiveTrips([...activeTrips, trip]);
     setCurrentTrip(trip);
     setStep('active');
-    sbFetch('active_trips', { method: 'POST', body: JSON.stringify({ id: trip.id, driver_id: trip.driverId, vehicle_id: trip.vehicleId, origin_branch_id: trip.originBranchId, destination_branch_id: trip.destinationBranchId, km_start: trip.kmStart, start_time: trip.startTime, start_date: trip.startDate, fuel_loaded: trip.fuelLoaded || 0, custom_dest_name: trip.customDestName || '', custom_dest_type: trip.customDestType || '' }), headers: { 'Prefer': 'resolution=merge-duplicates' } }).catch(() => {});
-    // Marcar vehículo como ocupado
-    sbFetch(`vehicles?id=eq.${trip.vehicleId}`, { method: 'PATCH', body: JSON.stringify({ occupied_by: currentDriver.name || currentDriver.shortName || '', occupied_by_id: currentDriver.id || '' }) }).catch(() => {});
-    saveVehicles(vehicles.map(v => v.id === trip.vehicleId ? { ...v, occupied_by: currentDriver.name || currentDriver.shortName || '', occupied_by_id: currentDriver.id || '' } : v));
-    
+
     // Iniciar GPS
     startGpsTracking(trip.id);
 
@@ -1941,7 +1822,6 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
               await idbAdd({ type: 'discord', webhookUrl, content, photoData: base64, filename: photo.name || 'photo.jpg', queuedAt: new Date().toISOString() });
             } catch(e2) {}
           }
-
         }
       }
     }
@@ -1979,19 +1859,15 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     };
 
     saveTrips([...trips, completed]);
-    setCurrentTrip(completed);
-    setStep('finish');
-    sbFetch('trips', { method: 'POST', body: JSON.stringify(completed), headers: { 'Prefer': 'resolution=merge-duplicates' } }).catch(() => {});
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
-    sbFetch(`active_trips?id=eq.${currentTrip.id}`, { method: 'DELETE' }).catch(() => {});
-    sbFetch(`vehicles?id=eq.${currentTrip.vehicleId}`, { method: 'PATCH', body: JSON.stringify({ occupied_by: '', occupied_by_id: '' }) }).catch(() => {});
-    saveVehicles(vehicles.map(x => x.id === currentTrip.vehicleId ? { ...x, occupied_by: '', occupied_by_id: '' } : x));
     if (Number(data.kmEnd) > v.currentKm) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, currentKm: Number(data.kmEnd) } : x));
 
     // Asociar GPS track con el viaje completado
     saveGpsTracks(gpsTracks.map(g => g.tripId === currentTrip.id ? { ...g, tripId: completed.id, completed: true } : g));
 
     stopGpsTracking();
+    setCurrentTrip(completed);
+    setStep('finish');
     // 🎙️ Voz al cerrar el viaje
         const mensajesCierre = [
           'Viaje completado.',
@@ -2053,8 +1929,6 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     saveGpsTracks(gpsTracks.filter(g => g.tripId !== currentTrip.id));
     stopGpsTracking();
     sbFetch('active_trips?id=eq.' + (currentTrip?.id||''), { method: 'DELETE' }).catch(() => {});
-    sbFetch(`vehicles?id=eq.${currentTrip?.vehicleId}`, { method: 'PATCH', body: JSON.stringify({ occupied_by: '', occupied_by_id: '' }) }).catch(() => {});
-    saveVehicles(vehicles.map(x => x.id === currentTrip?.vehicleId ? { ...x, occupied_by: '', occupied_by_id: '' } : x));
     
     setCurrentTrip(null);
     setStep('select');
@@ -2065,74 +1939,20 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const updated = trips.map(t => t.id === tripId ? { ...t, waitMinutes: waitMin } : t);
     saveTrips(updated);
   };
-  const handleEntregarUnidad = async (formData) => {
+  const handleEntregarUnidad = (formData) => {
     const vId = selectedVehicle?.id || currentTrip?.vehicleId;
     const vCode = selectedVehicle?.code || vehicles.find(v => v.id === vId)?.code || '';
-    const driverName = currentDriver.shortName || currentDriver.name;
     const now = new Date();
-    const handoffTime = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
-    const handoffDate = now.toISOString().slice(0, 10);
-    const hayNovedad = formData.notes && formData.notes.trim() !== '' && formData.notes.trim().toLowerCase() !== 'sin novedad';
-    const toDriverName = formData.toDriver ? (formData.toDriver.name || formData.toDriver.shortName || '') : '';
-    const toDriverId = formData.toDriver ? (formData.toDriver.id || '') : '';
-    const updatedVehicles = vehicles.map(v => v.id === vId ? {
-      ...v,
-      currentKm: formData.km || v.currentKm,
-      handover_status: 'en_espera',
-      handover_by: driverName,
-      handover_by_full: currentDriver.name || driverName,
-      handover_to: toDriverName,
-      handover_to_id: toDriverId,
-      handover_km: formData.km,
-      handover_fuel: formData.fuel,
-      handover_notes: formData.notes,
-      handover_photo: formData.photo || '',
-      handover_at: `${handoffDate}T${handoffTime}`,
-    } : v);
-    saveVehicles(updatedVehicles);
-    sbFetch(`vehicles?id=eq.${vId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        handover_status: 'en_espera',
-        handover_by: driverName,
-        handover_by_full: currentDriver.name || driverName,
-        handover_to: toDriverName,
-        handover_to_id: toDriverId,
-        handover_km: formData.km,
-        handover_fuel: formData.fuel,
-        handover_notes: formData.notes,
-        handover_photo: formData.photo || '',
-        handover_at: `${handoffDate}T${handoffTime}`,
-      })
-    }).catch(() => {});
-    sbFetch(`active_trips?vehicle_id=eq.${vId}&driver_id=eq.${currentDriver.id}`, { method: 'DELETE' }).catch(() => {});
-    const wh = config?.discordWebhookByVehicle?.[vId] || config?.discordWebhookGeneral;
-    if (wh) {
-      const color = hayNovedad ? 0xe74c3c : 0x27ae60;
-      sendDiscordNotification(wh, {
-        title: `🔄 Unidad cedida · ${vCode}`,
-        description: `**${currentDriver.name || driverName}** cede${toDriverName ? ` → **${toDriverName}**` : ' la unidad'}`,
-        color,
-        fields: [
-          { name: '🚛 Unidad', value: vCode, inline: true },
-          { name: '⛽ Combustible', value: formData.fuel || '—', inline: true },
-          { name: '📍 KM entrega', value: String(formData.km || '—'), inline: true },
-          ...(toDriverName ? [{ name: '👤 Para', value: toDriverName, inline: true }] : []),
-          { name: hayNovedad ? '⚠️ Novedad' : '✅ Estado', value: formData.notes || 'Sin novedad', inline: false },
-        ]
-      }).catch(() => {});
-    }
     const handoff = {
       id: `handoff_${Date.now()}`,
       vehicleId: vId, vehicleCode: vCode,
       fromDriverId: currentDriver.id,
-      fromDriverName: currentDriver.name || driverName,
-      toDriverId: toDriverId,
-      toDriverNameExpected: toDriverName,
+      fromDriverName: currentDriver.shortName || currentDriver.name,
       kmAtHandoff: formData.km,
       fuelAtHandoff: formData.fuel,
       notes: formData.notes,
-      handoffDate, handoffTime,
+      handoffDate: now.toISOString().slice(0, 10),
+      handoffTime: now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }),
       status: 'pending',
     };
     const filtered = (handoffs || []).filter(h => !(h.vehicleId === vId && h.status === 'pending'));
@@ -2142,57 +1962,6 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setSelectedVehicle(null);
     setStep('select');
   };
-
-  const handleRecibirUnidad = async (formData) => {
-    const v = vehiculoParaRecibir;
-    if (!v) return;
-    const receiverName = currentDriver.shortName || currentDriver.name;
-    const fromName = v.handover_by || 'chofer anterior';
-    const now = new Date();
-    const handoffTime = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
-    const handoffDate = now.toISOString().slice(0, 10);
-    const hayNovedad = v.handover_notes && v.handover_notes.toLowerCase() !== 'sin novedad' && v.handover_notes.trim() !== '';
-    const updatedVehicles = vehicles.map(x => x.id === v.id ? {
-      ...x,
-      handover_status: hayNovedad ? 'novedad' : 'disponible',
-      handover_by: fromName,
-      handover_to: '',
-      handover_to_id: '',
-      occupied_by: currentDriver.name || receiverName,
-      occupied_by_id: currentDriver.id || '',
-    } : x);
-    saveVehicles(updatedVehicles);
-    sbFetch(`vehicles?id=eq.${v.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ handover_status: hayNovedad ? 'novedad' : 'disponible', handover_to: '', handover_to_id: '', occupied_by: currentDriver.name || receiverName, occupied_by_id: currentDriver.id || '' })
-    }).catch(() => {});
-    const filtered = (handoffs || []).map(h =>
-      h.vehicleId === v.id && h.status === 'pending'
-        ? { ...h, status: 'confirmed', toDriverId: currentDriver.id, toDriverName: receiverName, receiverPhoto: formData.photo || '', confirmedAt: new Date().toISOString() }
-        : h
-    );
-    saveHandoffs && saveHandoffs(filtered);
-    const wh = config?.discordWebhookByVehicle?.[v.id] || config?.discordWebhookGeneral;
-    const fromNameFull = v.handover_by_full || fromName;
-    if (wh) {
-      await sendDiscordNotification(wh, {
-        title: `✅ Traspaso completado · ${v.code}`,
-        description: `**${currentDriver.name || receiverName}** recibió de **${fromNameFull}**`,
-        color: 0x27ae60,
-        fields: [
-          { name: '📤 Entregó', value: fromNameFull, inline: true },
-          { name: '📥 Recibió', value: currentDriver.name || receiverName, inline: true },
-          { name: '📍 KM', value: String(v.handover_km || '—'), inline: true },
-          { name: '⛽ Combustible', value: v.handover_fuel || '—', inline: true },
-          { name: hayNovedad ? '⚠️ Novedad' : '✅ Estado', value: v.handover_notes || 'Sin novedad', inline: false },
-        ]
-      }).catch(() => {});
-    }
-    setShowRecibirModal(false);
-    setVehiculoParaRecibir(null);
-    setSelectedVehicle(v);
-  };
-
  // 🌙 Finalizar Jornada del día — calcula stats + voz + Discord
   const finalizarJornada = async () => {
     const hoy = new Date().toISOString().slice(0, 10);
@@ -2226,23 +1995,13 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     };
     saveEndShifts && saveEndShifts([record, ...(endShifts||[])]);
 
-    // Actualizar KM y estado del camión → "GUARDADO" + limpiar occupied_by
+    // Actualizar KM y estado del camión → "GUARDADO"
     if (vehPrincipal && kmFinal) {
       saveVehicles(vehicles.map(v => v.id === vehPrincipal.id ? {
         ...v, currentKm: Number(kmFinal),
         lastParkedKm: Number(kmFinal), lastParkedDate: hoy, lastParkedTime: hora,
         status: v.status === 'EN TALLER' ? 'EN TALLER' : 'AL DIA',
-        occupied_by: '', occupied_by_id: '',
-        handover_status: 'disponible', handover_by: '', handover_by_full: '',
-        handover_to: '', handover_to_id: '', handover_km: 0,
-        handover_fuel: '', handover_notes: '', handover_photo: '', handover_at: '',
       } : v));
-      sbFetch && sbFetch(`vehicles?id=eq.${vehPrincipal.id}`, { method: 'PATCH', body: JSON.stringify({
-        occupied_by: '', occupied_by_id: '',
-        handover_status: 'disponible', handover_by: '', handover_by_full: '',
-        handover_to: '', handover_to_id: '', handover_km: 0,
-        handover_fuel: '', handover_notes: '', handover_photo: '', handover_at: '',
-      }) }).catch(()=>{});
     }
 
     // Discord → canal mantenimiento del camión
@@ -2429,7 +2188,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         {tab === 'surtir' && <DriverSurtirTab vehicles={vehicles} currentDriver={currentDriver} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
         {tab === 'trip' && <>
           {step === 'select' && <>
-            <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onRecibirUnidad={(v) => { setVehiculoParaRecibir(v); setShowRecibirModal(true); }} onCederUnidad={(v) => { setSelectedVehicle(v); setShowEntregarModal(true); }} onContinue={(accion, motivo, km) => {
+            <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onContinue={(accion, motivo, km) => {
               if (accion === 'taller') {
                 // ya no se usa desde selección
               } else if (selectedVehicle?.status === 'EN TALLER') {
@@ -2437,7 +2196,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
               } else {
                 setStep('checklist');
               }
-            }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver}activeTrips={activeTrips} drivers={drivers} />
+            }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} />
           </>}
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
@@ -2446,8 +2205,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} />}
           {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} kmInicial={endShiftTripData.kmUltimoViaje} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
-          {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} config={config} currentTrip={currentTrip} drivers={drivers} />}
-          {showRecibirModal && vehiculoParaRecibir && <RecibirUnidadModal vehicle={vehiculoParaRecibir} driver={currentDriver} onSubmit={handleRecibirUnidad} onClose={() => { setShowRecibirModal(false); setVehiculoParaRecibir(null); }} />}
+          {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
         {tab === 'history' && <DriverHistoryView trips={myTrips} vehicles={vehicles} branches={branches} />}
@@ -2532,8 +2290,7 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
   );
 }
 
-function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], drivers = [], onRecibirUnidad, onCederUnidad }) {
-  const [novedadConfirmada, setNovedadConfirmada] = React.useState(false);
+function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver }) {
   const pendingHandoff = selectedVehicle
     ? (handoffs || []).find(h => h.vehicleId === selectedVehicle.id && h.status === 'pending' && h.fromDriverId !== currentDriver?.id)
     : null;
@@ -2559,79 +2316,28 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
 
       <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
         <div className="space-y-2">
-          {[...vehicles].sort((a, b) => (a.id || '').localeCompare(b.id || '', undefined, { numeric: true })).map(v => {
+          {vehicles.map(v => {
             const enTaller = v.status === 'EN TALLER';
-            const ocupado = activeTrips.find(t => t.vehicleId === v.id && t.driverId !== currentDriver.id);
-            const nombreOcupado = ocupado ? (drivers.find(d => d.id === ocupado.driverId)?.shortName || 'Otro chofer') : null;
-            const pendingCesion = (handoffs || []).find(h => h.vehicleId === v.id && h.status === 'pending' && h.fromDriverId !== currentDriver?.id);
-            const hayNovedad = v.handover_status === 'novedad' && v.handover_by;
-            const chequeado = v.handover_status === 'disponible' && v.handover_by;
             const isSelected = selectedVehicle?.id === v.id;
-            let borderClass = 'border-stone-200 hover:border-stone-300 bg-white';
-            if (isSelected) borderClass = 'border-emerald-600 bg-emerald-50 shadow-md';
-            else if (nombreOcupado) borderClass = 'border-red-300 bg-red-50/50 opacity-70';
-            else if (enTaller) borderClass = 'border-rose-200 bg-rose-50/30';
-            else if (pendingCesion || v.handover_status === 'en_espera') borderClass = 'border-amber-300 bg-amber-50 hover:border-amber-400';
-            else if (hayNovedad) borderClass = 'border-orange-300 bg-orange-50 hover:border-orange-400';
-            else if (chequeado) borderClass = 'border-emerald-200 bg-emerald-50/30 hover:border-emerald-300';
             return (
-              <button key={v.id} disabled={!!nombreOcupado} onClick={() => {
+              <button key={v.id} onClick={() => {
                 if (enTaller) {
                   if (!confirm(`${v.code} está marcado como EN TALLER.\n\n${v.observations || ''}\n\n¿Estás seguro de usarlo?`)) return;
                 }
-                if (v.handover_status === 'en_espera' && v.handover_by) {
-                  const esDestinatario = !v.handover_to_id || v.handover_to_id === currentDriver?.id;
-                  if (esDestinatario) { onRecibirUnidad && onRecibirUnidad(v); }
-                  return;
-                }
-                // Bloquear si está ocupado por otro chofer
-                if (v.occupied_by && v.occupied_by_id && v.occupied_by_id !== currentDriver?.id) {
-                  return;
-                }
                 setSelectedVehicle(v);
               }}
-                className={`w-full p-3 rounded-xl border-2 flex items-center justify-between transition-all ${borderClass}`}>
+                className={`w-full p-3 rounded-xl border-2 flex items-center justify-between transition-all ${isSelected ? 'border-emerald-600 bg-emerald-50 shadow-md' : enTaller ? 'border-rose-200 bg-rose-50/30 hover:border-rose-300' : 'border-stone-200 hover:border-stone-300 bg-white'}`}>
                 <div className="flex items-center gap-3 text-left">
                   <div className="w-12 h-12 rounded-lg flex items-center justify-center relative" style={{ backgroundColor: v.color + '20', border: `2px solid ${v.color}` }}>
                     <Truck className="w-6 h-6" style={{ color: v.color }} />
                     {enTaller && <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center"><Wrench className="w-2.5 h-2.5 text-white" /></div>}
-                    {nombreOcupado && !enTaller && <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center"><span className="text-white text-[8px] font-bold">!</span></div>}
-                    {pendingCesion && !nombreOcupado && <div className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 rounded-full flex items-center justify-center"><span className="text-white text-[8px]">→</span></div>}
                   </div>
                   <div>
-                    <div className="font-bold text-stone-900 text-base flex items-center gap-2 flex-wrap">
+                    <div className="font-bold text-stone-900 text-base flex items-center gap-2">
                       {v.code}
-                      {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔧 EN TALLER</span>}
-                      {nombreOcupado && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🚫 En uso · {nombreOcupado}</span>}
-                      {!nombreOcupado && (pendingCesion || v.handover_status === 'en_espera') && (() => {
-                        const byName = v.handover_by_full || v.handover_by || pendingCesion?.fromDriverName || '';
-                        const toName = v.handover_to || pendingCesion?.toDriverNameExpected || '';
-                        const esDestinatario = v.handover_to_id === currentDriver?.id || pendingCesion?.toDriverId === currentDriver?.id || (!v.handover_to_id && !pendingCesion?.toDriverId);
-                        return (
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${esDestinatario ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                            {esDestinatario ? `📲 Para ti · de ${byName}` : `⏳ En espera${toName ? ` → ${toName}` : ''}`}
-                          </span>
-                        );
-                      })()}
-                      {v.occupied_by && v.occupied_by_id !== currentDriver?.id && !pendingCesion && v.handover_status !== 'en_espera' && (
-                        <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔒 Ocupado · {v.occupied_by}</span>
-                      )}
-                      {v.occupied_by && v.occupied_by_id === currentDriver?.id && !pendingCesion && v.handover_status !== 'en_espera' && (
-                        <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🚛 Tuyo</span>
-                      )}
-                      {!nombreOcupado && !pendingCesion && hayNovedad && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⚠️ Novedad · {v.handover_by}</span>}
-                      {!nombreOcupado && !pendingCesion && chequeado && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold">✅ Listo · {v.handover_fuel || ''}</span>}
+                      {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EN TALLER</span>}
                     </div>
                     <div className="text-xs text-stone-500">{v.plate} · {v.performance} km/L</div>
-                    {pendingCesion && !nombreOcupado && (
-                      <div className="text-xs text-amber-700 mt-0.5">Por: {pendingCesion.fromDriverName} · {pendingCesion.fuelAtHandoff || '—'} combustible · {pendingCesion.notes || 'sin novedad'}</div>
-                    )}
-                    {v.occupied_by_id === currentDriver?.id && !pendingCesion && v.handover_status !== 'en_espera' && onCederUnidad && (
-                      <button onClick={(e) => { e.stopPropagation(); onCederUnidad(v); }}
-                        className="mt-1 text-[10px] bg-amber-100 text-amber-800 hover:bg-amber-200 border border-amber-300 px-2 py-0.5 rounded-full font-bold transition-all">
-                        🔄 Ceder unidad
-                      </button>
-                    )}
                   </div>
                 </div>
                 <div className="text-right">
@@ -2687,28 +2393,11 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
           </div>
         </div>
       )}
-      {selectedVehicle && !activeTrips.find(t => t.vehicleId === selectedVehicle.id && t.driverId !== currentDriver.id) && selectedVehicle.handover_status === 'novedad' && selectedVehicle.handover_by && (
-        <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-3 space-y-2">
-          <p className="font-bold text-orange-800 text-sm">⚠️ Novedad reportada por {selectedVehicle.handover_by}:</p>
-          <p className="text-orange-700 text-sm">{selectedVehicle.handover_notes}</p>
-          <p className="text-xs text-orange-600 font-semibold">⛽ Combustible: {selectedVehicle.handover_fuel || '—'}</p>
-          <label className="flex items-center gap-2 text-xs text-orange-900 font-bold cursor-pointer mt-1">
-            <input type="checkbox" checked={novedadConfirmada} onChange={e => setNovedadConfirmada(e.target.checked)} className="w-4 h-4 accent-orange-500" />
-            Confirmo que leí la novedad y procedo bajo mi responsabilidad
-          </label>
-        </div>
-      )}
-      {selectedVehicle && !activeTrips.find(t => t.vehicleId === selectedVehicle.id && t.driverId !== currentDriver.id) && selectedVehicle.handover_status === 'disponible' && selectedVehicle.handover_by && (
-        <p className="text-center text-xs text-emerald-600 font-semibold">✅ Chequeado por {selectedVehicle.handover_by} · {selectedVehicle.handover_fuel || ''} combustible</p>
-      )}
-      <button onClick={onContinue} disabled={!selectedVehicle || !!pendingHandoff || !!(selectedVehicle && activeTrips.find(t => t.vehicleId === selectedVehicle.id && t.driverId !== currentDriver.id)) || !!(selectedVehicle && selectedVehicle.handover_status === 'novedad' && !novedadConfirmada)}
-        className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle && !pendingHandoff && !activeTrips.find(t => t.vehicleId === selectedVehicle?.id && t.driverId !== currentDriver.id) && !(selectedVehicle.handover_status === 'novedad' && !novedadConfirmada) ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400 cursor-not-allowed'}`}>
+      <button onClick={onContinue} disabled={!selectedVehicle || !!pendingHandoff}
+        className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle && !pendingHandoff ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400'}`}>
         Continuar <ArrowRight className="w-5 h-5" />
       </button>
       {pendingHandoff && <p className="text-center text-xs text-amber-600 font-semibold">⚠️ Confirma la recepción para continuar</p>}
-      {selectedVehicle && activeTrips.find(t => t.vehicleId === selectedVehicle.id && t.driverId !== currentDriver.id) && (
-        <p className="text-center text-xs text-red-600 font-semibold">🚫 Vehículo ocupado — no puedes continuar hasta que sea liberado</p>
-      )}
     </div>
   );
 }
@@ -3446,10 +3135,6 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
               className="w-full py-3 bg-white/20 hover:bg-white/30 rounded-xl font-bold flex items-center justify-center gap-2">
               🌙 Finalizar Jornada de hoy
             </button>
-            <button onClick={() => { endWaiting(true); setTimeout(() => setShowEntregarModal(true), 200); }}
-              className="w-full py-3 bg-amber-500 hover:bg-amber-600 rounded-xl font-bold flex items-center justify-center gap-2">
-              🔄 Ceder unidad
-            </button>
           </div>
         </div>
       )}
@@ -3513,238 +3198,47 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
 // ============================================================
 // MODAL ENTREGAR UNIDAD — Daniel llena y entrega a otro chofer
 // ============================================================
-function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose, config, currentTrip, drivers = [] }) {
-  const autoKm = currentTrip?.kmEnd || vehicle?.currentKm || '';
-  const [km, setKm] = React.useState(autoKm ? String(autoKm) : '');
+function EntregarUnidadModal({ vehicle, driver, onSubmit, onClose }) {
+  const [km, setKm] = React.useState('');
   const [fuel, setFuel] = React.useState('');
-  const [notes, setNotes] = React.useState('');
-  const [photo, setPhoto] = React.useState(null);
-  const [toDriver, setToDriver] = React.useState(null);
-  const [takingPhoto, setTakingPhoto] = React.useState(false);
-  const fileInputRef = React.useRef(null);
-  const videoRef = React.useRef(null);
-  const streamRef = React.useRef(null);
-  const otrosChoferes = drivers.filter(d => d.id !== driver?.id && d.role !== 'coordinator');
-  const canSubmit = km !== '' && Number(km) > 0 && fuel !== '' && toDriver !== null;
-  const fuelOptions = ['1/4', '1/2', '3/4', 'Full'];
-  const handleFilePhoto = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => setPhoto(ev.target.result);
-    reader.readAsDataURL(file);
-  };
-  const startCamera = async () => {
-    setTakingPhoto(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-      streamRef.current = stream;
-      setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = stream; }, 100);
-    } catch(e) { setTakingPhoto(false); fileInputRef.current?.click(); }
-  };
-  const takePhoto = () => {
-    if (!videoRef.current) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
-    setPhoto(canvas.toDataURL('image/jpeg', 0.7));
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    setTakingPhoto(false);
-  };
-  React.useEffect(() => () => streamRef.current?.getTracks().forEach(t => t.stop()), []);
+  const [notes, setNotes] = React.useState('sin novedad');
+  const canSubmit = km !== '' && Number(km) > 0;
   return (
     <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-2xl">📤</div>
           <div>
-            <div className="font-bold text-stone-900 text-lg">Ceder unidad</div>
-            <div className="text-xs text-stone-500">{vehicle?.code} · {driver?.name || driver?.shortName}</div>
+            <div className="font-bold text-stone-900 text-lg">Entregar unidad</div>
+            <div className="text-xs text-stone-500">{vehicle?.code} · {driver?.shortName || driver?.name}</div>
           </div>
         </div>
         <div className="space-y-3">
-          <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Entregar a *</label>
-            <div className="mt-1 space-y-1.5 max-h-36 overflow-y-auto">
-              {otrosChoferes.length === 0 && <p className="text-xs text-stone-400 italic px-1">No hay otros choferes registrados</p>}
-              {otrosChoferes.map(d => (
-                <button key={d.id} onClick={() => setToDriver(d)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 transition-all text-left ${toDriver?.id === d.id ? 'border-amber-500 bg-amber-50' : 'border-stone-200 bg-white hover:border-amber-300'}`}>
-                  <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center font-bold text-stone-700 text-sm flex-shrink-0">
-                    {(d.name || d.shortName || '?')[0].toUpperCase()}
-                  </div>
-                  <span className="font-semibold text-stone-900 text-sm">{d.name || d.shortName}</span>
-                  {toDriver?.id === d.id && <span className="ml-auto text-amber-500 font-bold">✓</span>}
-                </button>
-              ))}
-            </div>
-          </div>
           <div>
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">KM actual *</label>
             <input type="number" value={km} onChange={e => setKm(e.target.value)} placeholder="ej: 142168"
               className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-amber-400" />
-            {autoKm > 0 && <p className="text-xs text-emerald-600 mt-0.5">✓ Pre-llenado del último viaje</p>}
           </div>
           <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Combustible *</label>
-            <div className="grid grid-cols-4 gap-2 mt-1">
-              {fuelOptions.map(f => (
-                <button key={f} onClick={() => setFuel(f)}
-                  className={`py-2 rounded-xl text-sm font-bold border-2 transition-all ${fuel === f ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-stone-200 text-stone-700 hover:border-amber-300'}`}>
-                  {f}
-                </button>
-              ))}
-            </div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Combustible (litros)</label>
+            <input type="number" value={fuel} onChange={e => setFuel(e.target.value)} placeholder="ej: 45"
+              className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-amber-400" />
           </div>
           <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Novedades / Fallas</label>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Observaciones</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-              placeholder="Ej: llanta baja, AC falla... o deja vacío si no hay novedad"
               className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-400 resize-none" />
           </div>
-          <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Foto de entrega</label>
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFilePhoto} />
-            {takingPhoto ? (
-              <div className="mt-1">
-                <video ref={videoRef} autoPlay playsInline className="w-full rounded-xl max-h-32 object-cover" />
-                <button onClick={takePhoto} className="w-full mt-2 py-2 bg-amber-500 text-white rounded-xl font-bold text-sm">📸 Capturar</button>
-                <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); setTakingPhoto(false); }} className="w-full mt-1 py-1.5 text-xs text-stone-500 hover:text-stone-700">Cancelar</button>
-              </div>
-            ) : photo ? (
-              <div className="mt-1">
-                <div className="relative">
-                  <img src={photo} className="w-full rounded-xl object-cover max-h-32" alt="foto entrega" />
-                </div>
-                <div className="mt-1 grid grid-cols-2 gap-2">
-                  <button onClick={startCamera} className="py-2 border border-stone-300 rounded-xl text-stone-500 text-xs hover:border-amber-400 hover:text-amber-600 bg-white">📷 Cambiar cámara</button>
-                  <button onClick={() => fileInputRef.current?.click()} className="py-2 border border-stone-300 rounded-xl text-stone-500 text-xs hover:border-amber-400 hover:text-amber-600 bg-white">🖼️ Cambiar archivo</button>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-1 grid grid-cols-2 gap-2">
-                <button onClick={startCamera} className="py-2.5 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 text-sm hover:border-amber-400 hover:text-amber-600">📷 Cámara</button>
-                <button onClick={() => fileInputRef.current?.click()} className="py-2.5 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 text-sm hover:border-amber-400 hover:text-amber-600">🖼️ Archivo</button>
-              </div>
-            )}
-          </div>
         </div>
         <div className="grid grid-cols-2 gap-2 mt-4">
-          <button onClick={onClose} className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">Cancelar</button>
-          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel, notes: notes.trim() || 'Sin novedad', photo, toDriver })}
+          <button onClick={onClose}
+            className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">
+            Cancelar
+          </button>
+          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel: Number(fuel) || 0, notes })}
             disabled={!canSubmit}
             className={`py-3 rounded-xl font-bold text-white transition-all ${canSubmit ? 'bg-amber-500 hover:bg-amber-600' : 'bg-stone-200 text-stone-400'}`}>
-            Ceder ✅
-          </button>
-        </div>
-        {!canSubmit && <p className="text-center text-xs text-stone-400 mt-1">Selecciona chofer, KM y combustible *</p>}
-      </div>
-    </div>
-  );
-}
-
-function RecibirUnidadModal({ vehicle, driver, onSubmit, onClose }) {
-  const [photo, setPhoto] = React.useState(null);
-  const [takingPhoto, setTakingPhoto] = React.useState(false);
-  const [confirmed, setConfirmed] = React.useState(false);
-  const videoRef = React.useRef(null);
-  const streamRef = React.useRef(null);
-  const fileInputRefRecibir = React.useRef(null);
-  const handleFilePhotoRecibir = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => setPhoto(ev.target.result);
-    reader.readAsDataURL(file);
-  };
-  const hayNovedad = vehicle?.handover_notes && vehicle.handover_notes.toLowerCase() !== 'sin novedad' && vehicle.handover_notes.trim() !== '';
-  const canSubmit = !hayNovedad || confirmed;
-  const startCamera = async () => {
-    setTakingPhoto(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-      streamRef.current = stream;
-      setTimeout(() => { if (videoRef.current) videoRef.current.srcObject = stream; }, 100);
-    } catch(e) { setTakingPhoto(false); fileInputRefRecibir.current?.click(); }
-  };
-  const takePhoto = () => {
-    if (!videoRef.current) return;
-    const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth;
-    canvas.height = videoRef.current.videoHeight;
-    canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
-    setPhoto(canvas.toDataURL('image/jpeg', 0.7));
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    setTakingPhoto(false);
-  };
-  React.useEffect(() => () => streamRef.current?.getTracks().forEach(t => t.stop()), []);
-  return (
-    <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-2xl">📥</div>
-          <div>
-            <div className="font-bold text-stone-900 text-lg">Recibir unidad</div>
-            <div className="text-xs text-stone-500">{vehicle?.code} · cedido por {vehicle?.handover_by}</div>
-          </div>
-        </div>
-        <input ref={fileInputRefRecibir} type="file" accept="image/*" className="hidden" onChange={handleFilePhotoRecibir} />
-        <div className="space-y-3">
-          <div className="bg-stone-50 rounded-xl p-3 space-y-2 border border-stone-200">
-            <p className="text-xs font-bold text-stone-600 uppercase tracking-wide">Info del vehículo</p>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div><span className="text-stone-400 text-xs">KM entrega</span><p className="font-bold">{(vehicle?.handover_km || 0).toLocaleString()}</p></div>
-              <div><span className="text-stone-400 text-xs">Combustible</span><p className="font-bold">{vehicle?.handover_fuel || '—'}</p></div>
-            </div>
-            {vehicle?.handover_photo && (
-              <img src={vehicle.handover_photo} className="w-full rounded-lg max-h-28 object-cover" alt="foto entrega" />
-            )}
-          </div>
-          {hayNovedad ? (
-            <div className="bg-orange-50 border-2 border-orange-300 rounded-xl p-3 space-y-2">
-              <p className="font-bold text-orange-800 text-sm">⚠️ Novedad reportada por {vehicle?.handover_by}:</p>
-              <p className="text-orange-700 text-sm">{vehicle?.handover_notes}</p>
-              <label className="flex items-center gap-2 text-xs text-orange-900 font-bold cursor-pointer mt-1">
-                <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="w-4 h-4 accent-orange-500" />
-                Confirmo que leí la novedad
-              </label>
-            </div>
-          ) : (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-              <p className="text-emerald-700 text-sm font-semibold">✅ Vehículo sin novedades</p>
-            </div>
-          )}
-          <div>
-            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Tu foto al recibir</label>
-            {takingPhoto ? (
-              <div className="mt-1">
-                <video ref={videoRef} autoPlay playsInline className="w-full rounded-xl max-h-28 object-cover" />
-                <button onClick={takePhoto} className="w-full mt-2 py-2 bg-blue-500 text-white rounded-xl font-bold text-sm">📸 Capturar</button>
-                <button onClick={() => { streamRef.current?.getTracks().forEach(t => t.stop()); setTakingPhoto(false); }} className="w-full mt-1 py-1.5 text-xs text-stone-500 hover:text-stone-700">Cancelar</button>
-              </div>
-            ) : photo ? (
-              <div className="mt-1">
-                <img src={photo} className="w-full rounded-xl object-cover max-h-28" alt="foto recepción" />
-                <div className="mt-1 grid grid-cols-2 gap-2">
-                  <button onClick={startCamera} className="py-2 border border-stone-300 rounded-xl text-stone-500 text-xs hover:border-blue-400 hover:text-blue-600 bg-white">📷 Cambiar cámara</button>
-                  <button onClick={() => fileInputRefRecibir.current?.click()} className="py-2 border border-stone-300 rounded-xl text-stone-500 text-xs hover:border-blue-400 hover:text-blue-600 bg-white">🖼️ Cambiar archivo</button>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-1 grid grid-cols-2 gap-2">
-                <button onClick={startCamera} className="py-2.5 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 text-sm hover:border-blue-400 hover:text-blue-600">📷 Cámara</button>
-                <button onClick={() => fileInputRefRecibir.current?.click()} className="py-2.5 border-2 border-dashed border-stone-300 rounded-xl text-stone-500 text-sm hover:border-blue-400 hover:text-blue-600">🖼️ Archivo</button>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 mt-4">
-          <button onClick={onClose} className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">Cancelar</button>
-          <button onClick={() => canSubmit && onSubmit({ photo })}
-            disabled={!canSubmit}
-            className={`py-3 rounded-xl font-bold text-white transition-all ${canSubmit ? 'bg-blue-600 hover:bg-blue-700' : 'bg-stone-200 text-stone-400'}`}>
-            Recibir ✅
+            Entregar ✅
           </button>
         </div>
       </div>
@@ -4022,7 +3516,7 @@ function DriverHistoryView({ trips, vehicles, branches }) {
 // ============================================================
 // COORDINADOR
 // ============================================================
-function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], saveHandoffs, sbFetch, maintRecords = [], incidents = [], fuelRecords = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents, saveFuelRecords }) {
+function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], incidents = [], fuelRecords = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents, saveFuelRecords }) {
   const [tab, setTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [autoArchiveBanner, setAutoArchiveBanner] = useState(null);
@@ -4135,9 +3629,9 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
       <main className="max-w-7xl mx-auto px-4 py-5">
         {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} incidents={incidents} />}
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
-        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} saveHandoffs={saveHandoffs} sbFetch={sbFetch} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
+        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
-        {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} sbFetch={sbFetch} />}
+        {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
         {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} maintRecords={maintRecords} saveMaintRecords={saveMaintRecords} />}
@@ -4573,7 +4067,6 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
                     <th className="text-left px-3 py-2">Obs. entrega</th>
                     <th className="text-left px-3 py-2">Obs. recepción</th>
                     <th className="text-center px-2 py-2">Estado</th>
-                    {saveHandoffs && <th className="px-2 py-2"></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -4592,14 +4085,6 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
                           ? <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">✅ Confirmado</span>
                           : <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full">⏳ Pendiente</span>}
                       </td>
-                      {saveHandoffs && (
-                        <td className="px-2 py-2.5 text-center">
-                          <button onClick={() => { if (confirm(`¿Eliminar este traspaso de ${h.vehicleCode}?`)) { saveHandoffs(handoffs.filter(x => x.id !== h.id)); sbFetch && sbFetch(`handoffs?id=eq.${h.id}`, { method: 'DELETE' }).catch(()=>{}); } }}
-                            className="text-stone-300 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50" title="Eliminar">
-                            🗑️
-                          </button>
-                        </td>
-                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -4801,7 +4286,7 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
 // ============================================================
 // VIAJES TABLE
 // ============================================================
-function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [], saveHandoffs, sbFetch, maintRecords = [], fuelRecords = [] }) {
+function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [], maintRecords = [], fuelRecords = [] }) {
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
   // Refrescar cada minuto para actualizar los cronómetros "aún ahí"
@@ -5977,7 +5462,7 @@ function VehicleForm({ v, onSave, onCancel, title }) {
   );
 }
 
-function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig, sbFetch }) {
+function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig }) {
   const [editing, setEditing] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
 
@@ -6051,27 +5536,6 @@ function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig, s
                     <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Días</div><div className="font-bold text-stone-900">{new Set(vt.map(t=>t.startDate)).size}</div></div>
                   </div>
                   {v.observations && <div className="mt-2 text-xs bg-amber-950/30 border border-amber-700/30 rounded p-2 text-amber-700">{v.observations}</div>}
-                  {/* Estado handover / ocupado */}
-                  {((v.handover_status && v.handover_status !== 'disponible') || (v.handover_by && v.handover_by !== '') || (v.occupied_by && v.occupied_by !== '')) && (
-                    <div className={`mt-2 flex items-center justify-between gap-2 rounded-xl px-3 py-2 border text-xs font-semibold ${v.handover_status === 'en_espera' ? 'bg-amber-50 border-amber-300 text-amber-800' : v.occupied_by ? 'bg-blue-50 border-blue-300 text-blue-800' : 'bg-orange-50 border-orange-300 text-orange-800'}`}>
-                      <span>
-                        {v.handover_status === 'en_espera' ? '🔄' : v.occupied_by ? '🚛' : '⚠️'}
-                        {' '}
-                        {v.handover_status === 'en_espera'
-                          ? `En espera${v.handover_by_full || v.handover_by ? ` · de ${v.handover_by_full || v.handover_by}` : ''}${v.handover_to ? ` → ${v.handover_to}` : ''}`
-                          : v.occupied_by
-                            ? `Ocupado por ${v.occupied_by}`
-                            : `Pendiente · ${v.handover_by_full || v.handover_by || ''}`}
-                      </span>
-                      <button onClick={() => {
-                        const updated = vehicles.map(x => x.id === v.id ? { ...x, handover_status: 'disponible', handover_by: '', handover_by_full: '', handover_to: '', handover_to_id: '', handover_km: 0, handover_fuel: '', handover_notes: '', handover_photo: '', handover_at: '', occupied_by: '', occupied_by_id: '' } : x);
-                        saveVehicles(updated);
-                        sbFetch && sbFetch(`vehicles?id=eq.${v.id}`, { method: 'PATCH', body: JSON.stringify({ handover_status: 'disponible', handover_by: '', handover_by_full: '', handover_to: '', handover_to_id: '', handover_km: 0, handover_fuel: '', handover_notes: '', handover_photo: '', handover_at: '', occupied_by: '', occupied_by_id: '' }) }).catch(()=>{});
-                      }} className="bg-white border border-stone-300 text-stone-600 hover:text-red-600 hover:border-red-300 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all flex-shrink-0">
-                        Limpiar ✕
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
