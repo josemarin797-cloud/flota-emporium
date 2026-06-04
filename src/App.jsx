@@ -7099,7 +7099,7 @@ function IncidentsTab({ incidents, vehicles, drivers, saveIncidents }) {
               {f==='all'?'Todos':f}
             </button>
           )
-        })}
+        )
         </div>
       </div>
 
