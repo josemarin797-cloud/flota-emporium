@@ -1351,7 +1351,8 @@ function LoginScreen({ drivers, onLogin, activeTrips = [], vehicles = [] }) {
                   </div>
                   <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
                 </button>
-              ))}
+                );
+                })}
             </div>
           </div>
         </div>
