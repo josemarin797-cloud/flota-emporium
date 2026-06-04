@@ -854,7 +854,7 @@ export default function App() {
               </svg>
             </div>
             <div className="truck-anim" style={{ position: 'absolute', bottom: 44, left: '50%', transform: 'translateX(-50%)' }}>
-              <img src="/camion_final_2.png" alt="Transporte Emporium" style={{ width: 180, height: 'auto' }} />
+              <img src={LOGO_TRUCK} alt="Transporte Emporium" style={{ width: 180, height: 'auto', mixBlendMode: 'multiply' }} />
             </div>
           </div>
           <div className="logo-fade flex flex-col items-center" style={{ marginTop: 16, gap: 8 }}>
@@ -891,7 +891,7 @@ export default function App() {
   );
 
   if (view === 'welcome') return <><OfflineBanner /><WelcomeScreen onOk={handleWelcomeOk} /><InstallAppButton /></>;
-  if (view === 'login') return <><LoginScreen drivers={drivers} onLogin={handleLogin} activeTrips={activeTrips} vehicles={vehicles} /><InstallAppButton /></>;
+  if (view === 'login') return <><LoginScreen drivers={drivers} onLogin={handleLogin} /><InstallAppButton /></>;
 
   if (view === 'driver') {
     return <><OfflineBanner />
@@ -1219,7 +1219,7 @@ function WelcomeScreen({ onOk }) {
 // ============================================================
 // LOGIN (selección de usuario + PIN)
 // ============================================================
-function LoginScreen({ drivers, onLogin, activeTrips = [], vehicles = [] }) {
+function LoginScreen({ drivers, onLogin }) {
   const [step, setStep] = useState('select');
   const [selectedRole, setSelectedRole] = useState(null);
   const [selectedDriver, setSelectedDriver] = useState(null);
@@ -1338,10 +1338,8 @@ function LoginScreen({ drivers, onLogin, activeTrips = [], vehicles = [] }) {
               Choferes
             </h2>
             <div className="space-y-2">
-              {drivers.filter(d => d.active).map(d => {
-              const ocupado = activeTrips.some(t => t.vehicleId === d.vehicleId);
-              return (
-                <button key={d.id} onClick={() => { if (ocupado) return; setSelectedRole('driver'); setSelectedDriver(d); setStep('pin'); }}
+              {drivers.filter(d => d.active).map(d => (
+                <button key={d.id} onClick={() => { setSelectedRole('driver'); setSelectedDriver(d); setStep('pin'); }}
                   className="w-full bg-stone-100 hover:bg-amber-50 hover:border-amber-300 border-2 border-stone-200 rounded-xl p-3 flex items-center gap-3 transition-all hover:scale-[1.01] group">
                   <div className="bg-gradient-to-br from-amber-400 to-amber-600 w-10 h-10 rounded-lg flex items-center justify-center text-white font-black shadow-md">
                     {d.shortName.charAt(0)}
@@ -1351,8 +1349,7 @@ function LoginScreen({ drivers, onLogin, activeTrips = [], vehicles = [] }) {
                   </div>
                   <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
                 </button>
-                );
-                })}
+              ))}
             </div>
           </div>
         </div>
@@ -7098,7 +7095,8 @@ function IncidentsTab({ incidents, vehicles, drivers, saveIncidents }) {
               className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition ${filter===f?'bg-stone-900 text-white border-stone-900':'bg-white text-stone-600 border-stone-200 hover:border-stone-400'}`}>
               {f==='all'?'Todos':f}
             </button>
-          )
+          ))}
+        </div>
       </div>
 
       {filtered.length === 0 ? (
