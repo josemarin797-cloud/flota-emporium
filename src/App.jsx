@@ -559,6 +559,7 @@ export default function App() {
         const frLocal = await window.storage.get(KEYS.FUEL_RECORDS).catch(() => null);
         if (frLocal?.value) setFuelRecords(JSON.parse(frLocal.value));
       } catch (e) {}
+      await new Promise(r => setTimeout(r, 3000));
       setLoading(false);
     };
     load();
