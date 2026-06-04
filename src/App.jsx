@@ -854,7 +854,7 @@ export default function App() {
               </svg>
             </div>
             <div className="truck-anim" style={{ position: 'absolute', bottom: 44, left: '50%', transform: 'translateX(-50%)' }}>
-              <img src={LOGO_TRUCK} alt="Transporte Emporium" style={{ width: 180, height: 'auto' }} />
+              <img src={LOGO_TRUCK} alt="Transporte Emporium" style={{ width: 180, height: 'auto', mixBlendMode: 'multiply' }} />
             </div>
           </div>
           <div className="logo-fade flex flex-col items-center" style={{ marginTop: 16, gap: 8 }}>
