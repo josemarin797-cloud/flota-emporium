@@ -7097,7 +7097,8 @@ function IncidentsTab({ incidents, vehicles, drivers, saveIncidents }) {
               className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition ${filter===f?'bg-stone-900 text-white border-stone-900':'bg-white text-stone-600 border-stone-200 hover:border-stone-400'}`}>
               {f==='all'?'Todos':f}
             </button>
-          ))}
+          );
+        })}
         </div>
       </div>
 
