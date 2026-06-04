@@ -810,13 +810,59 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-[#1a1d1a] to-[#252726] flex items-center justify-center">
-        <div className="text-center">
-          <img src={LOGO_TRUCK} alt="Transporte Emporium" className="w-32 h-auto mx-auto mb-4 opacity-90 animate-pulse" />
-          <div className="text-white font-bold text-lg">Transporte <span className="text-emerald-400">Emporium</span></div>
-          <div className="text-stone-400 text-sm mt-1 flex items-center justify-center gap-2">
-            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-            Cargando...
+      <div className="min-h-screen flex items-center justify-center overflow-hidden"
+        style={{ background: '#1B4332' }}>
+        <style>{`
+          @keyframes truckIn {
+            0%   { transform: translateX(-120vw); }
+            60%  { transform: translateX(0px); }
+            72%  { transform: translateX(8px); }
+            84%  { transform: translateX(-4px); }
+            100% { transform: translateX(0px); }
+          }
+          @keyframes roadMove {
+            from { transform: translateX(0); }
+            to   { transform: translateX(-50px); }
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+          @keyframes dotPulse {
+            0%,100% { opacity: 0.2; transform: scale(0.7); }
+            50%     { opacity: 1;   transform: scale(1.2); }
+          }
+          .truck-anim { animation: truckIn 1.9s cubic-bezier(.22,.68,0,1.2) forwards; }
+          .road-line  { animation: roadMove 0.6s linear infinite; }
+          .logo-fade  { animation: fadeIn 0.7s ease 1.6s both; }
+          .dot1 { animation: dotPulse 1.2s ease-in-out 1.8s infinite; }
+          .dot2 { animation: dotPulse 1.2s ease-in-out 2.0s infinite; }
+          .dot3 { animation: dotPulse 1.2s ease-in-out 2.2s infinite; }
+        `}</style>
+        <div className="flex flex-col items-center w-full" style={{ maxWidth: 320 }}>
+          <div className="logo-fade mb-1 text-center">
+            <p style={{ color: '#d8f3dc', fontSize: 18, fontWeight: 500, letterSpacing: '0.05em' }}>Transporte Emporium</p>
+            <p style={{ color: '#74c69d', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', marginTop: 2 }}>Control de Flota</p>
+          </div>
+          <div style={{ position: 'relative', width: '100%', height: 140, marginTop: 8 }}>
+            <div style={{ position: 'absolute', bottom: 26, left: 0, right: 0, height: 22, background: '#0f3d24', borderRadius: 2 }}>
+              <svg width="200%" height="22" style={{ position: 'absolute', top: 8 }} className="road-line">
+                {[0,50,100,150,200,250,300,350].map(x => (
+                  <rect key={x} x={x} y={4} width={30} height={4} rx={2} fill="rgba(82,183,136,0.4)" />
+                ))}
+              </svg>
+            </div>
+            <div className="truck-anim" style={{ position: 'absolute', bottom: 44, left: '50%', transform: 'translateX(-50%)' }}>
+              <img src={LOGO_TRUCK} alt="Transporte Emporium" style={{ width: 180, height: 'auto' }} />
+            </div>
+          </div>
+          <div className="logo-fade flex flex-col items-center" style={{ marginTop: 16, gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div className="dot1" style={{ width: 8, height: 8, borderRadius: '50%', background: '#52b788' }} />
+              <div className="dot2" style={{ width: 8, height: 8, borderRadius: '50%', background: '#74c69d' }} />
+              <div className="dot3" style={{ width: 8, height: 8, borderRadius: '50%', background: '#95d5b2' }} />
+            </div>
+            <p style={{ color: '#74c69d', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase' }}>Cargando...</p>
           </div>
         </div>
       </div>
