@@ -1295,7 +1295,7 @@ function LoginScreen({ drivers, onLogin }) {
                 <button key={d.id} onClick={() => { setSelectedRole('driver'); setSelectedDriver(d); setStep('pin'); }}
                   className="w-full bg-stone-100 hover:bg-amber-50 hover:border-amber-300 border-2 border-stone-200 rounded-xl p-3 flex items-center gap-3 transition-all hover:scale-[1.01] group">
                   <div className="bg-gradient-to-br from-amber-400 to-amber-600 w-10 h-10 rounded-lg flex items-center justify-center text-white font-black shadow-md">>
-                    {d.shortName.charAt(0)}
+                    {d.id}
                   </div>
                   <div className="text-left flex-1">
                     <div className="font-semibold text-stone-900 text-sm">{d.name}</div>
@@ -2351,7 +2351,7 @@ function DriverContactsView({ drivers, currentDriver }) {
             <div key={d.id} className="p-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 flex-1">
                 <div className="bg-gradient-to-br from-amber-400 to-amber-600 w-10 h-10 rounded-lg flex items-center justify-center text-white font-black shadow-md">>
-                  {d.shortName.charAt(0)}
+                  {d.id}
                 </div>
                 <div>
                   <div className="font-bold text-stone-900 text-sm">{d.name}</div>
@@ -5826,7 +5826,7 @@ function DriversTab({ drivers, saveDrivers, trips }) {
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="bg-gradient-to-br from-amber-400 to-amber-600 w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md relative">
-                    {d.shortName.charAt(0)}
+                    {d.id}
                     {medal && <div className="absolute -top-2 -right-2 text-xl">{medal}</div>}
                   </div>
                   <div>
