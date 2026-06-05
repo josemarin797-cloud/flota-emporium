@@ -5825,7 +5825,7 @@ function DriversTab({ drivers, saveDrivers, trips }) {
             <div key={d.id} className={`bg-white rounded-xl border-2 p-4 shadow-sm ${d.active ? 'border-stone-200' : 'border-stone-100 opacity-60'}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div style={{background:{DS:'#2563eb',JH:'#db2777',WF:'#d97706',RH:'#7c3aed',DA:'#16a34a',JM:'#dc2626'}[d.id]||'#6b7280'}} w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md relative">
+                  <div style={{background:{DS:'#2563eb',JH:'#db2777',WF:'#d97706',RH:'#7c3aed',DA:'#16a34a',JM:'#dc2626'}[d.id]||'#6b7280'}} className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md relative">
                     {d.shortName.charAt(0)}
                     {medal && <div className="absolute -top-2 -right-2 text-xl">{medal}</div>}
                   </div>
