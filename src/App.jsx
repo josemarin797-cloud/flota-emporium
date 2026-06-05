@@ -1292,10 +1292,10 @@ function LoginScreen({ drivers, onLogin }) {
             </h2>
             <div className="space-y-2">
               {drivers.filter(d => d.active).map(d => (
-                <button key={d.shortName.charAt(0)} onClick={() => { setSelectedRole('driver'); setSelectedDriver(d); setStep('pin'); }}
+                <button key={d.shortName.replace('>','').charAt(0)} onClick={() => { setSelectedRole('driver'); setSelectedDriver(d); setStep('pin'); }}
                   className="w-full bg-stone-100 hover:bg-amber-50 hover:border-amber-300 border-2 border-stone-200 rounded-xl p-3 flex items-center gap-3 transition-all hover:scale-[1.01] group">
                   <div className="bg-gradient-to-br from-amber-400 to-amber-600 w-10 h-10 rounded-lg flex items-center justify-center text-white font-black shadow-md">>
-                    {d.shortName.charAt(0)}
+                    {d.shortName.replace('>','').charAt(0)}
                   </div>
                   <div className="text-left flex-1">
                     <div className="font-semibold text-stone-900 text-sm">{d.name}</div>
@@ -2348,10 +2348,10 @@ function DriverContactsView({ drivers, currentDriver }) {
         </div>
         <div className="divide-y divide-stone-100">
           {otrosChoferes.map(d => (
-            <div key={d.shortName.charAt(0)} className="p-3 flex items-center justify-between gap-3">
+            <div key={d.shortName.replace('>','').charAt(0)} className="p-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 flex-1">
                 <div className="bg-gradient-to-br from-amber-400 to-amber-600 w-10 h-10 rounded-lg flex items-center justify-center text-white font-black shadow-md">>
-                  {d.shortName.charAt(0)}
+                  {d.shortName.replace('>','').charAt(0)}
                 </div>
                 <div>
                   <div className="font-bold text-stone-900 text-sm">{d.name}</div>
@@ -3377,7 +3377,7 @@ function EntregarUnidadModal({ vehicle, driver, drivers = [], trips = [], onSubm
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Entregar a *</label>
             <div className="grid grid-cols-2 gap-2 mt-1">
               {otherDrivers.map(d => (
-                <button key={d.shortName.charAt(0)} onClick={() => setToDriver(d)}
+                <button key={d.shortName.replace('>','').charAt(0)} onClick={() => setToDriver(d)}
                   className={`py-2.5 px-3 rounded-xl font-bold text-sm border-2 transition-all flex items-center gap-2 ${toDriver?.id === d.id ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-300'}`}>
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold ${toDriver?.id === d.id ? 'bg-emerald-600' : 'bg-stone-400'}`}>
                     {(d.shortName || d.name || '?')[0].toUpperCase()}
@@ -4222,7 +4222,7 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
             {driverRanking.map((d, i) => {
               const medal = ['🥇', '🥈', '🥉', '4°', '5°'][i] || `${i + 1}°`;
               return (
-                <div key={d.shortName.charAt(0)} className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap hover:bg-stone-50 transition">
+                <div key={d.shortName.replace('>','').charAt(0)} className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap hover:bg-stone-50 transition">
                   <div className="flex items-center gap-3 flex-1">
                     <div className="text-lg w-7">{medal}</div>
                     <div>
@@ -5822,11 +5822,11 @@ function DriversTab({ drivers, saveDrivers, trips }) {
         {stats.map((d, i) => {
           const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null;
           return (
-            <div key={d.shortName.charAt(0)} className={`bg-white rounded-xl border-2 p-4 shadow-sm ${d.active ? 'border-stone-200' : 'border-stone-100 opacity-60'}`}>
+            <div key={d.shortName.replace('>','').charAt(0)} className={`bg-white rounded-xl border-2 p-4 shadow-sm ${d.active ? 'border-stone-200' : 'border-stone-100 opacity-60'}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="bg-gradient-to-br from-amber-400 to-amber-600 w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md relative">
-                    {d.shortName.charAt(0)}
+                    {d.shortName.replace('>','').charAt(0)}
                     {medal && <div className="absolute -top-2 -right-2 text-xl">{medal}</div>}
                   </div>
                   <div>
@@ -7217,7 +7217,7 @@ function DocumentsTab({ vehicles, saveVehicles }) {
                   {docs.map((d,i) => {
                     const st = docStatus(d.expiryDate);
                     return (
-                      <tr key={d.shortName.charAt(0)} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'} hover:bg-emerald-50/30`}>
+                      <tr key={d.shortName.replace('>','').charAt(0)} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'} hover:bg-emerald-50/30`}>
                         <td className="px-4 py-3 font-bold text-stone-900">{d.name}</td>
                         <td className="px-3 py-3 text-center text-stone-500 font-mono text-xs">{d.issueDate || '—'}</td>
                         <td className="px-3 py-3 text-center font-mono text-xs font-bold text-stone-800">{d.expiryDate || '—'}</td>
