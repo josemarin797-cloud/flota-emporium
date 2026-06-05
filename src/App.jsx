@@ -3132,13 +3132,13 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     onMarkDeparted(trip.id); // guarda T.Destino hasta ahora
     setDeparted(true);       // detiene el timer morado
     setIsWaiting(true);
-    setWaitStart(Date.now()); const whUrl = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral; if (whUrl) sendDiscordNotification(whUrl, { title: `⏸️ SIN VIAJES · ${vehicle?.code}`, description: `**${currentDriver?.name}** en espera en **${trip?.customDestName || trip?.destinationBranchId}**`, color: 0x3b82f6, fields: [], footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` } });
+    setWaitStart(Date.now());     const whUrl = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral;     if (whUrl) sendDiscordNotification(whUrl, {title: "EN ESPERA - " + vehicle?.code, description: driver?.name + " en espera en " + trip?.destinationBranchId}); const whUrl = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral; if (whUrl) sendDiscordNotification(whUrl, { title: `⏸️ SIN VIAJES · ${vehicle?.code}`, description: `**${currentDriver?.name}** en espera en **${trip?.customDestName || trip?.destinationBranchId}**`, color: 0x3b82f6, fields: [], footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` } });
   };
   const endWaiting = (goToNewTrip) => {
     const waitMin = waitStart ? Math.max(0, Math.round((Date.now() - waitStart) / 60000)) : 0;
     if (onWaitEnd) onWaitEnd(trip.id, waitMin);
     setIsWaiting(false);
-    setWaitStart(null);
+    setWaitStart(null);     const whUrl2 = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral;     if (whUrl2) sendDiscordNotification(whUrl2, {title: "FIN ESPERA - " + vehicle?.code, description: driver?.name + " retoma ruta. Espera: " + waitMin + " min"});
     if (goToNewTrip) onNewTrip(); else if (onFinishJornada) onFinishJornada();
   };
 
