@@ -1292,10 +1292,10 @@ function LoginScreen({ drivers, onLogin }) {
             </h2>
             <div className="space-y-2">
               {drivers.filter(d => d.active).map(d => (
-                <button key={d.shortName.replace('>','').charAt(0)} onClick={() => { setSelectedRole('driver'); setSelectedDriver(d); setStep('pin'); }}
+                <button key={d.id} onClick={() => { setSelectedRole('driver'); setSelectedDriver(d); setStep('pin'); }}
                   className="w-full bg-stone-100 hover:bg-amber-50 hover:border-amber-300 border-2 border-stone-200 rounded-xl p-3 flex items-center gap-3 transition-all hover:scale-[1.01] group">
                   <div className="bg-gradient-to-br from-amber-400 to-amber-600 w-10 h-10 rounded-lg flex items-center justify-center text-white font-black shadow-md">
-                    {d.shortName.replace('>','').charAt(0)}
+                    {d.shortName.charAt(0)}
                   </div>
                   <div className="text-left flex-1">
                     <div className="font-semibold text-stone-900 text-sm">{d.name}</div>
@@ -1672,9 +1672,19 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
 function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents, fuelRecords = [], saveFuelRecords, endShifts = [], saveEndShifts }) {
   const [tab, setTab] = useState('trip');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
-  const [step, setStep] = useState('select');
+  const [step, setStep] = useState(() => {
+    try {
+      const s = localStorage.getItem('driver_step_' + currentDriver.id);
+      return s || 'select';
+    } catch(e) { return 'select'; }
+  });
   const [selectedVehicle, setSelectedVehicle] = useState(null);
-  const [currentTrip, setCurrentTrip] = useState(null);
+  const [currentTrip, setCurrentTrip] = useState(() => {
+    try {
+      const t = localStorage.getItem('driver_trip_' + currentDriver.id);
+      return t ? JSON.parse(t) : null;
+    } catch(e) { return null; }
+  });
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [currentPosition, setCurrentPosition] = useState(null);
   const watchIdRef = useRef(null);
@@ -1694,6 +1704,15 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       if (active && step !== 'finish') { setCurrentTrip(active); setStep('active'); }
     }
   }, [selectedVehicle, myActiveTrips]);
+
+  // Persistir step y currentTrip para restaurar pantalla al reabrir la app
+  useEffect(() => {
+    try {
+      localStorage.setItem('driver_step_' + currentDriver.id, step);
+      if (currentTrip) localStorage.setItem('driver_trip_' + currentDriver.id, JSON.stringify(currentTrip));
+      else localStorage.removeItem('driver_trip_' + currentDriver.id);
+    } catch(e) {}
+  }, [step, currentTrip]);
 
   // Estado para velocidad y alertas
   const lastSpeedAlertRef = useRef(0);
@@ -2193,32 +2212,35 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     };
     saveIncidents([incident, ...incidents]);
     const wh = getMaintWebhook(vehicle?.id, vehicles, config);
-    if (wh) {
-      const sevColor = { Leve: 0xf59e0b, Moderado: 0xef4444, Grave: 0x7f1d1d }[data.severity] || 0xef4444;
-      await sendDiscordNotification(wh, {
-        title: `🚨 INCIDENTE · ${vehicle?.code || '—'} · ${data.severity.toUpperCase()}`,
-        description: `**${currentDriver.name}** reportó un incidente`,
-        color: sevColor,
-        fields: [
-          { name: '⚠️ Tipo', value: data.type, inline: true },
-          { name: '🔴 Severidad', value: data.severity, inline: true },
-          { name: '📍 Lugar', value: data.location || '—', inline: true },
-          { name: '📊 KM', value: String(incident.km), inline: true },
-          { name: '🕐 Hora', value: incident.time, inline: true },
-          { name: '📅 Fecha', value: incident.date, inline: true },
-          { name: '📝 Descripción', value: data.description, inline: false },
-        ],
-        footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
-      });
-      if (data.photos?.length > 0) {
-        for (const photo of data.photos) {
-          try {
-            const fd = new FormData();
-            fd.append('files[0]', photo);
-            fd.append('payload_json', JSON.stringify({ content: `📸 Evidencia · ${vehicle?.code} · ${data.severity}` }));
-            await fetch(wh, { method: 'POST', body: fd });
-          } catch(e) {}
-        }
+    const whGeneral = config?.discordWebhookGeneral;
+    const sevColor = { Leve: 0xf59e0b, Moderado: 0xef4444, Grave: 0x7f1d1d }[data.severity] || 0xef4444;
+    const incidentEmbed = {
+      title: `🚨 INCIDENTE · ${vehicle?.code || '—'} · ${data.severity.toUpperCase()}`,
+      description: `**${currentDriver.name}** reportó un incidente`,
+      color: sevColor,
+      fields: [
+        { name: '⚠️ Tipo', value: data.type, inline: true },
+        { name: '🔴 Severidad', value: data.severity, inline: true },
+        { name: '📍 Lugar', value: data.location || '—', inline: true },
+        { name: '📊 KM', value: String(incident.km), inline: true },
+        { name: '🕐 Hora', value: incident.time, inline: true },
+        { name: '📅 Fecha', value: incident.date, inline: true },
+        { name: '📝 Descripción', value: data.description, inline: false },
+      ],
+      footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
+    };
+    // Enviar a mantenimiento del vehículo
+    if (wh) await sendDiscordNotification(wh, incidentEmbed).catch(() => {});
+    // Enviar también al canal general (coordinador) si es diferente
+    if (whGeneral && whGeneral !== wh) await sendDiscordNotification(whGeneral, incidentEmbed).catch(() => {});
+    if (data.photos?.length > 0) {
+      for (const photo of data.photos) {
+        try {
+          const fd = new FormData();
+          fd.append('files[0]', photo);
+          fd.append('payload_json', JSON.stringify({ content: `📸 Evidencia · ${vehicle?.code} · ${data.severity}` }));
+          if (wh) await fetch(wh, { method: 'POST', body: fd });
+        } catch(e) {}
       }
     }
     setShowIncidentForm(false);
@@ -2348,10 +2370,10 @@ function DriverContactsView({ drivers, currentDriver }) {
         </div>
         <div className="divide-y divide-stone-100">
           {otrosChoferes.map(d => (
-            <div key={d.shortName.replace('>','').charAt(0)} className="p-3 flex items-center justify-between gap-3">
+            <div key={d.id} className="p-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 flex-1">
                 <div className="bg-gradient-to-br from-amber-400 to-amber-600 w-10 h-10 rounded-lg flex items-center justify-center text-white font-black shadow-md">
-                  {d.shortName.replace('>','').charAt(0)}
+                  {d.shortName.charAt(0)}
                 </div>
                 <div>
                   <div className="font-bold text-stone-900 text-sm">{d.name}</div>
@@ -3124,7 +3146,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     return () => clearInterval(id);
   }, [isWaiting, waitStart]);
 
-  const startWaiting = async () => {
+  const startWaiting = () => {
     // Guardar tiempo en destino hasta este momento
     const arrivedMs = parseDateTime(trip.endDate, trip.endTime);
     const minutesAtDest = Math.max(0, Math.round((Date.now() - arrivedMs) / 60000));
@@ -3132,14 +3154,40 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     onMarkDeparted(trip.id); // guarda T.Destino hasta ahora
     setDeparted(true);       // detiene el timer morado
     setIsWaiting(true);
-    setWaitStart(Date.now());     const whUrl = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral;     if (whUrl) sendDiscordNotification(whUrl, {title: "EN ESPERA - " + vehicle?.code, description: driver?.name + " en espera en " + trip?.destinationBranchId}); const whUrl = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral; if (whUrl) sendDiscordNotification(whUrl, { title: `⏸️ SIN VIAJES · ${vehicle?.code}`, description: `**${currentDriver?.name}** en espera en **${trip?.customDestName || trip?.destinationBranchId}**`, color: 0x3b82f6, fields: [], footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` } });
+    setWaitStart(Date.now());
+    // Notificar Discord en canal de viajes del camión
+    const wh = config?.discordWebhookByVehicle?.[trip.vehicleId] || config?.discordWebhookGeneral;
+    if (wh) sendDiscordNotification(wh, {
+      title: `⏸️ EN ESPERA · ${vehicle?.code}`,
+      description: `**${driver?.shortName || driver?.name}** quedó en espera en **${destination?.name || '—'}** — sin viajes disponibles`,
+      color: 0x3b82f6,
+      fields: [
+        { name: '🕐 Hora', value: new Date().toLocaleTimeString('es-VE', {hour:'2-digit',minute:'2-digit'}), inline: true },
+        { name: '📍 Ubicación', value: destination?.name || '—', inline: true },
+      ],
+      footer: { text: `Transporte Emporium · ${new Date().toLocaleDateString('es-VE')}` },
+    }).catch(() => {});
   };
   const endWaiting = (goToNewTrip) => {
     const waitMin = waitStart ? Math.max(0, Math.round((Date.now() - waitStart) / 60000)) : 0;
     if (onWaitEnd) onWaitEnd(trip.id, waitMin);
     setIsWaiting(false);
-    setWaitStart(null);     const whUrl2 = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral;     if (whUrl2) sendDiscordNotification(whUrl2, {title: "FIN ESPERA - " + vehicle?.code, description: driver?.name + " retoma ruta. Espera: " + waitMin + " min"});
-    if (goToNewTrip) onNewTrip(); else if (onFinishJornada) onFinishJornada();
+    setWaitStart(null);
+    // Notificar Discord si retoma viajes
+    if (goToNewTrip) {
+      const wh = config?.discordWebhookByVehicle?.[trip.vehicleId] || config?.discordWebhookGeneral;
+      if (wh) sendDiscordNotification(wh, {
+        title: `▶️ RETOMA VIAJES · ${vehicle?.code}`,
+        description: `**${driver?.shortName || driver?.name}** retomó operaciones — hay viajes disponibles`,
+        color: 0x10b981,
+        fields: [
+          { name: '⏱️ Tiempo en espera', value: `${waitMin}m`, inline: true },
+          { name: '🕐 Hora', value: new Date().toLocaleTimeString('es-VE', {hour:'2-digit',minute:'2-digit'}), inline: true },
+        ],
+        footer: { text: `Transporte Emporium · ${new Date().toLocaleDateString('es-VE')}` },
+      }).catch(() => {});
+      onNewTrip();
+    } else if (onFinishJornada) onFinishJornada();
   };
 
   useEffect(() => {
@@ -3377,7 +3425,7 @@ function EntregarUnidadModal({ vehicle, driver, drivers = [], trips = [], onSubm
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Entregar a *</label>
             <div className="grid grid-cols-2 gap-2 mt-1">
               {otherDrivers.map(d => (
-                <button key={d.shortName.replace('>','').charAt(0)} onClick={() => setToDriver(d)}
+                <button key={d.id} onClick={() => setToDriver(d)}
                   className={`py-2.5 px-3 rounded-xl font-bold text-sm border-2 transition-all flex items-center gap-2 ${toDriver?.id === d.id ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-300'}`}>
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold ${toDriver?.id === d.id ? 'bg-emerald-600' : 'bg-stone-400'}`}>
                     {(d.shortName || d.name || '?')[0].toUpperCase()}
@@ -4222,7 +4270,7 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
             {driverRanking.map((d, i) => {
               const medal = ['🥇', '🥈', '🥉', '4°', '5°'][i] || `${i + 1}°`;
               return (
-                <div key={d.shortName.replace('>','').charAt(0)} className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap hover:bg-stone-50 transition">
+                <div key={d.id} className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap hover:bg-stone-50 transition">
                   <div className="flex items-center gap-3 flex-1">
                     <div className="text-lg w-7">{medal}</div>
                     <div>
@@ -5822,11 +5870,11 @@ function DriversTab({ drivers, saveDrivers, trips }) {
         {stats.map((d, i) => {
           const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null;
           return (
-            <div key={d.shortName.replace('>','').charAt(0)} className={`bg-white rounded-xl border-2 p-4 shadow-sm ${d.active ? 'border-stone-200' : 'border-stone-100 opacity-60'}`}>
+            <div key={d.id} className={`bg-white rounded-xl border-2 p-4 shadow-sm ${d.active ? 'border-stone-200' : 'border-stone-100 opacity-60'}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <div className="bg-gradient-to-br from-amber-400 to-amber-600 w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md relative">
-                    {d.shortName.replace('>','').charAt(0)}
+                    {d.shortName.charAt(0)}
                     {medal && <div className="absolute -top-2 -right-2 text-xl">{medal}</div>}
                   </div>
                   <div>
@@ -7217,7 +7265,7 @@ function DocumentsTab({ vehicles, saveVehicles }) {
                   {docs.map((d,i) => {
                     const st = docStatus(d.expiryDate);
                     return (
-                      <tr key={d.shortName.replace('>','').charAt(0)} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'} hover:bg-emerald-50/30`}>
+                      <tr key={d.id} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'} hover:bg-emerald-50/30`}>
                         <td className="px-4 py-3 font-bold text-stone-900">{d.name}</td>
                         <td className="px-3 py-3 text-center text-stone-500 font-mono text-xs">{d.issueDate || '—'}</td>
                         <td className="px-3 py-3 text-center font-mono text-xs font-bold text-stone-800">{d.expiryDate || '—'}</td>
