@@ -3256,7 +3256,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
             <div className="text-xs text-blue-300 mt-1 font-mono">desde las {new Date(waitStart).toLocaleTimeString('es-VE', {hour:'2-digit',minute:'2-digit'})}</div>
           </div>
           <div className="space-y-2">
-            <button onClick={() => endWaiting(true)}
+            <button onClick={() => endWaiting(false)}
               className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold flex items-center justify-center gap-2">
               ▶️ Hay viajes disponibles
             </button>
