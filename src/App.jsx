@@ -1672,19 +1672,9 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
 function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents, fuelRecords = [], saveFuelRecords, endShifts = [], saveEndShifts }) {
   const [tab, setTab] = useState('trip');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
-  const [step, setStep] = useState(() => {
-    try {
-      const s = localStorage.getItem('driver_step_' + currentDriver.id);
-      return s || 'select';
-    } catch(e) { return 'select'; }
-  });
+  const [step, setStep] = useState('select');
   const [selectedVehicle, setSelectedVehicle] = useState(null);
-  const [currentTrip, setCurrentTrip] = useState(() => {
-    try {
-      const t = localStorage.getItem('driver_trip_' + currentDriver.id);
-      return t ? JSON.parse(t) : null;
-    } catch(e) { return null; }
-  });
+  const [currentTrip, setCurrentTrip] = useState(null);
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [currentPosition, setCurrentPosition] = useState(null);
   const watchIdRef = useRef(null);
@@ -1704,15 +1694,6 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       if (active && step !== 'finish') { setCurrentTrip(active); setStep('active'); }
     }
   }, [selectedVehicle, myActiveTrips]);
-
-  // Persistir step y currentTrip para restaurar pantalla al reabrir la app
-  useEffect(() => {
-    try {
-      localStorage.setItem('driver_step_' + currentDriver.id, step);
-      if (currentTrip) localStorage.setItem('driver_trip_' + currentDriver.id, JSON.stringify(currentTrip));
-      else localStorage.removeItem('driver_trip_' + currentDriver.id);
-    } catch(e) {}
-  }, [step, currentTrip]);
 
   // Estado para velocidad y alertas
   const lastSpeedAlertRef = useRef(0);
@@ -2212,35 +2193,32 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     };
     saveIncidents([incident, ...incidents]);
     const wh = getMaintWebhook(vehicle?.id, vehicles, config);
-    const whGeneral = config?.discordWebhookGeneral;
-    const sevColor = { Leve: 0xf59e0b, Moderado: 0xef4444, Grave: 0x7f1d1d }[data.severity] || 0xef4444;
-    const incidentEmbed = {
-      title: `🚨 INCIDENTE · ${vehicle?.code || '—'} · ${data.severity.toUpperCase()}`,
-      description: `**${currentDriver.name}** reportó un incidente`,
-      color: sevColor,
-      fields: [
-        { name: '⚠️ Tipo', value: data.type, inline: true },
-        { name: '🔴 Severidad', value: data.severity, inline: true },
-        { name: '📍 Lugar', value: data.location || '—', inline: true },
-        { name: '📊 KM', value: String(incident.km), inline: true },
-        { name: '🕐 Hora', value: incident.time, inline: true },
-        { name: '📅 Fecha', value: incident.date, inline: true },
-        { name: '📝 Descripción', value: data.description, inline: false },
-      ],
-      footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
-    };
-    // Enviar a mantenimiento del vehículo
-    if (wh) await sendDiscordNotification(wh, incidentEmbed).catch(() => {});
-    // Enviar también al canal general (coordinador) si es diferente
-    if (whGeneral && whGeneral !== wh) await sendDiscordNotification(whGeneral, incidentEmbed).catch(() => {});
-    if (data.photos?.length > 0) {
-      for (const photo of data.photos) {
-        try {
-          const fd = new FormData();
-          fd.append('files[0]', photo);
-          fd.append('payload_json', JSON.stringify({ content: `📸 Evidencia · ${vehicle?.code} · ${data.severity}` }));
-          if (wh) await fetch(wh, { method: 'POST', body: fd });
-        } catch(e) {}
+    if (wh) {
+      const sevColor = { Leve: 0xf59e0b, Moderado: 0xef4444, Grave: 0x7f1d1d }[data.severity] || 0xef4444;
+      await sendDiscordNotification(wh, {
+        title: `🚨 INCIDENTE · ${vehicle?.code || '—'} · ${data.severity.toUpperCase()}`,
+        description: `**${currentDriver.name}** reportó un incidente`,
+        color: sevColor,
+        fields: [
+          { name: '⚠️ Tipo', value: data.type, inline: true },
+          { name: '🔴 Severidad', value: data.severity, inline: true },
+          { name: '📍 Lugar', value: data.location || '—', inline: true },
+          { name: '📊 KM', value: String(incident.km), inline: true },
+          { name: '🕐 Hora', value: incident.time, inline: true },
+          { name: '📅 Fecha', value: incident.date, inline: true },
+          { name: '📝 Descripción', value: data.description, inline: false },
+        ],
+        footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
+      });
+      if (data.photos?.length > 0) {
+        for (const photo of data.photos) {
+          try {
+            const fd = new FormData();
+            fd.append('files[0]', photo);
+            fd.append('payload_json', JSON.stringify({ content: `📸 Evidencia · ${vehicle?.code} · ${data.severity}` }));
+            await fetch(wh, { method: 'POST', body: fd });
+          } catch(e) {}
+        }
       }
     }
     setShowIncidentForm(false);
@@ -3155,39 +3133,13 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     setDeparted(true);       // detiene el timer morado
     setIsWaiting(true);
     setWaitStart(Date.now());
-    // Notificar Discord en canal de viajes del camión
-    const wh = config?.discordWebhookByVehicle?.[trip.vehicleId] || config?.discordWebhookGeneral;
-    if (wh) sendDiscordNotification(wh, {
-      title: `⏸️ EN ESPERA · ${vehicle?.code}`,
-      description: `**${driver?.shortName || driver?.name}** quedó en espera en **${destination?.name || '—'}** — sin viajes disponibles`,
-      color: 0x3b82f6,
-      fields: [
-        { name: '🕐 Hora', value: new Date().toLocaleTimeString('es-VE', {hour:'2-digit',minute:'2-digit'}), inline: true },
-        { name: '📍 Ubicación', value: destination?.name || '—', inline: true },
-      ],
-      footer: { text: `Transporte Emporium · ${new Date().toLocaleDateString('es-VE')}` },
-    }).catch(() => {});
   };
   const endWaiting = (goToNewTrip) => {
     const waitMin = waitStart ? Math.max(0, Math.round((Date.now() - waitStart) / 60000)) : 0;
     if (onWaitEnd) onWaitEnd(trip.id, waitMin);
     setIsWaiting(false);
     setWaitStart(null);
-    // Notificar Discord si retoma viajes
-    if (goToNewTrip) {
-      const wh = config?.discordWebhookByVehicle?.[trip.vehicleId] || config?.discordWebhookGeneral;
-      if (wh) sendDiscordNotification(wh, {
-        title: `▶️ RETOMA VIAJES · ${vehicle?.code}`,
-        description: `**${driver?.shortName || driver?.name}** retomó operaciones — hay viajes disponibles`,
-        color: 0x10b981,
-        fields: [
-          { name: '⏱️ Tiempo en espera', value: `${waitMin}m`, inline: true },
-          { name: '🕐 Hora', value: new Date().toLocaleTimeString('es-VE', {hour:'2-digit',minute:'2-digit'}), inline: true },
-        ],
-        footer: { text: `Transporte Emporium · ${new Date().toLocaleDateString('es-VE')}` },
-      }).catch(() => {});
-      onNewTrip();
-    } else if (onFinishJornada) onFinishJornada();
+    if (goToNewTrip) onNewTrip(); else if (onFinishJornada) onFinishJornada();
   };
 
   useEffect(() => {
