@@ -3124,7 +3124,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     return () => clearInterval(id);
   }, [isWaiting, waitStart]);
 
-  const startWaiting = () => {
+  const startWaiting = async () => {
     // Guardar tiempo en destino hasta este momento
     const arrivedMs = parseDateTime(trip.endDate, trip.endTime);
     const minutesAtDest = Math.max(0, Math.round((Date.now() - arrivedMs) / 60000));
