@@ -1294,7 +1294,7 @@ function LoginScreen({ drivers, onLogin }) {
               {drivers.filter(d => d.active).map(d => (
                 <button key={d.id} onClick={() => { setSelectedRole('driver'); setSelectedDriver(d); setStep('pin'); }}
                   className="w-full bg-stone-100 hover:bg-amber-50 hover:border-amber-300 border-2 border-stone-200 rounded-xl p-3 flex items-center gap-3 transition-all hover:scale-[1.01] group">
-                  <div style={{background:{DS:'#2563eb',JH:'#db2777',WF:'#d97706',RH:'#7c3aed',DA:'#16a34a',JM:'#dc2626'}[d.id]||'#6b7280'}} className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-black shadow-md">
+                  <div className={`${({DS:'bg-blue-600',JH:'bg-pink-600',WF:'bg-amber-500',RH:'bg-violet-700',DA:'bg-green-600',JM:'bg-red-600'}[d.id])||'bg-gray-500'} w-10 h-10 rounded-lg flex items-center justify-center text-white font-black shadow-md">
                     {d.shortName.charAt(0)}
                   </div>
                   <div className="text-left flex-1">
@@ -2350,7 +2350,7 @@ function DriverContactsView({ drivers, currentDriver }) {
           {otrosChoferes.map(d => (
             <div key={d.id} className="p-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 flex-1">
-                <div style={{background:{DS:'#2563eb',JH:'#db2777',WF:'#d97706',RH:'#7c3aed',DA:'#16a34a',JM:'#dc2626'}[d.id]||'#6b7280'}} className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-black shadow-md">
+                <div className={`${({DS:'bg-blue-600',JH:'bg-pink-600',WF:'bg-amber-500',RH:'bg-violet-700',DA:'bg-green-600',JM:'bg-red-600'}[d.id])||'bg-gray-500'} w-10 h-10 rounded-lg flex items-center justify-center text-white font-black shadow-md">
                   {d.shortName.charAt(0)}
                 </div>
                 <div>
