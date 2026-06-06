@@ -1688,7 +1688,11 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   const myActiveTrips = useMemo(() => activeTrips.filter(t => t.driverId === currentDriver.id), [activeTrips, currentDriver]);
   const myPhotos = useMemo(() => photos.filter(p => p.driverId === currentDriver.id), [photos, currentDriver]);
 
+  // Ref para evitar que el useEffect de viaje activo interfiera durante la restauración
+  const restoringRef = useRef(false);
+
   useEffect(() => {
+    if (restoringRef.current) return;
     if (selectedVehicle) {
       const active = myActiveTrips.find(t => t.vehicleId === selectedVehicle.id);
       if (active && step === 'select') { setCurrentTrip(active); setStep('active'); }
@@ -1702,6 +1706,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       if (saved.step && saved.step !== 'select' && saved.vehicleId) {
         const v = vehicles.find(x => x.id === saved.vehicleId);
         if (v) {
+          restoringRef.current = true;
           setSelectedVehicle(v);
           if ((saved.step === 'active' || saved.step === 'finish') && saved.currentTrip) {
             setCurrentTrip(saved.currentTrip);
@@ -1709,6 +1714,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           } else if (saved.step === 'waiting') {
             setStep('waiting');
           }
+          setTimeout(() => { restoringRef.current = false; }, 500);
         }
       }
     } catch(e) {}
