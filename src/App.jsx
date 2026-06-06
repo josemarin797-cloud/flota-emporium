@@ -2027,6 +2027,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const webhookUrl = getMaintWebhook(vId, vehicles, config);
     if (webhookUrl) {
       try {
+        const locationBranchName = (() => { const b = branches.find(x => x.id === locationBranchId); return b?.name || '—'; })();
         await sendDiscordNotification(webhookUrl, {
           title: `📤 ENTREGA DE UNIDAD · ${vCode}`,
           description: `**${currentDriver.shortName || currentDriver.name}** entregó la unidad a **${formData.toDriver?.shortName || formData.toDriver?.name || '—'}**`,
@@ -2035,6 +2036,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
             { name: '🔢 KM al entregar', value: String(formData.km), inline: true },
             { name: '⛽ Combustible', value: formData.fuel, inline: true },
             { name: '🕐 Hora', value: handoffTime, inline: true },
+            { name: '📍 Lugar de entrega', value: locationBranchName, inline: true },
+            { name: '👤 Recibe', value: formData.toDriver?.name || '—', inline: true },
             { name: '📝 Observaciones', value: formData.notes || 'sin novedad', inline: false },
           ],
           footer: { text: `Transporte Emporium · ${now.toLocaleDateString('es-VE')}` },
@@ -2591,8 +2594,9 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   const lastTrip = useMemo(() => [...trips].filter(t => t.vehicleId === vehicle.id).sort((a, b) => b.createdAt - a.createdAt)[0], [trips, vehicle]);
   const now = new Date();
   const [formOpenedAt] = useState(() => Date.now());
+  const defaultOrigin = initialOriginBranchId || (lastTrip ? lastTrip.destinationBranchId : (branches[0]?.id || ''));
   const [form, setForm] = useState({
-    originBranchId: initialOriginBranchId || (lastTrip ? lastTrip.destinationBranchId : (branches[0]?.id || '')),
+    originBranchId: defaultOrigin,
     destinationBranchId: '',
     kmStart: (() => {
       // Prioridad: 1) último viaje de HOY, 2) KM del checklist, 3) último viaje histórico, 4) KM actual del vehículo
@@ -2607,6 +2611,17 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
     startDate: now.toISOString().slice(0, 10), startTime: now.toTimeString().slice(0, 5),
     fuelLoaded: 0,
   });
+  // Leer handoff confirmado desde Supabase para pre-seleccionar origen correctamente
+  useEffect(() => {
+    if (initialOriginBranchId) return; // ya viene pre-seleccionado
+    sbFetch('handoffs?vehicle_id=eq.' + vehicle.id + '&status=eq.confirmed&to_driver_id=eq.' + driver.id + '&select=location_branch_id&order=confirmed_at.desc&limit=1')
+      .then(data => {
+        if (Array.isArray(data) && data[0]?.location_branch_id) {
+          setForm(f => ({ ...f, originBranchId: data[0].location_branch_id }));
+        }
+      }).catch(() => {});
+  }, []);
+
   const [timeAtBranch, setTimeAtBranch] = useState('');
   const [showFuel, setShowFuel] = useState(false);
   const [tripNotes, setTripNotes] = useState('');
