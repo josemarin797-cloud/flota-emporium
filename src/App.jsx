@@ -1691,9 +1691,40 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   useEffect(() => {
     if (selectedVehicle) {
       const active = myActiveTrips.find(t => t.vehicleId === selectedVehicle.id);
-      if (active && step !== 'finish') { setCurrentTrip(active); setStep('active'); }
+      if (active && step === 'select') { setCurrentTrip(active); setStep('active'); }
     }
   }, [selectedVehicle, myActiveTrips]);
+
+  // Restaurar step desde localStorage al montar (solo una vez)
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('driverState_' + currentDriver.id) || '{}');
+      if (saved.step && saved.step !== 'select' && saved.vehicleId) {
+        const v = vehicles.find(x => x.id === saved.vehicleId);
+        if (v) {
+          setSelectedVehicle(v);
+          if ((saved.step === 'active' || saved.step === 'finish') && saved.currentTrip) {
+            setCurrentTrip(saved.currentTrip);
+            setStep(saved.step);
+          } else if (saved.step === 'waiting') {
+            setStep('waiting');
+          }
+        }
+      }
+    } catch(e) {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persistir step, vehicleId y currentTrip cuando cambian
+  useEffect(() => {
+    try {
+      localStorage.setItem('driverState_' + currentDriver.id, JSON.stringify({
+        step,
+        vehicleId: selectedVehicle?.id || null,
+        currentTrip: (step === 'active' || step === 'finish') ? currentTrip : null,
+      }));
+    } catch(e) {}
+  }, [step, selectedVehicle, currentTrip, currentDriver.id]);
 
   // Estado para velocidad y alertas
   const lastSpeedAlertRef = useRef(0);
@@ -2245,7 +2276,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         </div>
         <div className="flex items-center gap-2">
           <VoiceToggleButton />
-          <button onClick={() => { stopGpsTracking(); onLogout(); }} className="text-stone-300 hover:text-white text-sm flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition">
+          <button onClick={() => { stopGpsTracking(); try { localStorage.removeItem("driverState_" + currentDriver.id); } catch(e){} onLogout(); }} className="text-stone-300 hover:text-white text-sm flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition">
             <LogOut className="w-4 h-4" /> Salir
           </button>
         </div>
