@@ -2004,6 +2004,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const now = new Date();
     const handoffTime = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
     const handoffDate = now.toISOString().slice(0, 10);
+    // Ubicación actual = destino del viaje en curso (donde está el vehículo ahora)
+    const locationBranchId = currentTrip?.destinationBranchId || null;
     const handoff = {
       id: `handoff_${Date.now()}`,
       vehicleId: vId, vehicleCode: vCode,
@@ -2015,6 +2017,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       fuelAtHandoff: formData.fuel,
       notes: formData.notes,
       handoffDate, handoffTime,
+      locationBranchId,
       status: 'pending',
     };
     const filtered = (handoffs || []).filter(h => !(h.vehicleId === vId && h.status === 'pending'));
@@ -2288,12 +2291,12 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
               } else {
                 setStep('checklist');
               }
-            }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} />
+            }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} branches={branches} config={config} setChecklistKm={setChecklistKm} setStep={setStep} />
           </>}
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) setChecklistKm(Number(km)); setStep('start'); }} onBack={() => setStep('select')} config={config} endShifts={endShifts} />}
-          {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} />}
+          {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} initialOriginBranchId={(() => { const ch = (handoffs||[]).find(h => h.vehicleId === selectedVehicle?.id && h.status === 'confirmed' && h.toDriverId === currentDriver.id); return ch?.locationBranchId || null; })()} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} />}
           {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} kmInicial={endShiftTripData.kmUltimoViaje} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
@@ -2382,7 +2385,7 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
   );
 }
 
-function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [] }) {
+function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep }) {
   // Cargar active_trips frescos desde Supabase para bloqueo en tiempo real
   const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
   React.useEffect(() => {
@@ -2399,12 +2402,17 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
     const now = new Date();
     const confirmedAt = now.toISOString();
     const driverName = currentDriver?.shortName || currentDriver?.name || '';
+    const locationBranch = branches.find(b => b.id === pendingHandoff.locationBranchId);
+    const locationName = locationBranch?.name || pendingHandoff.locationBranchId || '—';
     const updated = (handoffs || []).map(h =>
       h.id === pendingHandoff.id
         ? { ...h, status: 'confirmed', toDriverId: currentDriver?.id, toDriverName: driverName, confirmedAt, receptionNotes }
         : h
     );
     saveHandoffs(updated);
+
+    // Pre-llenar KM y origen en StartTripForm via setChecklistKm
+    if (setChecklistKm) setChecklistKm(Number(pendingHandoff.kmAtHandoff) || null);
 
     // Notificar Discord — recepción confirmada
     const vId = pendingHandoff.vehicleId;
@@ -2419,12 +2427,15 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
           fields: [
             { name: '🔢 KM al recibir', value: String(pendingHandoff.kmAtHandoff || 0), inline: true },
             { name: '⛽ Combustible', value: String(pendingHandoff.fuelAtHandoff || '—'), inline: true },
+            { name: '📍 Ubicación', value: locationName, inline: true },
             { name: '🕐 Hora', value: now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }), inline: true },
             { name: '📝 Recepción', value: receptionNotes || 'sin novedad', inline: false },
           ],
           footer: { text: `Transporte Emporium · ${now.toLocaleDateString('es-VE')}` },
         });
-      } catch(e) {}
+      } catch(e) { console.error('Discord error:', e); }
+    } else {
+      console.warn('No webhook found para vehiculo', vId, v);
     }
   };
 
@@ -2529,9 +2540,10 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
             <div>
               <div className="font-bold text-amber-900 text-sm">RECEPCIÓN DE UNIDAD</div>
               <div className="text-xs text-amber-700">Entregado por: <b>{pendingHandoff.fromDriverName}</b> · {pendingHandoff.handoffTime}</div>
+              {pendingHandoff.locationBranchId && (() => { const lb = branches.find(b => b.id === pendingHandoff.locationBranchId); return lb ? <div className="text-xs text-emerald-700 font-semibold mt-0.5">📍 Ubicación: {lb.name}</div> : null; })()}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="grid grid-cols-3 gap-2 text-sm">
             <div className="bg-white rounded-lg p-2 border border-amber-200">
               <div className="text-xs text-stone-500">KM al entregar</div>
               <div className="font-bold text-stone-900">{(pendingHandoff.kmAtHandoff || 0).toLocaleString()}</div>
@@ -2539,6 +2551,10 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
             <div className="bg-white rounded-lg p-2 border border-amber-200">
               <div className="text-xs text-stone-500">Combustible</div>
               <div className="font-bold text-stone-900">{pendingHandoff.fuelAtHandoff || 0} L</div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-amber-200">
+              <div className="text-xs text-stone-500">Origen viaje</div>
+              <div className="font-bold text-stone-900 text-xs">{(() => { const lb = branches.find(b => b.id === pendingHandoff.locationBranchId); return lb?.name || '—'; })()}</div>
             </div>
           </div>
           {pendingHandoff.notes && (
@@ -2571,12 +2587,12 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
   );
 }
 
-function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, initialKm }) {
+function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, initialKm, initialOriginBranchId }) {
   const lastTrip = useMemo(() => [...trips].filter(t => t.vehicleId === vehicle.id).sort((a, b) => b.createdAt - a.createdAt)[0], [trips, vehicle]);
   const now = new Date();
   const [formOpenedAt] = useState(() => Date.now());
   const [form, setForm] = useState({
-    originBranchId: lastTrip ? lastTrip.destinationBranchId : (branches[0]?.id || ''),
+    originBranchId: initialOriginBranchId || (lastTrip ? lastTrip.destinationBranchId : (branches[0]?.id || '')),
     destinationBranchId: '',
     kmStart: (() => {
       // Prioridad: 1) último viaje de HOY, 2) KM del checklist, 3) último viaje histórico, 4) KM actual del vehículo
