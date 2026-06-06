@@ -1688,49 +1688,12 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   const myActiveTrips = useMemo(() => activeTrips.filter(t => t.driverId === currentDriver.id), [activeTrips, currentDriver]);
   const myPhotos = useMemo(() => photos.filter(p => p.driverId === currentDriver.id), [photos, currentDriver]);
 
-  // Ref para evitar que el useEffect de viaje activo interfiera durante la restauración
-  const restoringRef = useRef(false);
-
   useEffect(() => {
-    if (restoringRef.current) return;
     if (selectedVehicle) {
       const active = myActiveTrips.find(t => t.vehicleId === selectedVehicle.id);
       if (active && step === 'select') { setCurrentTrip(active); setStep('active'); }
     }
   }, [selectedVehicle, myActiveTrips]);
-
-  // Restaurar step desde localStorage al montar (solo una vez)
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem('driverState_' + currentDriver.id) || '{}');
-      if (saved.step && saved.step !== 'select' && saved.vehicleId) {
-        const v = vehicles.find(x => x.id === saved.vehicleId);
-        if (v) {
-          restoringRef.current = true;
-          setSelectedVehicle(v);
-          if ((saved.step === 'active' || saved.step === 'finish') && saved.currentTrip) {
-            setCurrentTrip(saved.currentTrip);
-            setStep(saved.step);
-          } else if (saved.step === 'waiting') {
-            setStep('waiting');
-          }
-          setTimeout(() => { restoringRef.current = false; }, 500);
-        }
-      }
-    } catch(e) {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Persistir step, vehicleId y currentTrip cuando cambian
-  useEffect(() => {
-    try {
-      localStorage.setItem('driverState_' + currentDriver.id, JSON.stringify({
-        step,
-        vehicleId: selectedVehicle?.id || null,
-        currentTrip: (step === 'active' || step === 'finish') ? currentTrip : null,
-      }));
-    } catch(e) {}
-  }, [step, selectedVehicle, currentTrip, currentDriver.id]);
 
   // Estado para velocidad y alertas
   const lastSpeedAlertRef = useRef(0);
@@ -2282,7 +2245,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         </div>
         <div className="flex items-center gap-2">
           <VoiceToggleButton />
-          <button onClick={() => { stopGpsTracking(); try { localStorage.removeItem("driverState_" + currentDriver.id); } catch(e){} onLogout(); }} className="text-stone-300 hover:text-white text-sm flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition">
+          <button onClick={() => { stopGpsTracking(); onLogout(); }} className="text-stone-300 hover:text-white text-sm flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-white/10 transition">
             <LogOut className="w-4 h-4" /> Salir
           </button>
         </div>
@@ -2420,6 +2383,14 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
 }
 
 function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [] }) {
+  // Cargar active_trips frescos desde Supabase para bloqueo en tiempo real
+  const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
+  React.useEffect(() => {
+    sbFetch('active_trips?select=*').then(data => {
+      if (Array.isArray(data)) setLiveActiveTrips(data);
+    }).catch(() => {});
+  }, []);
+
   const pendingHandoff = selectedVehicle
     ? (handoffs || []).find(h => h.vehicleId === selectedVehicle.id && h.status === 'pending' && h.fromDriverId !== currentDriver?.id)
     : null;
@@ -2437,9 +2408,9 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
   const getVehiclePending = (vehicleId) =>
     (handoffs || []).find(h => h.vehicleId === vehicleId && h.status === 'pending');
 
-  // Verificar si un vehículo tiene viaje activo de OTRO chofer
+  // Verificar si un vehículo tiene viaje activo de OTRO chofer (usando datos frescos de Supabase)
   const getActiveByOther = (vehicleId) =>
-    activeTrips.find(t => t.vehicleId === vehicleId && t.driverId !== currentDriver?.id);
+    liveActiveTrips.find(t => t.vehicleId === vehicleId && t.driverId !== currentDriver?.id);
 
   return (
     <div className="space-y-4">
@@ -2468,21 +2439,19 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
             // Tiene viaje activo de otro chofer
             const occupiedByOther = !!activeByOther && !waitingForOther && !waitingForMe;
 
-            const isBlocked = waitingForOther || occupiedByOther;
+            const isBlocked = waitingForOther || occupiedByOther || enTaller;
 
             return (
               <button key={v.id} onClick={() => {
                 if (isBlocked) return;
-                if (enTaller) {
-                  if (!confirm(`${v.code} está marcado como EN TALLER.\n\n${v.observations || ''}\n\n¿Estás seguro de usarlo?`)) return;
-                }
                 setSelectedVehicle(v);
               }}
                 className={`w-full p-3 rounded-xl border-2 flex items-center justify-between transition-all ${
-                  isBlocked ? 'border-red-200 bg-red-50/50 opacity-60 cursor-not-allowed' :
+                  enTaller ? 'border-rose-400 bg-rose-50 opacity-70 cursor-not-allowed' :
+                  occupiedByOther ? 'border-red-300 bg-red-50 opacity-70 cursor-not-allowed' :
+                  waitingForOther ? 'border-orange-200 bg-orange-50/50 opacity-60 cursor-not-allowed' :
                   waitingForMe ? 'border-emerald-400 bg-emerald-50 shadow-md animate-pulse' :
                   isSelected ? 'border-emerald-600 bg-emerald-50 shadow-md' :
-                  enTaller ? 'border-rose-200 bg-rose-50/30 hover:border-rose-300' :
                   'border-stone-200 hover:border-stone-300 bg-white'
                 }`}>
                 <div className="flex items-center gap-3 text-left">
@@ -2499,7 +2468,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                       {waitingForMe && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">⏳ Para ti</span>}
                       {waitingForOther && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera por {pendingForV.toDriverNameExpected}</span>}
                       {waitingGeneral && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera</span>}
-                      {occupiedByOther && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔒 En uso</span>}
+                      {occupiedByOther && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔒 Ocupado · {activeByOther.driverName || 'otro chofer'}</span>}
                     </div>
                     <div className="text-xs text-stone-500">{v.plate} · {v.performance} km/L</div>
                     {waitingForOther && <div className="text-[10px] text-orange-600 font-medium">Reservado para {pendingForV.toDriverNameExpected}</div>}
