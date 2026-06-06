@@ -3108,8 +3108,8 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
   const [departed, setDeparted] = useState(!!trip.timeAtDestinationMinutes);
   const [confirmedMinutes, setConfirmedMinutes] = useState(trip.timeAtDestinationMinutes || null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [isWaiting, setIsWaiting] = useState(false);
-  const [waitStart, setWaitStart] = useState(null);
+  const [isWaiting, setIsWaiting] = useState(!!localStorage.getItem('emp:isWaiting:'+trip.id));
+  const [waitStart, setWaitStart] = useState(localStorage.getItem('emp:waitStart:'+trip.id) ? Number(localStorage.getItem('emp:waitStart:'+trip.id)) : null);
   const [waitDisplay, setWaitDisplay] = useState('0m 00s');
 
   useEffect(() => {
@@ -3131,14 +3131,14 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     setConfirmedMinutes(minutesAtDest);
     onMarkDeparted(trip.id); // guarda T.Destino hasta ahora
     setDeparted(true);       // detiene el timer morado
-    setIsWaiting(true);
-    setWaitStart(Date.now());     const wh1 = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral;     if (wh1) sendDiscordNotification(wh1, {title: "EN ESPERA - " + vehicle?.code, description: driver?.name + " en espera en " + trip?.destinationBranchId});
+    setIsWaiting(true); localStorage.setItem('emp:isWaiting:'+trip.id, '1');
+    setWaitStart(Date.now()); localStorage.setItem('emp:waitStart:'+trip.id, Date.now());     const wh1 = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral;     if (wh1) sendDiscordNotification(wh1, {title: "EN ESPERA - " + vehicle?.code, description: driver?.name + " en espera en " + trip?.destinationBranchId});
   };
   const endWaiting = (goToNewTrip) => {
     const waitMin = waitStart ? Math.max(0, Math.round((Date.now() - waitStart) / 60000)) : 0;
     if (onWaitEnd) onWaitEnd(trip.id, waitMin);
-    setIsWaiting(false);
-    setWaitStart(null);     const wh2 = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral;     if (wh2) sendDiscordNotification(wh2, {title: "FIN ESPERA - " + vehicle?.code, description: driver?.name + " retoma. Espera: " + waitMin + " min"});
+    setIsWaiting(false); localStorage.removeItem('emp:isWaiting:'+trip.id);
+    setWaitStart(null); localStorage.removeItem('emp:waitStart:'+trip.id);     const wh2 = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral;     if (wh2) sendDiscordNotification(wh2, {title: "FIN ESPERA - " + vehicle?.code, description: driver?.name + " retoma. Espera: " + waitMin + " min"});
     if (goToNewTrip) onNewTrip(); else if (onFinishJornada) onFinishJornada();
   };
 
