@@ -2394,14 +2394,38 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
   const pendingHandoff = selectedVehicle
     ? (handoffs || []).find(h => h.vehicleId === selectedVehicle.id && h.status === 'pending' && h.fromDriverId !== currentDriver?.id)
     : null;
-  const confirmHandoff = (receptionNotes) => {
+  const confirmHandoff = async (receptionNotes) => {
     if (!saveHandoffs) return;
+    const now = new Date();
+    const confirmedAt = now.toISOString();
+    const driverName = currentDriver?.shortName || currentDriver?.name || '';
     const updated = (handoffs || []).map(h =>
       h.id === pendingHandoff.id
-        ? { ...h, status: 'confirmed', toDriverId: currentDriver?.id, toDriverName: currentDriver?.shortName || currentDriver?.name, confirmedAt: new Date().toISOString(), receptionNotes }
+        ? { ...h, status: 'confirmed', toDriverId: currentDriver?.id, toDriverName: driverName, confirmedAt, receptionNotes }
         : h
     );
     saveHandoffs(updated);
+
+    // Notificar Discord — recepción confirmada
+    const vId = pendingHandoff.vehicleId;
+    const v = vehicles.find(x => x.id === vId);
+    const webhookUrl = v?.maintenanceWebhook || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    if (webhookUrl) {
+      try {
+        await sendDiscordNotification(webhookUrl, {
+          title: `✅ RECEPCIÓN DE UNIDAD · ${v?.code || vId}`,
+          description: `**${driverName}** recibió la unidad de **${pendingHandoff.fromDriverName || '—'}**`,
+          color: 0x10b981,
+          fields: [
+            { name: '🔢 KM al recibir', value: String(pendingHandoff.kmAtHandoff || 0), inline: true },
+            { name: '⛽ Combustible', value: String(pendingHandoff.fuelAtHandoff || '—'), inline: true },
+            { name: '🕐 Hora', value: now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }), inline: true },
+            { name: '📝 Recepción', value: receptionNotes || 'sin novedad', inline: false },
+          ],
+          footer: { text: `Transporte Emporium · ${now.toLocaleDateString('es-VE')}` },
+        });
+      } catch(e) {}
+    }
   };
 
   // Verificar si un vehículo está en espera de traspaso
@@ -2409,8 +2433,18 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
     (handoffs || []).find(h => h.vehicleId === vehicleId && h.status === 'pending');
 
   // Verificar si un vehículo tiene viaje activo de OTRO chofer (usando datos frescos de Supabase)
-  const getActiveByOther = (vehicleId) =>
-    liveActiveTrips.find(t => t.vehicleId === vehicleId && t.driverId !== currentDriver?.id);
+  // También bloquea si hay handoff confirmado a otro chofer (ya recibió pero aún no inició viaje)
+  const getActiveByOther = (vehicleId) => {
+    const fromTrip = liveActiveTrips.find(t => t.vehicleId === vehicleId && t.driverId !== currentDriver?.id);
+    if (fromTrip) return fromTrip;
+    const confirmedHandoff = (handoffs || []).find(h =>
+      h.vehicleId === vehicleId &&
+      h.status === 'confirmed' &&
+      h.toDriverId !== currentDriver?.id
+    );
+    if (confirmedHandoff) return { vehicleId, driverName: confirmedHandoff.toDriverName || confirmedHandoff.toDriverNameExpected || 'otro chofer' };
+    return null;
+  };
 
   return (
     <div className="space-y-4">
