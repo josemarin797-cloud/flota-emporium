@@ -2359,7 +2359,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
               // Aviso de voz si el vehículo tiene cita próxima — una sola vez por día por vehículo
               if ((s === 'start' || s === 'checklist') && selectedVehicle) {
                 const today = new Date().toISOString().slice(0,10);
-                const ap = appointments.filter(a => a.vehicleId === selectedVehicle.id && a.fecha >= today).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
+                const ap = (appointments||[]).filter(a => a.vehicleId === selectedVehicle.id && a.fecha >= today).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
                 if (ap) {
                   const announcedKey = `emp:cita_anunciada_${selectedVehicle.id}_${today}`;
                   const yaAnunciado = localStorage.getItem(announcedKey);
@@ -6637,7 +6637,7 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
     // Eliminar citas pendientes del mismo vehículo que coincidan con el tipo de trabajo
     if (saveAppointments) {
       const today = new Date().toISOString().slice(0,10);
-      const remaining = appointments.filter(a => {
+      const remaining = (appointments||[]).filter(a => {
         if (a.vehicleId !== form.vehicleId) return true;
         if (a.fecha < today) return false; // ya vencidas igual se limpian
         // Comparar tipo de servicio (flexible)
