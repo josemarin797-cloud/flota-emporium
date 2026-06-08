@@ -488,14 +488,6 @@ function TVDashboard({ vehicles, activeTrips, trips, drivers, branches }) {
 }
 
 export default function App() {
-  // Forzar actualización del SW/caché
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(regs => {
-        regs.forEach(r => r.update());
-      });
-    }
-  }, []);
   const [view, setView] = useState('welcome');
   const [currentUser, setCurrentUser] = useState(null);
   const [vehicles, setVehicles] = useState(INITIAL_VEHICLES);
@@ -515,7 +507,7 @@ export default function App() {
   const [maintRecords, setMaintRecords] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [fuelRecords, setFuelRecords] = useState([]);
-  const [appointments, setAppointments] = useState([]); // citas de taller
+  const [appointments, setAppointments] = useState([]);
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
 
@@ -569,7 +561,7 @@ export default function App() {
         const frLocal = await window.storage.get(KEYS.FUEL_RECORDS).catch(() => null);
         if (frLocal?.value) setFuelRecords(JSON.parse(frLocal.value));
         const apLocal = await window.storage.get(KEYS.APPOINTMENTS).catch(() => null);
-        if (apLocal?.value) { try { setAppointments(JSON.parse(apLocal.value)); } catch(e) { setAppointments([]); } } else { setAppointments([]); }
+        if (apLocal?.value) setAppointments(JSON.parse(apLocal.value));
       } catch (e) {}
       setLoading(false);
     };
@@ -702,16 +694,12 @@ export default function App() {
             from_driver_name: h.fromDriverName,
             to_driver_id: h.toDriverId || '',
             to_driver_name_expected: h.toDriverNameExpected || '',
-            to_driver_name: h.toDriverName || '',
             km_at_handoff: h.kmAtHandoff || 0,
             fuel_at_handoff: h.fuelAtHandoff || '',
             notes: h.notes || '',
             handoff_date: h.handoffDate || '',
             handoff_time: h.handoffTime || '',
-            location_branch_id: h.locationBranchId || null,
             status: h.status || 'pending',
-            confirmed_at: h.confirmedAt || null,
-            reception_notes: h.receptionNotes || null,
           }),
         });
       }
@@ -878,7 +866,6 @@ export default function App() {
         fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords}
         endShifts={endShifts} saveEndShifts={saveEndShifts}
         appointments={appointments}
-        saveAppointments={saveAppointments}
       />
       <InstallAppButton />
     </>;
@@ -2396,7 +2383,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) setChecklistKm(Number(km)); setStep('start'); }} onBack={() => setStep('select')} config={config} endShifts={endShifts} />}
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} initialOriginBranchId={(() => { const ch = (handoffs||[]).find(h => h.vehicleId === selectedVehicle?.id && h.status === 'confirmed' && h.toDriverId === currentDriver.id); return ch?.locationBranchId || null; })()} />}
-          {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} appointments={appointments} saveAppointments={saveAppointments} />}
+          {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} appointments={appointments} saveAppointments={saveAppointments} />}
           {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} kmInicial={endShiftTripData.kmUltimoViaje} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
           {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} drivers={drivers} trips={trips} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
@@ -2613,12 +2600,12 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                       {waitingForOther && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera por {pendingForV.toDriverNameExpected}</span>}
                       {waitingGeneral && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera</span>}
                       {occupiedByOther && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔒 Ocupado · {activeByOther.driverName || 'otro chofer'}</span>}
-                      {(() => { const ap = (appointments||[]).filter(a => a.vehicleId === v.id && a.fecha >= new Date().toISOString().slice(0,10)).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0]; return ap ? <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔧 Cita: {ap.fecha} · {ap.tipo}</span> : null; })()}
+                      {(() => { const ap = appointments.filter(a => a.vehicleId === v.id && a.fecha >= new Date().toISOString().slice(0,10)).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0]; return ap ? <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔧 Cita: {ap.fecha} · {ap.tipo}</span> : null; })()}
                     </div>
                     <div className="text-xs text-stone-500">{v.plate} · {v.performance} km/L</div>
                     {waitingForOther && <div className="text-[10px] text-orange-600 font-medium">Reservado para {pendingForV.toDriverNameExpected}</div>}
                     {occupiedByOther && <div className="text-[10px] text-red-600 font-medium">En viaje con {activeByOther.driverName || 'otro chofer'}</div>}
-                    {(() => { const ap = (appointments||[]).filter(a => a.vehicleId === v.id && a.fecha >= new Date().toISOString().slice(0,10)).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0]; if (!ap) return null; const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000); return <div className="text-[10px] text-indigo-600 font-medium">📅 Cita {days===0?'hoy':days===1?'mañana':`en ${days} días`}: {ap.taller||ap.tipo}</div>; })()}
+                    {(() => { const ap = appointments.filter(a => a.vehicleId === v.id && a.fecha >= new Date().toISOString().slice(0,10)).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0]; if (!ap) return null; const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000); return <div className="text-[10px] text-indigo-600 font-medium">📅 Cita {days===0?'hoy':days===1?'mañana':`en ${days} días`}: {ap.taller||ap.tipo}</div>; })()}
                   </div>
                 </div>
                 <div className="text-right">
@@ -2712,7 +2699,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   // Leer handoff confirmado desde Supabase para pre-seleccionar origen correctamente
   useEffect(() => {
     if (initialOriginBranchId) return; // ya viene pre-seleccionado
-    sbFetch('handoffs?vehicle_id=eq.' + vehicle.id + '&status=eq.confirmed&to_driver_id=eq.' + driver.id + '&select=location_branch_id&order=handoff_date.desc&limit=1')
+    sbFetch('handoffs?vehicle_id=eq.' + vehicle.id + '&status=eq.confirmed&to_driver_id=eq.' + driver.id + '&select=location_branch_id&order=confirmed_at.desc&limit=1')
       .then(data => {
         if (Array.isArray(data) && data[0]?.location_branch_id) {
           setForm(f => ({ ...f, originBranchId: data[0].location_branch_id }));
@@ -2901,7 +2888,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   );
 }
 
-function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, onAddPhoto, gpsEnabled, currentPosition, fuelRecords = [], saveFuelRecords, config, appointments = [], saveAppointments }) {
+function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, onAddPhoto, gpsEnabled, currentPosition, fuelRecords = [], saveFuelRecords, config }) {
   const [elapsed, setElapsed] = useState('');
   const [showFinishForm, setShowFinishForm] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -3401,7 +3388,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
           </div>
           {trip.destinationBranchId === 'taller' && vehicle && (
             <div className="mt-3 pt-3 border-t border-white/20">
-              <TallerEntradaForm vehicle={vehicle} driver={driver} vehicles={allVehicles} saveVehicles={saveVehicles} config={config} appointments={appointments} saveAppointments={saveAppointments} onRegistered={onCancel} />
+              <TallerEntradaForm vehicle={vehicle} driver={driver} vehicles={allVehicles} saveVehicles={saveVehicles} config={config} />
             </div>
           )}
         </div>
@@ -3998,7 +3985,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
         {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
-        {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} appointments={appointments} saveAppointments={saveAppointments} />}
+        {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
         {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} maintRecords={maintRecords} saveMaintRecords={saveMaintRecords} appointments={appointments} saveAppointments={saveAppointments} config={config} />}
@@ -5894,7 +5881,7 @@ function VehicleForm({ v, onSave, onCancel, title }) {
   );
 }
 
-function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig, appointments = [], saveAppointments }) {
+function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig }) {
   const [editing, setEditing] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
 
@@ -5968,25 +5955,6 @@ function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig, a
                     <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Días</div><div className="font-bold text-stone-900">{new Set(vt.map(t=>t.startDate)).size}</div></div>
                   </div>
                   {v.observations && <div className="mt-2 text-xs bg-amber-950/30 border border-amber-700/30 rounded p-2 text-amber-700">{v.observations}</div>}
-                  {v.status === 'EN TALLER' && (
-                    <div className="mt-3 bg-rose-50 border border-rose-200 rounded-xl p-3 space-y-2">
-                      <div className="text-xs font-bold text-rose-700 uppercase">🔧 En taller</div>
-                      <div className="text-xs text-rose-600">{v.tallerMotivo || 'En servicio'}</div>
-                      {v.tallerEntrada && <div className="text-xs text-stone-500">⏱️ {(() => { const s=Math.floor((Date.now()-v.tallerEntrada)/1000); const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60); return d>0?`${d}d ${h}h`:h>0?`${h}h ${m}m`:`${m}m`; })()} en taller</div>}
-                      <button onClick={() => {
-                        const km = prompt(`KM al retirar ${v.code} del taller:`, v.currentKm?.toString()||'0');
-                        if (!km || isNaN(Number(km))) return;
-                        const trabajo = prompt('Trabajo realizado en taller:') || '—';
-                        const today = new Date().toISOString().slice(0,10);
-                        saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, status: 'AL DIA', currentKm: Number(km), tallerSalida: Date.now(), tallerTrabajo: trabajo, tallerEntrada: null, tallerMotivo: null, tallerChofer: null } : x));
-                        if (saveAppointments) saveAppointments((appointments||[]).filter(a => !(a.vehicleId === v.id && a.fecha >= today)));
-                        const wh = v.maintenanceWebhook || config?.discordWebhookMaintenance;
-                        if (wh) sendDiscordNotification(wh, { title: `✅ RETIRO DE TALLER · ${v.code}`, description: `Coordinador retiró **${v.code}** del taller`, color: 0x10b981, fields: [{ name: '🛠️ Trabajo', value: trabajo, inline: false }, { name: '📍 KM', value: Number(km).toLocaleString(), inline: true }] }).catch(()=>{});
-                      }} className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
-                        ✅ Retirar del taller (coordinador)
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -6385,7 +6353,7 @@ function RetirarTallerView({ vehicle, driver, vehicles, saveVehicles, config, on
   );
 }
 
-function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config, appointments = [], saveAppointments, onRegistered }) {
+function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config }) {
   const [motivo, setMotivo] = useState('');
   const [submitted, setSubmitted] = useState(vehicle?.status === 'EN TALLER');
 
@@ -6406,11 +6374,6 @@ function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config, ap
       tallerChofer: driver.name,
     } : v);
     saveVehicles(updatedVehicles);
-    // Eliminar citas pendientes del vehículo al entrar al taller
-    if (saveAppointments && (appointments||[]).length > 0) {
-      const today = new Date().toISOString().slice(0,10);
-      saveAppointments((appointments||[]).filter(a => !(a.vehicleId === vehicle.id && a.fecha >= today)));
-    }
     const wh = getMaintWebhook(vehicle?.id, vehicles, config);
     if (wh) sendDiscordNotification(wh, {
       title: `🔧 EN TALLER · ${vehicle.code}`,
@@ -6423,8 +6386,6 @@ function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config, ap
       ],
     }).catch(() => {});
     setSubmitted(true);
-    // Salir automáticamente después de registrar
-    setTimeout(() => { if (onRegistered) onRegistered(); }, 1500);
   };
 
   return (
@@ -6587,11 +6548,11 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
     }
   };
 
-  const delAppt = (id) => { if (confirm('Eliminar cita?')) saveAppointments((appointments||[]).filter(a => a.id !== id)); };
+  const delAppt = (id) => { if (confirm('Eliminar cita?')) saveAppointments(appointments.filter(a => a.id !== id)); };
 
   const today = new Date().toISOString().slice(0,10);
-  const upcomingAppts = (appointments||[]).filter(a => a.fecha >= today).sort((a,b) => a.fecha.localeCompare(b.fecha));
-  const pastAppts = (appointments||[]).filter(a => a.fecha < today).sort((a,b) => b.fecha.localeCompare(a.fecha));
+  const upcomingAppts = appointments.filter(a => a.fecha >= today).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const pastAppts = appointments.filter(a => a.fecha < today).sort((a,b) => b.fecha.localeCompare(a.fecha));
   // ── FIN CITAS ─────────────────────────────────────────────
 
   const SERVICIOS = [
@@ -6649,14 +6610,14 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
     // Eliminar citas pendientes del mismo vehículo que coincidan con el tipo de trabajo
     if (saveAppointments) {
       const today = new Date().toISOString().slice(0,10);
-      const remaining = (appointments||[]).filter(a => {
+      const remaining = appointments.filter(a => {
         if (a.vehicleId !== form.vehicleId) return true;
         if (a.fecha < today) return false; // ya vencidas igual se limpian
         // Comparar tipo de servicio (flexible)
         const tipoNorm = (s) => s.toLowerCase().replace(/[^a-z]/g,'');
         return tipoNorm(a.tipo) !== tipoNorm(form.trabajo) && !form.trabajo.toLowerCase().includes(tipoNorm(a.tipo));
       });
-      if (remaining.length < (appointments||[]).length) saveAppointments(remaining);
+      if (remaining.length < appointments.length) saveAppointments(remaining);
     }
     setForm(emptyForm);
     setShowForm(false);
