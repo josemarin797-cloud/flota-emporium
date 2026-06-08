@@ -133,11 +133,11 @@ const GLOBAL_PASSWORD = 'emporium'; // Contraseña general para entrar a la app
 const COORDINATOR_PHONE = '+584123932778';
 
 const INITIAL_VEHICLES = [
-  { id: 'v1', code: 'NPR 01', plate: 'A91BF8M', type: 'NPR', performance: 4.76, status: 'AL DIA', currentKm: 142107, lastMaintKm: 141364, maintFreq: 6000, lastGreaseKm: 141364, greaseFreq: 3000, observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#10b981', maintenanceWebhook: 'https://discord.com/api/webhooks/1509242456087068822/ACGCYCjKC_uNhyQ-0d5whzwI4ClkFLcxSwL0zRWBvITr8N9VRJII9jkkTNmjhzIVEZUQ' },
-  { id: 'v2', code: 'NPR 02', plate: 'A21AM9G', type: 'NPR', performance: 4.41, status: 'AL DIA', currentKm: 48831, lastMaintKm: 48831, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#f59e0b', maintenanceWebhook: 'https://discord.com/api/webhooks/1509242789555081411/Okm2gGABQFwI2CM7MMkqp9UWYbZCbQQelTeheLEk0dlmmTmJk-0aPi7D7yGZSqRZWV2l' },
-  { id: 'v3', code: 'FUSO 03', plate: 'A37AJ01', type: 'FUSO', performance: 5.0, status: 'AL DIA', currentKm: 168854, lastMaintKm: 168281, maintFreq: 6000, lastGreaseKm: 168281, greaseFreq: 3000, observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#3b82f6', maintenanceWebhook: 'https://discord.com/api/webhooks/1509243065666240562/mEomwP3ubonAsNwdtMtd-35l1Psxhb2UtWCkn9kzLRp0O0cBB1hA0XEPpb-wcZURkLOM' },
-  { id: 'v4', code: 'NPR 04', plate: 'A15AM5G', type: 'NPR', performance: 10.01, status: 'AL DIA', currentKm: 694812, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#a855f7', maintenanceWebhook: 'https://discord.com/api/webhooks/1509243206880067869/2DL1QmuxD1RE5vkRZGRYk_vT4wwMt0XT2LBHp_TcW-cxAgaqu_JzRSs1fryaIHniwDHX' },
-  { id: 'v5', code: 'L300 05', plate: 'A15BP7M', type: 'L300', performance: 7.69, status: 'AL DIA', currentKm: 145523, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 13, color: '#ec4899', maintenanceWebhook: 'https://discord.com/api/webhooks/1509243394587758722/SvZTT2UCQI_SSOLI7AHP4c_wrxPRY2eJJN2Z6Om3Tr7PeqvD-JEcHuSnHVTtj9kv9E3L' },
+  { id: 'v1', code: 'NPR 01', plate: 'A91BF8M', type: 'NPR', performance: 4.76, status: 'AL DIA', currentKm: 142107, lastMaintKm: 141364, maintFreq: 6000, lastGreaseKm: 141364, greaseFreq: 3000, lastBrakeKm: 0, brakeFreq: 15000, lastCoolantKm: 0, coolantFreq: 12000, lastPrevKm: 0, prevFreq: 15000, lastBatteryDate: '', observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#10b981', maintenanceWebhook: 'https://discord.com/api/webhooks/1509242456087068822/ACGCYCjKC_uNhyQ-0d5whzwI4ClkFLcxSwL0zRWBvITr8N9VRJII9jkkTNmjhzIVEZUQ' },
+  { id: 'v2', code: 'NPR 02', plate: 'A21AM9G', type: 'NPR', performance: 4.41, status: 'AL DIA', currentKm: 48831, lastMaintKm: 48831, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, lastBrakeKm: 0, brakeFreq: 15000, lastCoolantKm: 0, coolantFreq: 12000, lastPrevKm: 0, prevFreq: 15000, lastBatteryDate: '', observations: '', litersPer100km: 21, color: '#f59e0b', maintenanceWebhook: 'https://discord.com/api/webhooks/1509242789555081411/Okm2gGABQFwI2CM7MMkqp9UWYbZCbQQelTeheLEk0dlmmTmJk-0aPi7D7yGZSqRZWV2l' },
+  { id: 'v3', code: 'FUSO 03', plate: 'A37AJ01', type: 'FUSO', performance: 5.0, status: 'AL DIA', currentKm: 168854, lastMaintKm: 168281, maintFreq: 6000, lastGreaseKm: 168281, greaseFreq: 3000, lastBrakeKm: 0, brakeFreq: 15000, lastCoolantKm: 0, coolantFreq: 12000, lastPrevKm: 0, prevFreq: 15000, lastBatteryDate: '', observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#3b82f6', maintenanceWebhook: 'https://discord.com/api/webhooks/1509243065666240562/mEomwP3ubonAsNwdtMtd-35l1Psxhb2UtWCkn9kzLRp0O0cBB1hA0XEPpb-wcZURkLOM' },
+  { id: 'v4', code: 'NPR 04', plate: 'A15AM5G', type: 'NPR', performance: 10.01, status: 'AL DIA', currentKm: 694812, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, lastBrakeKm: 0, brakeFreq: 15000, lastCoolantKm: 0, coolantFreq: 12000, lastPrevKm: 0, prevFreq: 15000, lastBatteryDate: '', observations: '', litersPer100km: 21, color: '#a855f7', maintenanceWebhook: 'https://discord.com/api/webhooks/1509243206880067869/2DL1QmuxD1RE5vkRZGRYk_vT4wwMt0XT2LBHp_TcW-cxAgaqu_JzRSs1fryaIHniwDHX' },
+  { id: 'v5', code: 'L300 05', plate: 'A15BP7M', type: 'L300', performance: 7.69, status: 'AL DIA', currentKm: 145523, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, lastBrakeKm: 0, brakeFreq: 15000, lastCoolantKm: 0, coolantFreq: 12000, lastPrevKm: 0, prevFreq: 15000, lastBatteryDate: '', observations: '', litersPer100km: 13, color: '#ec4899', maintenanceWebhook: 'https://discord.com/api/webhooks/1509243394587758722/SvZTT2UCQI_SSOLI7AHP4c_wrxPRY2eJJN2Z6Om3Tr7PeqvD-JEcHuSnHVTtj9kv9E3L' },
 ];
 
 const INITIAL_DRIVERS = [
@@ -1919,7 +1919,45 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     saveTrips([...trips, completed]);
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
-    if (Number(data.kmEnd) > v.currentKm) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, currentKm: Number(data.kmEnd) } : x));
+    const newKm = Number(data.kmEnd);
+    if (newKm > v.currentKm) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, currentKm: newKm } : x));
+
+    // Verificar alertas de mantenimiento al actualizar KM
+    const SERV_DEF = [
+      { label: 'Aceite + Filtros', icon: '🛢️', lastKey: 'lastMaintKm',   freqKey: 'maintFreq',   def: 6000,  warn: 500  },
+      { label: 'Engrase',          icon: '⚙️', lastKey: 'lastGreaseKm',  freqKey: 'greaseFreq',  def: 3000,  warn: 500  },
+      { label: 'Frenos',           icon: '🛑', lastKey: 'lastBrakeKm',   freqKey: 'brakeFreq',   def: 15000, warn: 1000 },
+      { label: 'Refrigerante',     icon: '💧', lastKey: 'lastCoolantKm', freqKey: 'coolantFreq', def: 12000, warn: 1000 },
+      { label: 'Mant. Preventivo', icon: '🔧', lastKey: 'lastPrevKm',    freqKey: 'prevFreq',    def: 15000, warn: 1000 },
+    ];
+    const webhookMant = v?.maintenanceWebhook || config?.discordWebhookMaintenance;
+    if (webhookMant && newKm > 0) {
+      SERV_DEF.forEach(async s => {
+        const last = v[s.lastKey] || 0;
+        const freq = v[s.freqKey] || s.def;
+        const rem = last + freq - newKm;
+        const wasOk = last + freq - v.currentKm >= s.warn;
+        const nowAlert = rem < s.warn;
+        if (wasOk && nowAlert) {
+          try {
+            await sendDiscordNotification(webhookMant, {
+              title: `${s.icon} ALERTA MANTENIMIENTO · ${v.code}`,
+              description: rem < 0
+                ? `**${s.label}** está **VENCIDO** en ${v.code}`
+                : `**${s.label}** se vence pronto en ${v.code}`,
+              color: rem < 0 ? 0xef4444 : 0xf59e0b,
+              fields: [
+                { name: '🚛 Unidad', value: `${v.code} · ${v.plate}`, inline: true },
+                { name: '📍 KM Actual', value: newKm.toLocaleString(), inline: true },
+                { name: rem < 0 ? '⚠️ KM Pasado' : '⏰ KM Restantes', value: Math.abs(rem).toLocaleString(), inline: true },
+                { name: '🔧 Próximo servicio a', value: (last + freq).toLocaleString() + ' km', inline: true },
+              ],
+              footer: { text: `Transporte Emporium · ${new Date().toLocaleDateString('es-VE')}` },
+            });
+          } catch(e) {}
+        }
+      });
+    }
 
     // Asociar GPS track con el viaje completado
     saveGpsTracks(gpsTracks.map(g => g.tripId === currentTrip.id ? { ...g, tripId: completed.id, completed: true } : g));
@@ -4041,9 +4079,26 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
       {/* ALERTAS MANTENIMIENTO Y TALLER */}
       {(() => {
         const enTaller = vehicles.filter(v => v.status === 'EN TALLER');
+        const SERV_ALERTS = [
+          { key: 'oil',     label: 'Aceite + Filtros', icon: '🛢️', lastKey: 'lastMaintKm',   freqKey: 'maintFreq',   def: 6000,  warn: 500  },
+          { key: 'grease',  label: 'Engrase',           icon: '⚙️', lastKey: 'lastGreaseKm',  freqKey: 'greaseFreq',  def: 3000,  warn: 500  },
+          { key: 'brake',   label: 'Frenos',            icon: '🛑', lastKey: 'lastBrakeKm',   freqKey: 'brakeFreq',   def: 15000, warn: 1000 },
+          { key: 'coolant', label: 'Refrigerante',      icon: '💧', lastKey: 'lastCoolantKm', freqKey: 'coolantFreq', def: 12000, warn: 1000 },
+          { key: 'prev',    label: 'Mant. Preventivo',  icon: '🔧', lastKey: 'lastPrevKm',    freqKey: 'prevFreq',    def: 15000, warn: 1000 },
+        ];
         const alertaAceite = vehicles.filter(v => v.status !== 'EN TALLER' && ((v.lastMaintKm||0) + (v.maintFreq||6000) - (v.currentKm||0)) < 500);
         const alertaEngrase = vehicles.filter(v => v.status !== 'EN TALLER' && v.greaseFreq > 0 && ((v.lastGreaseKm||0) + (v.greaseFreq||3000) - (v.currentKm||0)) < 500);
-        if (enTaller.length === 0 && alertaAceite.length === 0 && alertaEngrase.length === 0) return null;
+        // Calcular todas las alertas de servicios
+        const allServAlerts = [];
+        vehicles.filter(v => v.status !== 'EN TALLER').forEach(v => {
+          SERV_ALERTS.forEach(s => {
+            const last = v[s.lastKey] || 0;
+            const freq = v[s.freqKey] || s.def;
+            const rem = last + freq - (v.currentKm || 0);
+            if (rem < s.warn) allServAlerts.push({ v, s, rem });
+          });
+        });
+        if (enTaller.length === 0 && allServAlerts.length === 0) return null;
         const fmt = (s) => { const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60); return d>0?`${d}d ${h}h`:`${h}h ${m}m`; };
         return (
           <div className="space-y-2">
@@ -4057,30 +4112,15 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
                 </div>
               </div>
             ))}
-            {alertaAceite.map(v => {
-              const rem = (v.lastMaintKm||0) + (v.maintFreq||6000) - (v.currentKm||0);
-              return (
-                <div key={v.id} className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center gap-3">
-                  <div className="text-2xl">🛢️</div>
-                  <div className="flex-1">
-                    <div className="font-bold text-amber-800">{v.code} — {rem < 0 ? '⚠️ CAMBIO VENCIDO' : '⚠️ CAMBIO PRÓXIMO'}</div>
-                    <div className="text-xs text-amber-600">Aceite · {rem < 0 ? `${Math.abs(rem)} km pasado` : `${rem} km restantes`}</div>
-                  </div>
+            {allServAlerts.map(({ v, s, rem }, i) => (
+              <div key={i} className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center gap-3">
+                <div className="text-2xl">{s.icon}</div>
+                <div className="flex-1">
+                  <div className="font-bold text-amber-800">{v.code} — {rem < 0 ? `⚠️ ${s.label.toUpperCase()} VENCIDO` : `⚠️ ${s.label.toUpperCase()} PRÓXIMO`}</div>
+                  <div className="text-xs text-amber-600">{s.label} · {rem < 0 ? `${Math.abs(rem).toLocaleString()} km pasado` : `${rem.toLocaleString()} km restantes`}</div>
                 </div>
-              );
-            })}
-            {alertaEngrase.map(v => {
-              const rem = (v.lastGreaseKm||0) + (v.greaseFreq||3000) - (v.currentKm||0);
-              return (
-                <div key={v.id} className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-3">
-                  <div className="text-2xl">⚙️</div>
-                  <div className="flex-1">
-                    <div className="font-bold text-amber-700">{v.code} — {rem < 0 ? '⚠️ ENGRASE VENCIDO' : '⚠️ ENGRASE PRÓXIMO'}</div>
-                    <div className="text-xs text-amber-600">Engrase · {rem < 0 ? `${Math.abs(rem)} km pasado` : `${rem} km restantes`}</div>
-                  </div>
-                </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         );
       })()}
@@ -5305,14 +5345,16 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         // Sección mantenimiento actual
         const maintHeaderR = tt.length;
         tt.push(['ESTADO MANTENIMIENTO ACTUAL', ...Array(NT-1).fill('')]);
-        tt.push(['Unidad', 'Placa', 'KM Actual', 'Último Aceite', 'Próximo Aceite', 'KM Rest. Aceite', 'Último Engrase', 'Próximo Engrase', 'KM Rest. Engrase', '', '']);
+        tt.push(['Unidad', 'Placa', 'KM Actual', 'Aceite+Filtros Último', 'Aceite+Filtros Próx.', 'Aceite KM Rest.', 'Engrase Último', 'Engrase Próx.', 'Engrase KM Rest.', 'Frenos Último', 'Frenos Próx.', 'Frenos KM Rest.', 'Refrigerante Último', 'Refrig. Próx.', 'Refrig. KM Rest.', 'Mant.Prev. Último', 'Mant.Prev. Próx.', 'Mant.Prev. KM Rest.', 'Batería']);
         const maintDataStartR = tt.length;
         vehicles.forEach(v => {
-          const nextOil = (v.lastMaintKm||0) + (v.maintFreq||6000);
-          const remOil = nextOil - (v.currentKm||0);
-          const nextGrease = (v.lastGreaseKm||0) + (v.greaseFreq||3000);
-          const remGrease = nextGrease - (v.currentKm||0);
-          tt.push([v.code, v.plate, v.currentKm||0, v.lastMaintKm||0, nextOil, remOil, v.lastGreaseKm||0, nextGrease, v.greaseFreq > 0 ? remGrease : 'N/A', '', '']);
+          const calc = (last, freq) => { const n=(last||0)+freq; return [last||0, n, n-(v.currentKm||0)]; };
+          const [lo,ln,lr] = calc(v.lastMaintKm, v.maintFreq||6000);
+          const [go,gn,gr] = calc(v.lastGreaseKm, v.greaseFreq||3000);
+          const [bo,bn,br] = calc(v.lastBrakeKm, v.brakeFreq||15000);
+          const [co,cn,cr] = calc(v.lastCoolantKm, v.coolantFreq||12000);
+          const [po,pn,pr] = calc(v.lastPrevKm, v.prevFreq||15000);
+          tt.push([v.code, v.plate, v.currentKm||0, lo, ln, lr, go, gn, gr, bo, bn, br, co, cn, cr, po, pn, pr, v.lastBatteryDate||'—']);
         });
         const maintDataEndR = tt.length;
 
@@ -5687,7 +5729,7 @@ function CargoDiagram({ largo, ancho, alto, cubicaje, maxLoad, bodyType, color =
   );
 }
 
-const EMPTY_VEHICLE = { code: '', plate: '', type: 'NPR', bodyType: 'Furgón', year: '', performance: 5, status: 'AL DIA', currentKm: 0, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#10b981', maxLoad: '', cargoLength: '', cargoWidth: '', cargoHeight: '', cargoCubic: '', maintenanceWebhook: '' };
+const EMPTY_VEHICLE = { code: '', plate: '', type: 'NPR', bodyType: 'Furgón', year: '', performance: 5, status: 'AL DIA', currentKm: 0, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, lastBrakeKm: 0, brakeFreq: 15000, lastCoolantKm: 0, coolantFreq: 12000, lastPrevKm: 0, prevFreq: 15000, lastBatteryDate: '', observations: '', litersPer100km: 21, color: '#10b981', maxLoad: '', cargoLength: '', cargoWidth: '', cargoHeight: '', cargoCubic: '', maintenanceWebhook: '' };
 
 function VehicleForm({ v, onSave, onCancel, title }) {
   const [f, setF] = useState({...EMPTY_VEHICLE, ...v});
@@ -6377,31 +6419,48 @@ function TallerView({ vehicle, driver, vehicles, saveVehicles, config, onSalir }
 }
 
 function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRecords }) {
-  const TIPOS = ['Preventivo', 'Correctivo', 'Repuesto', 'Garantía'];
+  const TIPOS = ['Preventivo', 'Correctivo', 'Repuesto', 'Garantia'];
   const emptyForm = { vehicleId: vehicles[0]?.id || '', fecha: new Date().toISOString().slice(0,10), km: '', tecnico: '', trabajo: '', costoRepuesto: '', manoObra: '', tipo: 'Correctivo' };
   const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(false);
   const [filterVehicle, setFilterVehicle] = useState('all');
   const [filterMes, setFilterMes] = useState('all');
 
-  // KM alerts
-  const alerts = vehicles.map(v => {
-    const nextOil = (v.lastMaintKm || 0) + (v.maintFreq || 6000);
-    const remOil = nextOil - (v.currentKm || 0);
-    const nextGrease = (v.lastGreaseKm || 0) + (v.greaseFreq || 3000);
-    const remGrease = nextGrease - (v.currentKm || 0);
-    let level = 'ok';
-    if (remOil < 0 || remGrease < 0) level = 'critical';
-    else if (remOil < 500 || remGrease < 500) level = 'warning';
-    return { ...v, remOil, nextOil, remGrease, nextGrease, level };
-  });
-  const enTaller = alerts.filter(v => v.status === 'EN TALLER');
-  const operativos = alerts.filter(v => v.status !== 'EN TALLER');
-  const fmt = (s) => { const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60); return d>0?`${d}d ${h}h`:`${h}h ${m}m`; };
-  const reg = (v) => { const km = prompt(`KM aceite ${v.code}:`, v.currentKm?.toString()||'0'); if (km&&!isNaN(Number(km))) saveVehicles(vehicles.map(x=>x.id===v.id?{...x,lastMaintKm:Number(km)}:x)); };
-  const regGrease = (v) => { const km = prompt(`KM engrase ${v.code}:`, v.currentKm?.toString()||'0'); if (km&&!isNaN(Number(km))) saveVehicles(vehicles.map(x=>x.id===v.id?{...x,lastGreaseKm:Number(km)}:x)); };
+  const SERVICIOS = [
+    { key: 'oil',     label: 'Aceite + Filtros', icon: '🛢️', lastKey: 'lastMaintKm',   freqKey: 'maintFreq',   defaultFreq: 6000,  warnAt: 500  },
+    { key: 'grease',  label: 'Engrase',           icon: '⚙️', lastKey: 'lastGreaseKm',  freqKey: 'greaseFreq',  defaultFreq: 3000,  warnAt: 500  },
+    { key: 'brake',   label: 'Frenos',            icon: '🛑', lastKey: 'lastBrakeKm',   freqKey: 'brakeFreq',   defaultFreq: 15000, warnAt: 1000 },
+    { key: 'coolant', label: 'Refrigerante',      icon: '💧', lastKey: 'lastCoolantKm', freqKey: 'coolantFreq', defaultFreq: 12000, warnAt: 1000 },
+    { key: 'prev',    label: 'Mant. Preventivo',  icon: '🔧', lastKey: 'lastPrevKm',    freqKey: 'prevFreq',    defaultFreq: 15000, warnAt: 1000 },
+  ];
 
-  // Cálculos registros
+  const calcServicio = (v, s) => {
+    const last = v[s.lastKey] || 0;
+    const freq = v[s.freqKey] || s.defaultFreq;
+    const next = last + freq;
+    const rem = next - (v.currentKm || 0);
+    const pct = Math.min(100, Math.max(0, ((v.currentKm || 0) - last) / freq * 100));
+    const status = rem < 0 ? 'vencido' : rem < s.warnAt ? 'proximo' : 'ok';
+    return { last, freq, next, rem, pct, status };
+  };
+
+  const alertVehicles = vehicles.filter(v => v.status !== 'EN TALLER').map(v => {
+    const servicios = SERVICIOS.map(s => ({ ...s, ...calcServicio(v, s) }));
+    const hasVencido = servicios.some(s => s.status === 'vencido');
+    const hasProximo = servicios.some(s => s.status === 'proximo');
+    const nivel = hasVencido ? 'vencido' : hasProximo ? 'proximo' : 'ok';
+    return { ...v, servicios, nivel };
+  });
+
+  const enTaller = vehicles.filter(v => v.status === 'EN TALLER');
+  const fmt = (s) => { const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60); return d>0?`${d}d ${h}h`:`${h}h ${m}m`; };
+
+  const registrar = (v, s) => {
+    const km = prompt(`KM actual para registrar ${s.label} en ${v.code}:`, v.currentKm?.toString()||'0');
+    if (!km || isNaN(Number(km))) return;
+    saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, [s.lastKey]: Number(km) } : x));
+  };
+
   const total = (r) => (Number(r.costoRepuesto)||0) + (Number(r.manoObra)||0);
   const meses = [...new Set(maintRecords.map(r => r.fecha.slice(0,7)))].sort().reverse();
   const filtered = maintRecords.filter(r =>
@@ -6409,16 +6468,9 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
     (filterMes === 'all' || r.fecha.startsWith(filterMes))
   ).sort((a,b) => b.fecha.localeCompare(a.fecha));
 
-  // Datos para gráficos por camión
   const chartData = vehicles.map(v => {
-    const rs = maintRecords.filter(r => r.vehicleId === v.id &&
-      (filterMes === 'all' || r.fecha.startsWith(filterMes)));
-    return {
-      name: v.code,
-      'Repuesto': Math.round(rs.reduce((s,r)=>s+(Number(r.costoRepuesto)||0),0)),
-      'Mano de Obra': Math.round(rs.reduce((s,r)=>s+(Number(r.manoObra)||0),0)),
-      'Total': Math.round(rs.reduce((s,r)=>s+total(r),0)),
-    };
+    const rs = maintRecords.filter(r => r.vehicleId === v.id && (filterMes === 'all' || r.fecha.startsWith(filterMes)));
+    return { name: v.code, 'Repuesto': Math.round(rs.reduce((s,r)=>s+(Number(r.costoRepuesto)||0),0)), 'Mano de Obra': Math.round(rs.reduce((s,r)=>s+(Number(r.manoObra)||0),0)), 'Total': Math.round(rs.reduce((s,r)=>s+total(r),0)) };
   }).filter(d => d.Total > 0);
 
   const handleAdd = () => {
@@ -6430,18 +6482,127 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
     setShowForm(false);
   };
 
-  const handleDelete = (id) => { if (window.confirm('¿Eliminar registro?')) saveMaintRecords(maintRecords.filter(r => r.id !== id)); };
+  const handleDelete = (id) => { if (window.confirm('Eliminar registro?')) saveMaintRecords(maintRecords.filter(r => r.id !== id)); };
+  const tipoColor = { Preventivo: 'bg-blue-100 text-blue-800', Correctivo: 'bg-rose-100 text-rose-800', Repuesto: 'bg-amber-100 text-amber-800', Garantia: 'bg-emerald-100 text-emerald-800' };
 
-  const tipoColor = { Preventivo: 'bg-blue-100 text-blue-800', Correctivo: 'bg-rose-100 text-rose-800', Repuesto: 'bg-amber-100 text-amber-800', Garantía: 'bg-emerald-100 text-emerald-800' };
+  const resumen = { vencido: alertVehicles.filter(v=>v.nivel==='vencido').length, proximo: alertVehicles.filter(v=>v.nivel==='proximo').length, ok: alertVehicles.filter(v=>v.nivel==='ok').length };
 
   return (
     <div className="space-y-5">
+      {/* HEADER */}
       <div className="flex items-center justify-between">
         <h2 className="font-black text-stone-900 text-lg">Mantenimiento</h2>
         <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition">
           <Plus className="w-3.5 h-3.5" /> Registrar trabajo
         </button>
       </div>
+
+      {/* RESUMEN */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-center">
+          <div className="text-2xl font-black text-rose-600">{resumen.vencido}</div>
+          <div className="text-xs font-bold text-rose-500 uppercase">Vencidos</div>
+        </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+          <div className="text-2xl font-black text-amber-600">{resumen.proximo}</div>
+          <div className="text-xs font-bold text-amber-500 uppercase">Por vencer</div>
+        </div>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+          <div className="text-2xl font-black text-emerald-600">{resumen.ok}</div>
+          <div className="text-xs font-bold text-emerald-500 uppercase">Al día</div>
+        </div>
+      </div>
+
+      {/* TARJETAS POR VEHÍCULO */}
+      <div className="space-y-4">
+        {alertVehicles.map(v => (
+          <div key={v.id} className={`bg-white rounded-2xl border-2 shadow-sm overflow-hidden ${v.nivel==='vencido'?'border-rose-300':v.nivel==='proximo'?'border-amber-300':'border-stone-200'}`}>
+            {/* Header tarjeta */}
+            <div className={`px-4 py-3 flex items-center justify-between ${v.nivel==='vencido'?'bg-rose-50':v.nivel==='proximo'?'bg-amber-50':'bg-stone-50'}`}>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: v.color }}></div>
+                <span className="font-black text-stone-900">{v.code}</span>
+                <span className="text-xs text-stone-500 font-mono">{v.plate}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-stone-500">{(v.currentKm||0).toLocaleString()} km</span>
+                {v.nivel==='vencido' && <span className="text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-bold">⚠️ VENCIDO</span>}
+                {v.nivel==='proximo' && <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">⏰ PRÓXIMO</span>}
+                {v.nivel==='ok' && <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold">✓ AL DÍA</span>}
+              </div>
+            </div>
+            {/* Servicios */}
+            <div className="divide-y divide-stone-100">
+              {v.servicios.map(s => (
+                <div key={s.key} className="px-4 py-2.5 flex items-center gap-3">
+                  <span className="text-base w-6 text-center">{s.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-stone-700">{s.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-mono font-bold ${s.status==='vencido'?'text-rose-600':s.status==='proximo'?'text-amber-600':'text-emerald-600'}`}>
+                          {s.rem < 0 ? `${Math.abs(s.rem).toLocaleString()} km pasado` : `${s.rem.toLocaleString()} km restantes`}
+                        </span>
+                        {s.status==='vencido' && <span className="text-[9px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold">VENCIDO</span>}
+                        {s.status==='proximo' && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">PRÓXIMO</span>}
+                        {s.status==='ok' && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">AL DÍA</span>}
+                        <button onClick={() => registrar(v, s)} className="text-[9px] bg-stone-100 hover:bg-emerald-100 text-stone-600 hover:text-emerald-700 border border-stone-200 px-2 py-0.5 rounded font-bold transition">✓ Registrar</button>
+                      </div>
+                    </div>
+                    {/* Barra de progreso */}
+                    <div className="w-full bg-stone-100 rounded-full h-1.5">
+                      <div className={`h-1.5 rounded-full transition-all ${s.status==='vencido'?'bg-rose-500':s.status==='proximo'?'bg-amber-400':'bg-emerald-400'}`} style={{ width: `${Math.min(100,s.pct)}%` }}></div>
+                    </div>
+                    <div className="flex justify-between mt-0.5">
+                      <span className="text-[9px] text-stone-400">Último: {s.last ? s.last.toLocaleString()+' km' : '—'}</span>
+                      <span className="text-[9px] text-stone-400">Próximo: {s.next.toLocaleString()} km · cada {s.freq.toLocaleString()} km</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {/* Batería (por fecha) */}
+              <div className="px-4 py-2.5 flex items-center gap-3">
+                <span className="text-base w-6 text-center">🔋</span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-700">Batería</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-stone-500">{v.lastBatteryDate ? `Últ: ${v.lastBatteryDate}` : 'Sin registro'}</span>
+                      <button onClick={() => {
+                        const fecha = prompt(`Fecha última revisión batería ${v.code} (YYYY-MM-DD):`, new Date().toISOString().slice(0,10));
+                        if (fecha) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, lastBatteryDate: fecha } : x));
+                      }} className="text-[9px] bg-stone-100 hover:bg-emerald-100 text-stone-600 hover:text-emerald-700 border border-stone-200 px-2 py-0.5 rounded font-bold transition">✓ Registrar</button>
+                    </div>
+                  </div>
+                  <div className="text-[9px] text-stone-400 mt-0.5">Revisión cada 12 meses</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* EN TALLER */}
+      {enTaller.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-bold text-rose-700 uppercase tracking-wider flex items-center gap-1">🔧 En taller ({enTaller.length})</div>
+          {enTaller.map(v => (
+            <div key={v.id} className="bg-rose-50 border border-rose-200 rounded-xl p-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="font-bold text-stone-900">{v.code} · {v.plate}</div>
+                  <div className="text-xs text-rose-700 font-medium mt-0.5">🔧 {v.tallerMotivo || 'En servicio'}</div>
+                  {v.tallerChofer && <div className="text-xs text-stone-500">Chofer: {v.tallerChofer}</div>}
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-black text-rose-700">{v.tallerEntrada ? fmt(Math.floor((Date.now()-v.tallerEntrada)/1000)) : '—'}</div>
+                  <div className="text-[10px] text-stone-400">en taller</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* FORM NUEVO REGISTRO */}
       {showForm && (
@@ -6471,12 +6632,12 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Técnico / Taller</label>
-              <input type="text" value={form.tecnico} onChange={e => setForm({...form, tecnico: e.target.value})} placeholder="Nombre del técnico o taller" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Tecnico / Taller</label>
+              <input type="text" value={form.tecnico} onChange={e => setForm({...form, tecnico: e.target.value})} placeholder="Nombre del tecnico o taller" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
             </div>
             <div>
               <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Trabajo Realizado</label>
-              <input type="text" value={form.trabajo} onChange={e => setForm({...form, trabajo: e.target.value})} placeholder="Descripción del trabajo..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+              <input type="text" value={form.trabajo} onChange={e => setForm({...form, trabajo: e.target.value})} placeholder="Descripcion del trabajo..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
@@ -6502,13 +6663,12 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
         </div>
       )}
 
-      {/* GRÁFICOS */}
+      {/* GRAFICOS */}
       {chartData.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
             <div className="text-xs font-bold text-stone-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-rose-500" />
-              Gasto total por camión {filterMes !== 'all' ? `· ${filterMes}` : ''}
+              <TrendingUp className="w-3.5 h-3.5 text-rose-500" /> Gasto total por camion {filterMes !== 'all' ? `· ${filterMes}` : ''}
             </div>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
@@ -6521,8 +6681,7 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
           </div>
           <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
             <div className="text-xs font-bold text-stone-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Activity className="w-3.5 h-3.5 text-blue-500" />
-              Repuesto vs Mano de Obra {filterMes !== 'all' ? `· ${filterMes}` : ''}
+              <Activity className="w-3.5 h-3.5 text-blue-500" /> Repuesto vs Mano de Obra {filterMes !== 'all' ? `· ${filterMes}` : ''}
             </div>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
@@ -6538,7 +6697,7 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
         </div>
       )}
 
-      {/* TABLA REGISTROS */}
+      {/* HISTORIAL */}
       <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
         <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex flex-wrap items-center justify-between gap-2">
           <div className="text-xs font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Historial de trabajos ({filtered.length})</div>
@@ -6563,7 +6722,7 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
                   <th className="text-left px-3 py-2.5">Fecha</th>
                   <th className="text-left px-3 py-2.5">Unidad</th>
                   <th className="text-right px-3 py-2.5">KM</th>
-                  <th className="text-left px-3 py-2.5">Técnico</th>
+                  <th className="text-left px-3 py-2.5">Tecnico</th>
                   <th className="text-left px-3 py-2.5 min-w-[200px]">Trabajo Realizado</th>
                   <th className="text-right px-3 py-2.5">Repuesto $</th>
                   <th className="text-right px-3 py-2.5">M. Obra $</th>
@@ -6600,101 +6759,6 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
             </table>
           </div>
         )}
-      </div>
-
-      {/* EN TALLER */}
-      {enTaller.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-xs font-bold text-rose-700 uppercase tracking-wider flex items-center gap-1">🔧 En taller ({enTaller.length})</div>
-          {enTaller.map(v => (
-            <div key={v.id} className="bg-rose-50 border border-rose-200 rounded-xl p-3">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="font-bold text-stone-900">{v.code} · {v.plate}</div>
-                  <div className="text-xs text-rose-700 font-medium mt-0.5">🔧 {v.tallerMotivo || 'En servicio'}</div>
-                  {v.tallerChofer && <div className="text-xs text-stone-500">Chofer: {v.tallerChofer}</div>}
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-black text-rose-700">{v.tallerEntrada ? fmt(Math.floor((Date.now()-v.tallerEntrada)/1000)) : '—'}</div>
-                  <div className="text-[10px] text-stone-400">en taller</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ALERTAS ACEITE Y ENGRASE */}
-      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
-        <div className="px-3 py-2 bg-stone-50 border-b border-stone-200">
-          <div className="text-xs font-bold text-stone-600 uppercase tracking-wider">🛢️ Cambio de Aceite</div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-stone-100 text-[10px] text-emerald-700 uppercase tracking-wider font-mono">
-              <tr>
-                <th className="text-left px-3 py-2">Unidad</th>
-                <th className="text-right px-2 py-2">Último</th>
-                <th className="text-right px-2 py-2">Próximo</th>
-                <th className="text-right px-2 py-2">Restantes</th>
-                <th className="text-center px-2 py-2">Estado</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {operativos.map(v => (
-                <tr key={v.id} className="border-t border-stone-200">
-                  <td className="px-3 py-2"><div className="font-bold text-stone-900">{v.code}</div><div className="text-xs text-stone-500 font-mono">{v.plate}</div></td>
-                  <td className="text-right px-2 py-2 text-stone-600 text-xs">{(v.lastMaintKm||0).toLocaleString()}</td>
-                  <td className="text-right px-2 py-2 text-stone-900">{v.nextOil.toLocaleString()}</td>
-                  <td className={`text-right px-2 py-2 font-bold font-mono ${v.remOil < 0 ? 'text-rose-600' : v.remOil < 500 ? 'text-amber-500' : 'text-emerald-600'}`}>{v.remOil.toLocaleString()}</td>
-                  <td className="text-center px-2 py-2">
-                    {v.remOil < 0 && <span className="text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">VENCIDO</span>}
-                    {v.remOil >= 0 && v.remOil < 500 && <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">PRÓXIMO</span>}
-                    {v.remOil >= 500 && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-bold">AL DÍA</span>}
-                  </td>
-                  <td className="px-2 py-2"><button onClick={() => reg(v)} className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded font-bold">✓ Registrar</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
-        <div className="px-3 py-2 bg-stone-50 border-b border-stone-200">
-          <div className="text-xs font-bold text-stone-600 uppercase tracking-wider">⚙️ Engrase</div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-stone-100 text-[10px] text-emerald-700 uppercase tracking-wider font-mono">
-              <tr>
-                <th className="text-left px-3 py-2">Unidad</th>
-                <th className="text-right px-2 py-2">Último</th>
-                <th className="text-right px-2 py-2">Próximo</th>
-                <th className="text-right px-2 py-2">Restantes</th>
-                <th className="text-center px-2 py-2">Estado</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {operativos.filter(v => v.greaseFreq > 0).map(v => (
-                <tr key={v.id} className="border-t border-stone-200">
-                  <td className="px-3 py-2"><div className="font-bold text-stone-900">{v.code}</div><div className="text-xs text-stone-500 font-mono">{v.plate}</div></td>
-                  <td className="text-right px-2 py-2 text-stone-600 text-xs">{(v.lastGreaseKm||0).toLocaleString()}</td>
-                  <td className="text-right px-2 py-2 text-stone-900">{v.nextGrease.toLocaleString()}</td>
-                  <td className={`text-right px-2 py-2 font-bold font-mono ${v.remGrease < 0 ? 'text-rose-600' : v.remGrease < 500 ? 'text-amber-500' : 'text-emerald-600'}`}>{v.remGrease.toLocaleString()}</td>
-                  <td className="text-center px-2 py-2">
-                    {v.remGrease < 0 && <span className="text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">VENCIDO</span>}
-                    {v.remGrease >= 0 && v.remGrease < 500 && <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">PRÓXIMO</span>}
-                    {v.remGrease >= 500 && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-bold">AL DÍA</span>}
-                  </td>
-                  <td className="px-2 py-2"><button onClick={() => regGrease(v)} className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded font-bold">✓ Registrar</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
   );
