@@ -141,11 +141,11 @@ const INITIAL_VEHICLES = [
 ];
 
 const INITIAL_DRIVERS = [
-  { id: 'd1', name: 'Daniel Subero', shortName: 'Daniel', phone: '+584242010147', license: '', pin: '1111', active: true },
-  { id: 'd2', name: 'Jackson Hernandez', shortName: 'Jackson H.', phone: '+584141961215', license: '', pin: '2222', active: true },
-  { id: 'd3', name: 'Willmer Fernandez', shortName: 'Willmer', phone: '+584141603681', license: '', pin: '3333', active: true },
-  { id: 'd4', name: 'Richard Hernandez', shortName: 'Richard H.', phone: '+584143246359', license: '', pin: '4444', active: true },
-  { id: 'd5', name: 'Darwin Serrano', shortName: 'Darwin', phone: '+584122095715', license: '', pin: '5555', active: true },
+  { id: 'd1', name: 'Daniel Subero', shortName: 'Daniel', phone: '+584242010147', license: '', pin: '1111', active: true, licenseExpiry: '', medicalExpiry: '' },
+  { id: 'd2', name: 'Jackson Hernandez', shortName: 'Jackson H.', phone: '+584141961215', license: '', pin: '2222', active: true, licenseExpiry: '', medicalExpiry: '' },
+  { id: 'd3', name: 'Willmer Fernandez', shortName: 'Willmer', phone: '+584141603681', license: '', pin: '3333', active: true, licenseExpiry: '', medicalExpiry: '' },
+  { id: 'd4', name: 'Richard Hernandez', shortName: 'Richard H.', phone: '+584143246359', license: '', pin: '4444', active: true, licenseExpiry: '', medicalExpiry: '' },
+  { id: 'd5', name: 'Darwin Serrano', shortName: 'Darwin', phone: '+584122095715', license: '', pin: '5555', active: true, licenseExpiry: '', medicalExpiry: '' },
 ];
 
 // Coordenadas aproximadas de las sucursales (Caracas/Miranda, Venezuela)
@@ -3944,7 +3944,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} maintRecords={maintRecords} saveMaintRecords={saveMaintRecords} />}
         {tab === 'fuel_mgmt' && <FuelMgmtTab fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} vehicles={vehicles} trips={trips} config={config} selectedMonth={selectedMonth} />}
         {tab === 'incidents' && <IncidentsTab incidents={incidents} vehicles={vehicles} drivers={drivers} saveIncidents={saveIncidents} />}
-        {tab === 'documents' && <DocumentsTab vehicles={vehicles} saveVehicles={saveVehicles} config={config} />}
+        {tab === 'documents' && <DocumentsTab vehicles={vehicles} saveVehicles={saveVehicles} config={config} drivers={drivers} saveDrivers={saveDrivers} />}
         {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} maintRecords={maintRecords} />}
         {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} saveChecklists={saveChecklists} sbFetch={sbFetch} />}
         {tab === 'discord' && <DiscordTab config={config} saveConfig={saveConfig} vehicles={vehicles} />}
@@ -4048,11 +4048,18 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
         );
       })()}
 
-      {/* ALERTAS DOCUMENTOS VENCIDOS/PRÓXIMOS */}
+      {/* ALERTAS DOCUMENTOS VENCIDOS/PROXIMOS — vehículos y choferes */}
       {(() => {
-        const docAlerts = vehicles.flatMap(v =>
-          (v.documents||[]).map(d => ({ ...d, vehicleCode: v.code, vehicleColor: v.color||'#10b981', ...docStatus(d.expiryDate) }))
-        ).filter(d => d.days !== null && d.days <= 30).sort((a,b) => a.days - b.days);
+        const vehicleDocAlerts = vehicles.flatMap(v =>
+          (v.documents||[]).map(d => ({ ...d, entityName: v.code, entityColor: v.color||'#10b981', ...docStatus(d.expiryDate) }))
+        ).filter(d => d.days !== null && d.days <= 30);
+        const driverDocAlerts = drivers.flatMap(d => {
+          const items = [];
+          if (d.licenseExpiry) items.push({ name: 'Licencia', entityName: d.shortName||d.name, entityColor: '#6366f1', ...docStatus(d.licenseExpiry) });
+          if (d.medicalExpiry) items.push({ name: 'Cert. Medico', entityName: d.shortName||d.name, entityColor: '#6366f1', ...docStatus(d.medicalExpiry) });
+          return items;
+        }).filter(d => d.days !== null && d.days <= 30);
+        const docAlerts = [...vehicleDocAlerts, ...driverDocAlerts].sort((a,b) => a.days - b.days);
         if (docAlerts.length === 0) return null;
         return (
           <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
@@ -4064,8 +4071,8 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
               {docAlerts.map((d,i) => (
                 <div key={i} className={`flex items-center justify-between px-3 py-2 rounded-lg ${d.color==='rose'?'bg-rose-50 border border-rose-200':'bg-amber-50 border border-amber-200'}`}>
                   <div className="flex items-center gap-2 text-sm">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.vehicleColor }} />
-                    <span className="font-bold">{d.vehicleCode}</span>
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.entityColor }} />
+                    <span className="font-bold">{d.entityName}</span>
                     <span className="text-stone-600">→ {d.name}</span>
                   </div>
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${STATUS_STYLE[d.color]}`}>{d.label}</span>
@@ -7220,19 +7227,33 @@ function IncidentsTab({ incidents, vehicles, drivers, saveIncidents }) {
   );
 }
 
-function DocumentsTab({ vehicles, saveVehicles }) {
+function DocumentsTab({ vehicles, saveVehicles, drivers = [], saveDrivers }) {
+  const [tab, setTab] = useState('vehicles'); // 'vehicles' | 'drivers'
   const [selectedVehicle, setSelectedVehicle] = useState(vehicles[0]?.id || null);
+  const [selectedDriver, setSelectedDriver] = useState(drivers[0]?.id || null);
   const [showForm, setShowForm] = useState(false);
   const [editDoc, setEditDoc] = useState(null);
   const emptyDoc = { id: '', name: 'Ruta de Carga', issueDate: '', expiryDate: '', notes: '' };
 
   const vehicle = vehicles.find(v => v.id === selectedVehicle);
+  const driver = drivers.find(d => d.id === selectedDriver);
   const docs = vehicle?.documents || [];
 
-  // Alertas globales de todos los vehículos
-  const allAlerts = vehicles.flatMap(v =>
-    (v.documents || []).map(d => ({ ...d, vehicleCode: v.code, ...docStatus(d.expiryDate) }))
+  // Alertas vehículos
+  const vehicleAlerts = vehicles.flatMap(v =>
+    (v.documents || []).map(d => ({ ...d, entityName: v.code, entityColor: v.color || '#10b981', ...docStatus(d.expiryDate) }))
   ).filter(d => d.days !== null && d.days <= 30).sort((a,b) => a.days - b.days);
+
+  // Alertas choferes
+  const driverAlerts = drivers.flatMap(d => {
+    const items = [];
+    if (d.licenseExpiry) items.push({ name: 'Licencia', entityName: d.shortName || d.name, entityColor: '#6366f1', ...docStatus(d.licenseExpiry) });
+    if (d.medicalExpiry) items.push({ name: 'Cert. Médico', entityName: d.shortName || d.name, entityColor: '#6366f1', ...docStatus(d.medicalExpiry) });
+    return items;
+  }).filter(d => d.days !== null && d.days <= 30).sort((a,b) => a.days - b.days);
+
+  const allAlerts = [...vehicleAlerts, ...driverAlerts];
+  const totalAlerts = allAlerts.length;
 
   const saveDoc = (doc) => {
     const newDoc = { ...doc, id: doc.id || `doc_${Date.now()}` };
@@ -7242,177 +7263,302 @@ function DocumentsTab({ vehicles, saveVehicles }) {
   };
 
   const deleteDoc = (id) => {
-    if (!confirm('¿Eliminar documento?')) return;
+    if (!confirm('Eliminar documento?')) return;
     saveVehicles(vehicles.map(v => v.id === selectedVehicle ? { ...v, documents: docs.filter(d => d.id !== id) } : v));
   };
 
   const openEdit = (doc) => { setEditDoc({...doc}); setShowForm(true); };
   const openNew = () => { setEditDoc({...emptyDoc}); setShowForm(true); };
 
+  const saveDriverDoc = (field, value) => {
+    if (!saveDrivers) return;
+    saveDrivers(drivers.map(d => d.id === selectedDriver ? { ...d, [field]: value } : d));
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="font-black text-stone-900 text-lg">Documentos</h2>
+        {totalAlerts > 0 && (
+          <span className="text-xs bg-rose-500 text-white px-3 py-1 rounded-full font-bold">{totalAlerts} alerta{totalAlerts > 1 ? 's' : ''}</span>
+        )}
       </div>
 
-      {/* Alertas globales */}
-      {allAlerts.length > 0 && (
-        <div className="space-y-2">
-          <div className="text-xs font-bold text-stone-600 uppercase tracking-wider">⚠️ Alertas activas</div>
-          {allAlerts.map((d,i) => (
-            <div key={i} className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium ${d.color==='rose'?'bg-rose-50 border border-rose-300':'bg-amber-50 border border-amber-300'}`}>
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${STATUS_DOT[d.color]}`} />
-                <span className="font-bold">{d.vehicleCode}</span>
-                <span className="text-stone-600">→ {d.name}</span>
+      {/* Panel alertas */}
+      {totalAlerts > 0 && (
+        <div className="bg-white rounded-2xl border-2 border-rose-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-rose-600 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-white" />
+            <span className="font-black text-white text-sm">Documentos por vencer o vencidos</span>
+          </div>
+          <div className="divide-y divide-stone-100">
+            {allAlerts.map((d, i) => (
+              <div key={i} className={`px-4 py-2.5 flex items-center justify-between ${d.color==='rose' ? 'bg-rose-50' : 'bg-amber-50'}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor: d.entityColor}} />
+                  <span className="font-bold text-stone-900 text-sm">{d.entityName}</span>
+                  <span className="text-stone-600 text-sm">→ {d.name}</span>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${STATUS_STYLE[d.color]}`}>{d.label}</span>
               </div>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded ${STATUS_STYLE[d.color]}`}>{d.label}</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Semáforo resumen */}
-      <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-        <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 text-xs font-bold text-stone-600 uppercase tracking-wider">
-          Estado por unidad
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-stone-800 text-stone-200 text-[10px] uppercase tracking-wider">
-              <tr>
-                <th className="text-left px-4 py-2.5">Vehículo</th>
-                {DOC_TYPES.slice(0,5).map(t => <th key={t} className="text-center px-2 py-2.5 min-w-[80px]">{t}</th>)}
-                <th className="text-center px-2 py-2.5">Docs</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vehicles.map((v,i) => {
-                const vDocs = v.documents || [];
-                return (
-                  <tr key={v.id} className={`border-t border-stone-100 cursor-pointer hover:bg-emerald-50/40 transition ${selectedVehicle===v.id?'bg-emerald-50':i%2===0?'bg-white':'bg-stone-50'}`}
-                    onClick={() => setSelectedVehicle(v.id)}>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: v.color||'#10b981' }} />
-                        <div>
-                          <div className="font-bold text-stone-900">{v.code}</div>
-                          <div className="text-[10px] text-stone-400">{v.plate}</div>
-                        </div>
-                      </div>
-                    </td>
-                    {DOC_TYPES.slice(0,5).map(t => {
-                      const doc = vDocs.find(d => d.name === t);
-                      const st = doc ? docStatus(doc.expiryDate) : null;
-                      return (
-                        <td key={t} className="text-center px-2 py-3">
-                          {st ? (
-                            <div className={`inline-block w-6 h-6 rounded-full ${STATUS_DOT[st.color]}`} title={st.label} />
-                          ) : (
-                            <div className="inline-block w-6 h-6 rounded-full bg-stone-200" title="Sin registro" />
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="text-center px-2 py-3 text-xs font-bold text-stone-500">{vDocs.length}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+      {/* Tabs */}
+      <div className="flex bg-stone-100 rounded-xl p-1 gap-1">
+        <button onClick={() => setTab('vehicles')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${tab==='vehicles' ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}>
+          🚛 Vehículos
+        </button>
+        <button onClick={() => setTab('drivers')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${tab==='drivers' ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}>
+          👤 Choferes
+        </button>
       </div>
 
-      {/* Detalle del vehículo seleccionado */}
-      {vehicle && (
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
-          <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: vehicle.color||'#10b981' }} />
-              <span className="font-bold text-stone-900">{vehicle.code} — {vehicle.plate}</span>
-              <span className="text-xs text-stone-400">{docs.length} documentos</span>
-            </div>
-            <button onClick={openNew} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
-              <Plus className="w-3.5 h-3.5" /> Agregar
-            </button>
-          </div>
-
-          {/* Formulario inline */}
-          {showForm && editDoc && (
-            <div className="p-4 bg-emerald-50 border-b border-emerald-200">
-              <div className="font-bold text-stone-900 mb-3 text-sm">{editDoc.id ? 'Editar documento' : 'Nuevo documento'}</div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div className="col-span-2 md:col-span-1">
-                  <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Tipo de documento</label>
-                  <select value={editDoc.name} onChange={e => setEditDoc({...editDoc, name: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
-                    {DOC_TYPES.map(t => <option key={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha emisión</label>
-                  <input type="date" value={editDoc.issueDate} onChange={e => setEditDoc({...editDoc, issueDate: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha vencimiento *</label>
-                  <input type="date" value={editDoc.expiryDate} onChange={e => setEditDoc({...editDoc, expiryDate: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
-                </div>
-                <div className="col-span-2 md:col-span-3">
-                  <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Notas (opcional)</label>
-                  <input type="text" value={editDoc.notes||''} onChange={e => setEditDoc({...editDoc, notes: e.target.value})} placeholder="Ej: Renovado en oficina central..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
-                </div>
-              </div>
-              <div className="flex gap-2 justify-end mt-3">
-                <button onClick={() => { setShowForm(false); setEditDoc(null); }} className="px-3 py-1.5 text-sm text-stone-500 border border-stone-200 rounded-lg">Cancelar</button>
-                <button onClick={() => saveDoc(editDoc)} disabled={!editDoc.expiryDate} className="px-4 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold rounded-lg">Guardar</button>
-              </div>
-            </div>
-          )}
-
-          {docs.length === 0 ? (
-            <div className="py-10 text-center text-stone-400 text-sm">Sin documentos registrados. Usa "Agregar" para añadir.</div>
-          ) : (
+      {/* TAB VEHÍCULOS */}
+      {tab === 'vehicles' && (
+        <>
+          {/* Semáforo */}
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 text-xs font-bold text-stone-600 uppercase tracking-wider">Estado por unidad</div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-stone-100 text-[10px] text-stone-600 uppercase tracking-wider font-bold">
+                <thead className="bg-stone-800 text-stone-200 text-[10px] uppercase tracking-wider">
                   <tr>
-                    <th className="text-left px-4 py-2.5">Documento</th>
-                    <th className="text-center px-3 py-2.5">Emisión</th>
-                    <th className="text-center px-3 py-2.5">Vencimiento</th>
-                    <th className="text-center px-3 py-2.5">Estado</th>
-                    <th className="text-left px-3 py-2.5">Notas</th>
-                    <th className="px-2 py-2.5"></th>
+                    <th className="text-left px-4 py-2.5">Vehículo</th>
+                    {DOC_TYPES.slice(0,5).map(t => <th key={t} className="text-center px-2 py-2.5 min-w-[80px]">{t}</th>)}
+                    <th className="text-center px-2 py-2.5">Docs</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {docs.map((d,i) => {
-                    const st = docStatus(d.expiryDate);
+                  {vehicles.map((v, i) => {
+                    const vDocs = v.documents || [];
                     return (
-                      <tr key={d.id} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'} hover:bg-emerald-50/30`}>
-                        <td className="px-4 py-3 font-bold text-stone-900">{d.name}</td>
-                        <td className="px-3 py-3 text-center text-stone-500 font-mono text-xs">{d.issueDate || '—'}</td>
-                        <td className="px-3 py-3 text-center font-mono text-xs font-bold text-stone-800">{d.expiryDate || '—'}</td>
-                        <td className="px-3 py-3 text-center">
-                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${STATUS_STYLE[st.color]}`}>{st.label}</span>
-                        </td>
-                        <td className="px-3 py-3 text-xs text-stone-500">{d.notes||'—'}</td>
-                        <td className="px-2 py-3">
-                          <div className="flex gap-1">
-                            <button onClick={() => openEdit(d)} className="text-stone-300 hover:text-emerald-600 transition"><Edit className="w-3.5 h-3.5" /></button>
-                            <button onClick={() => deleteDoc(d.id)} className="text-stone-300 hover:text-rose-500 transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <tr key={v.id} className={`border-t border-stone-100 cursor-pointer hover:bg-emerald-50/40 transition ${selectedVehicle===v.id?'bg-emerald-50':i%2===0?'bg-white':'bg-stone-50'}`}
+                        onClick={() => setSelectedVehicle(v.id)}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: v.color||'#10b981' }} />
+                            <div>
+                              <div className="font-bold text-stone-900">{v.code}</div>
+                              <div className="text-[10px] text-stone-400">{v.plate}</div>
+                            </div>
                           </div>
                         </td>
+                        {DOC_TYPES.slice(0,5).map(t => {
+                          const doc = vDocs.find(d => d.name === t);
+                          const st = doc ? docStatus(doc.expiryDate) : null;
+                          return (
+                            <td key={t} className="text-center px-2 py-3">
+                              {st ? (
+                                <div className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${STATUS_DOT[st.color]}`} title={st.label} />
+                              ) : (
+                                <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-stone-200" title="Sin registro" />
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td className="text-center px-2 py-3 text-xs font-bold text-stone-500">{vDocs.length}</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Detalle vehículo */}
+          {vehicle && (
+            <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: vehicle.color||'#10b981' }} />
+                  <span className="font-bold text-stone-900">{vehicle.code} — {vehicle.plate}</span>
+                  <span className="text-xs text-stone-400">{docs.length} documentos</span>
+                </div>
+                <button onClick={openNew} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
+                  <Plus className="w-3.5 h-3.5" /> Agregar
+                </button>
+              </div>
+              {showForm && editDoc && (
+                <div className="p-4 bg-emerald-50 border-b border-emerald-200">
+                  <div className="font-bold text-stone-900 mb-3 text-sm">{editDoc.id ? 'Editar documento' : 'Nuevo documento'}</div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="col-span-2 md:col-span-1">
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Tipo de documento</label>
+                      <select value={editDoc.name} onChange={e => setEditDoc({...editDoc, name: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                        {DOC_TYPES.map(t => <option key={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha emision</label>
+                      <input type="date" value={editDoc.issueDate} onChange={e => setEditDoc({...editDoc, issueDate: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha vencimiento *</label>
+                      <input type="date" value={editDoc.expiryDate} onChange={e => setEditDoc({...editDoc, expiryDate: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+                    </div>
+                    <div className="col-span-2 md:col-span-3">
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Notas (opcional)</label>
+                      <input type="text" value={editDoc.notes||''} onChange={e => setEditDoc({...editDoc, notes: e.target.value})} placeholder="Ej: Renovado en oficina central..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end mt-3">
+                    <button onClick={() => { setShowForm(false); setEditDoc(null); }} className="px-3 py-1.5 text-sm text-stone-500 border border-stone-200 rounded-lg">Cancelar</button>
+                    <button onClick={() => saveDoc(editDoc)} disabled={!editDoc.expiryDate} className="px-4 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold rounded-lg">Guardar</button>
+                  </div>
+                </div>
+              )}
+              {docs.length === 0 ? (
+                <div className="py-10 text-center text-stone-400 text-sm">Sin documentos. Usa "Agregar" para añadir.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-stone-100 text-[10px] text-stone-600 uppercase tracking-wider font-bold">
+                      <tr>
+                        <th className="text-left px-4 py-2.5">Documento</th>
+                        <th className="text-center px-3 py-2.5">Emision</th>
+                        <th className="text-center px-3 py-2.5">Vencimiento</th>
+                        <th className="text-center px-3 py-2.5">Estado</th>
+                        <th className="text-left px-3 py-2.5">Notas</th>
+                        <th className="px-2 py-2.5"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {docs.map((d, i) => {
+                        const st = docStatus(d.expiryDate);
+                        return (
+                          <tr key={d.id} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'} hover:bg-emerald-50/30`}>
+                            <td className="px-4 py-3 font-bold text-stone-900">{d.name}</td>
+                            <td className="px-3 py-3 text-center text-stone-500 font-mono text-xs">{d.issueDate || '—'}</td>
+                            <td className="px-3 py-3 text-center font-mono text-xs font-bold text-stone-800">{d.expiryDate || '—'}</td>
+                            <td className="px-3 py-3 text-center">
+                              <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${STATUS_STYLE[st.color]}`}>{st.label}</span>
+                            </td>
+                            <td className="px-3 py-3 text-xs text-stone-500">{d.notes||'—'}</td>
+                            <td className="px-2 py-3">
+                              <div className="flex gap-1">
+                                <button onClick={() => openEdit(d)} className="text-stone-300 hover:text-emerald-600 transition"><Edit className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => deleteDoc(d.id)} className="text-stone-300 hover:text-rose-500 transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
-        </div>
+        </>
+      )}
+
+      {/* TAB CHOFERES */}
+      {tab === 'drivers' && (
+        <>
+          {/* Semáforo choferes */}
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 text-xs font-bold text-stone-600 uppercase tracking-wider">Estado por chofer</div>
+            <table className="w-full text-sm">
+              <thead className="bg-stone-800 text-stone-200 text-[10px] uppercase tracking-wider">
+                <tr>
+                  <th className="text-left px-4 py-2.5">Chofer</th>
+                  <th className="text-center px-3 py-2.5 min-w-[120px]">Licencia</th>
+                  <th className="text-center px-3 py-2.5 min-w-[120px]">Cert. Medico</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drivers.map((d, i) => {
+                  const licSt = d.licenseExpiry ? docStatus(d.licenseExpiry) : null;
+                  const medSt = d.medicalExpiry ? docStatus(d.medicalExpiry) : null;
+                  return (
+                    <tr key={d.id} className={`border-t border-stone-100 cursor-pointer hover:bg-emerald-50/40 transition ${selectedDriver===d.id?'bg-emerald-50':i%2===0?'bg-white':'bg-stone-50'}`}
+                      onClick={() => setSelectedDriver(d.id)}>
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-stone-900">{d.name}</div>
+                        <div className="text-[10px] text-stone-400">{d.phone}</div>
+                      </td>
+                      <td className="text-center px-3 py-3">
+                        {licSt ? (
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${STATUS_STYLE[licSt.color]}`}>{licSt.label}</span>
+                        ) : (
+                          <span className="text-[10px] text-stone-400">Sin registro</span>
+                        )}
+                      </td>
+                      <td className="text-center px-3 py-3">
+                        {medSt ? (
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${STATUS_STYLE[medSt.color]}`}>{medSt.label}</span>
+                        ) : (
+                          <span className="text-[10px] text-stone-400">Sin registro</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Detalle chofer seleccionado */}
+          {driver && (
+            <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center font-black text-indigo-600 text-sm">{driver.name[0]}</div>
+                <div>
+                  <div className="font-bold text-stone-900">{driver.name}</div>
+                  <div className="text-xs text-stone-400">{driver.phone}</div>
+                </div>
+              </div>
+              <div className="p-4 space-y-4">
+                {/* Licencia */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🪪</span>
+                        <span className="font-bold text-stone-900 text-sm">Licencia de conducir</span>
+                      </div>
+                      {driver.licenseExpiry && (() => {
+                        const st = docStatus(driver.licenseExpiry);
+                        return <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${STATUS_STYLE[st.color]}`}>{st.label}</span>;
+                      })()}
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha vencimiento</label>
+                      <input type="date" value={driver.licenseExpiry||''} onChange={e => saveDriverDoc('licenseExpiry', e.target.value)}
+                        className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white" />
+                    </div>
+                  </div>
+                  <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🏥</span>
+                        <span className="font-bold text-stone-900 text-sm">Certificado medico</span>
+                      </div>
+                      {driver.medicalExpiry && (() => {
+                        const st = docStatus(driver.medicalExpiry);
+                        return <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${STATUS_STYLE[st.color]}`}>{st.label}</span>;
+                      })()}
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha vencimiento</label>
+                      <input type="date" value={driver.medicalExpiry||''} onChange={e => saveDriverDoc('medicalExpiry', e.target.value)}
+                        className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white" />
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xs text-stone-400 text-center">Los cambios se guardan automaticamente al seleccionar la fecha</div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
+
 
 function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveArchived, maintRecords = [] }) {
   const [showModal, setShowModal] = useState(false);
