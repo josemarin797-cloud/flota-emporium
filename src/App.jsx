@@ -25,6 +25,7 @@ const KEYS = {
   MAINT_RECORDS: 'emp:v4:maint_records',
   INCIDENTS: 'emp:v4:incidents',
   FUEL_RECORDS: 'emp:v4:fuel_records',
+  APPOINTMENTS: 'emp:v4:appointments',
 };
 
 // ============================================================
@@ -506,6 +507,7 @@ export default function App() {
   const [maintRecords, setMaintRecords] = useState([]);
   const [incidents, setIncidents] = useState([]);
   const [fuelRecords, setFuelRecords] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
 
@@ -558,6 +560,8 @@ export default function App() {
         if (incLocal?.value) setIncidents(JSON.parse(incLocal.value));
         const frLocal = await window.storage.get(KEYS.FUEL_RECORDS).catch(() => null);
         if (frLocal?.value) setFuelRecords(JSON.parse(frLocal.value));
+        const apLocal = await window.storage.get(KEYS.APPOINTMENTS).catch(() => null);
+        if (apLocal?.value) setAppointments(JSON.parse(apLocal.value));
       } catch (e) {}
       setLoading(false);
     };
@@ -705,6 +709,7 @@ export default function App() {
   const saveMaintRecords = (d) => { setMaintRecords(d); persist(KEYS.MAINT_RECORDS, d); };
   const saveIncidents = (d) => { setIncidents(d); persist(KEYS.INCIDENTS, d); };
   const saveFuelRecords = (d) => { setFuelRecords(d); persist(KEYS.FUEL_RECORDS, d); };
+  const saveAppointments = (d) => { setAppointments(d); persist(KEYS.APPOINTMENTS, d); };
   // saveChecklists: guarda LOCAL siempre + Supabase si está disponible
   const saveChecklists = async (d) => {
     setChecklists(d);
@@ -885,6 +890,8 @@ export default function App() {
         saveFuelRecords={saveFuelRecords}
         saveHandoffs={saveHandoffs}
         endShifts={endShifts}
+        appointments={appointments}
+        saveAppointments={saveAppointments}
       />
       <InstallAppButton />
     </>;
@@ -2332,7 +2339,19 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
               } else {
                 setStep('checklist');
               }
-            }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} branches={branches} config={config} setChecklistKm={setChecklistKm} setStep={setStep} />
+            }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} branches={branches} config={config} setChecklistKm={setChecklistKm} setStep={(s) => {
+              // Aviso de voz si el vehículo tiene cita próxima
+              if (s === 'checklist' && selectedVehicle) {
+                const today = new Date().toISOString().slice(0,10);
+                const ap = appointments.filter(a => a.vehicleId === selectedVehicle.id && a.fecha >= today).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
+                if (ap) {
+                  const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000);
+                  const msg = days === 0 ? `Atención: este vehículo tiene cita de taller hoy para ${ap.tipo}.` : days === 1 ? `Atención: este vehículo tiene cita de taller mañana para ${ap.tipo}.` : `Atención: este vehículo tiene cita de taller en ${days} días para ${ap.tipo}.`;
+                  try { speakText(msg); } catch(e) {}
+                }
+              }
+              setStep(s);
+            }} appointments={appointments} />
           </>}
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
@@ -2426,7 +2445,7 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
   );
 }
 
-function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep }) {
+function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep, appointments = [] }) {
   // Cargar active_trips frescos desde Supabase para bloqueo en tiempo real
   const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
   React.useEffect(() => {
@@ -2555,10 +2574,12 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                       {waitingForOther && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera por {pendingForV.toDriverNameExpected}</span>}
                       {waitingGeneral && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera</span>}
                       {occupiedByOther && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔒 Ocupado · {activeByOther.driverName || 'otro chofer'}</span>}
+                      {(() => { const ap = appointments.filter(a => a.vehicleId === v.id && a.fecha >= new Date().toISOString().slice(0,10)).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0]; return ap ? <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔧 Cita: {ap.fecha} · {ap.tipo}</span> : null; })()}
                     </div>
                     <div className="text-xs text-stone-500">{v.plate} · {v.performance} km/L</div>
                     {waitingForOther && <div className="text-[10px] text-orange-600 font-medium">Reservado para {pendingForV.toDriverNameExpected}</div>}
                     {occupiedByOther && <div className="text-[10px] text-red-600 font-medium">En viaje con {activeByOther.driverName || 'otro chofer'}</div>}
+                    {(() => { const ap = appointments.filter(a => a.vehicleId === v.id && a.fecha >= new Date().toISOString().slice(0,10)).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0]; if (!ap) return null; const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000); return <div className="text-[10px] text-indigo-600 font-medium">📅 Cita {days===0?'hoy':days===1?'mañana':`en ${days} días`}: {ap.taller||ap.tipo}</div>; })()}
                   </div>
                 </div>
                 <div className="text-right">
@@ -3823,7 +3844,7 @@ function DriverHistoryView({ trips, vehicles, branches }) {
 // ============================================================
 // COORDINADOR
 // ============================================================
-function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], incidents = [], fuelRecords = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents, saveFuelRecords, saveHandoffs }) {
+function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], incidents = [], fuelRecords = [], appointments = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents, saveFuelRecords, saveHandoffs, saveAppointments }) {
   const [tab, setTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [autoArchiveBanner, setAutoArchiveBanner] = useState(null);
@@ -3941,7 +3962,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
-        {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} maintRecords={maintRecords} saveMaintRecords={saveMaintRecords} />}
+        {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} maintRecords={maintRecords} saveMaintRecords={saveMaintRecords} appointments={appointments} saveAppointments={saveAppointments} config={config} />}
         {tab === 'fuel_mgmt' && <FuelMgmtTab fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} vehicles={vehicles} trips={trips} config={config} selectedMonth={selectedMonth} />}
         {tab === 'incidents' && <IncidentsTab incidents={incidents} vehicles={vehicles} drivers={drivers} saveIncidents={saveIncidents} />}
         {tab === 'documents' && <DocumentsTab vehicles={vehicles} saveVehicles={saveVehicles} config={config} drivers={drivers} saveDrivers={saveDrivers} />}
@@ -6460,13 +6481,53 @@ function TallerView({ vehicle, driver, vehicles, saveVehicles, config, onSalir }
   );
 }
 
-function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRecords }) {
+function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRecords, appointments = [], saveAppointments, config = {} }) {
   const TIPOS = ['Preventivo', 'Correctivo', 'Repuesto', 'Garantia'];
   const emptyForm = { vehicleId: vehicles[0]?.id || '', fecha: new Date().toISOString().slice(0,10), km: '', tecnico: '', trabajo: '', costoRepuesto: '', manoObra: '', tipo: 'Correctivo' };
   const [form, setForm] = useState(emptyForm);
   const [showForm, setShowForm] = useState(false);
   const [filterVehicle, setFilterVehicle] = useState('all');
   const [filterMes, setFilterMes] = useState('all');
+
+  // ── CITAS DE TALLER ──────────────────────────────────────
+  const SERV_TIPOS = ['Aceite + Filtros', 'Engrase', 'Frenos', 'Refrigerante', 'Mant. Preventivo', 'Bateria', 'Correctivo', 'Otro'];
+  const emptyAppt = { id: '', vehicleId: vehicles[0]?.id || '', fecha: '', tipo: 'Aceite + Filtros', taller: '', notas: '' };
+  const [showApptForm, setShowApptForm] = useState(false);
+  const [apptForm, setApptForm] = useState(emptyAppt);
+
+  const addAppt = async () => {
+    if (!apptForm.vehicleId || !apptForm.fecha) return;
+    const v = vehicles.find(x => x.id === apptForm.vehicleId);
+    const appt = { ...apptForm, id: `appt_${Date.now()}`, vehicleCode: v?.code || '', createdAt: Date.now() };
+    saveAppointments([...appointments, appt]);
+    setShowApptForm(false);
+    setApptForm(emptyAppt);
+    // Discord
+    const wh = v?.maintenanceWebhook || config?.discordWebhookMaintenance;
+    if (wh) {
+      try {
+        await sendDiscordNotification(wh, {
+          title: `🔧 CITA PROGRAMADA · ${v?.code}`,
+          description: `Se ha agendado una cita de taller para **${v?.code} · ${v?.plate}**`,
+          color: 0x6366f1,
+          fields: [
+            { name: '📅 Fecha', value: appt.fecha, inline: true },
+            { name: '🛠️ Servicio', value: appt.tipo, inline: true },
+            { name: '🏪 Taller', value: appt.taller || '—', inline: true },
+            { name: '📝 Notas', value: appt.notas || 'Sin notas', inline: false },
+          ],
+          footer: { text: `Transporte Emporium · ${new Date().toLocaleDateString('es-VE')}` },
+        });
+      } catch(e) {}
+    }
+  };
+
+  const delAppt = (id) => { if (confirm('Eliminar cita?')) saveAppointments(appointments.filter(a => a.id !== id)); };
+
+  const today = new Date().toISOString().slice(0,10);
+  const upcomingAppts = appointments.filter(a => a.fecha >= today).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const pastAppts = appointments.filter(a => a.fecha < today).sort((a,b) => b.fecha.localeCompare(a.fecha));
+  // ── FIN CITAS ─────────────────────────────────────────────
 
   const SERVICIOS = [
     { key: 'oil',     label: 'Aceite + Filtros', icon: '🛢️', lastKey: 'lastMaintKm',   freqKey: 'maintFreq',   defaultFreq: 6000,  warnAt: 500  },
@@ -6538,6 +6599,35 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
           <Plus className="w-3.5 h-3.5" /> Registrar trabajo
         </button>
       </div>
+
+      {/* COSTOS POR CAMION */}
+      {maintRecords.length > 0 && (
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-emerald-600" />
+            <span className="font-black text-stone-900 text-sm">Costos acumulados por camion</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-stone-100">
+            {vehicles.map(v => {
+              const rs = maintRecords.filter(r => r.vehicleId === v.id);
+              const total = rs.reduce((s,r)=>(Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0)+s, 0);
+              const kmRecorrido = (v.currentKm||0) - Math.min(...rs.map(r=>r.km||0).filter(k=>k>0), v.currentKm||0);
+              const costPerKm = kmRecorrido > 0 ? (total / kmRecorrido) : 0;
+              return (
+                <div key={v.id} className="p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <div className="w-2 h-2 rounded-full" style={{backgroundColor: v.color}}></div>
+                    <span className="font-black text-stone-900 text-xs">{v.code}</span>
+                  </div>
+                  <div className="text-lg font-black text-emerald-700">${total.toFixed(0)}</div>
+                  <div className="text-[9px] text-stone-400">{rs.length} trabajos</div>
+                  {costPerKm > 0 && <div className="text-[9px] text-indigo-600 font-bold mt-0.5">${costPerKm.toFixed(3)}/km</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* RESUMEN */}
       <div className="grid grid-cols-3 gap-3">
@@ -6738,6 +6828,89 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
           </div>
         </div>
       )}
+
+      {/* CITAS DE TALLER */}
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 bg-indigo-600 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-white text-sm">📅</span>
+            <span className="font-black text-white text-sm">Citas de Taller</span>
+            {upcomingAppts.length > 0 && <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold">{upcomingAppts.length} próximas</span>}
+          </div>
+          <button onClick={() => setShowApptForm(!showApptForm)} className="flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
+            <Plus className="w-3 h-3" /> Nueva cita
+          </button>
+        </div>
+
+        {/* Formulario nueva cita */}
+        {showApptForm && (
+          <div className="p-4 bg-indigo-50 border-b border-indigo-200 space-y-3">
+            <div className="font-bold text-stone-900 text-sm">Programar cita</div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Unidad</label>
+                <select value={apptForm.vehicleId} onChange={e => setApptForm({...apptForm, vehicleId: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.code} · {v.plate}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha</label>
+                <input type="date" value={apptForm.fecha} onChange={e => setApptForm({...apptForm, fecha: e.target.value})} min={today} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Servicio</label>
+                <select value={apptForm.tipo} onChange={e => setApptForm({...apptForm, tipo: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                  {SERV_TIPOS.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Taller</label>
+                <input type="text" value={apptForm.taller} onChange={e => setApptForm({...apptForm, taller: e.target.value})} placeholder="Nombre del taller..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+              </div>
+              <div className="col-span-2">
+                <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Notas</label>
+                <input type="text" value={apptForm.notas} onChange={e => setApptForm({...apptForm, notas: e.target.value})} placeholder="Observaciones..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => { setShowApptForm(false); setApptForm(emptyAppt); }} className="px-3 py-1.5 text-sm text-stone-500 border border-stone-200 rounded-lg">Cancelar</button>
+              <button onClick={addAppt} disabled={!apptForm.fecha} className="px-4 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold rounded-lg">Guardar y notificar Discord</button>
+            </div>
+          </div>
+        )}
+
+        {/* Lista citas próximas */}
+        {upcomingAppts.length === 0 && !showApptForm ? (
+          <div className="py-8 text-center text-stone-400 text-sm">Sin citas programadas. Usa "Nueva cita" para agregar.</div>
+        ) : (
+          <div className="divide-y divide-stone-100">
+            {upcomingAppts.map(a => {
+              const v = vehicles.find(x => x.id === a.vehicleId);
+              const daysLeft = Math.ceil((new Date(a.fecha) - new Date()) / 86400000);
+              return (
+                <div key={a.id} className="px-4 py-3 flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor: v?.color || '#6366f1'}}></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-stone-900 text-sm">{a.vehicleCode}</span>
+                      <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold">{a.tipo}</span>
+                      {a.taller && <span className="text-xs text-stone-500">🏪 {a.taller}</span>}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <span className="text-xs text-stone-500 font-mono">📅 {a.fecha}</span>
+                      <span className={`text-xs font-bold ${daysLeft <= 1 ? 'text-rose-600' : daysLeft <= 3 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                        {daysLeft === 0 ? '¡Hoy!' : daysLeft === 1 ? 'Mañana' : `En ${daysLeft} días`}
+                      </span>
+                      {a.notas && <span className="text-xs text-stone-400">{a.notas}</span>}
+                    </div>
+                  </div>
+                  <button onClick={() => delAppt(a.id)} className="text-stone-300 hover:text-rose-500 transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* HISTORIAL */}
       <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
