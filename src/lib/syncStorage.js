@@ -180,7 +180,7 @@ async function uploadToSupabase(key, newValue) {
 
     // 2) UPSERT - los nuevos y modificados
     if (newArr.length > 0) {
-      const payload = newArr.map(objectKeysToSnake);
+      const payload = newArr.map(r => { const s = objectKeysToSnake(r); for (const k of Object.keys(s)) { if ((k.endsWith('_date') || k.endsWith('_at')) && s[k] === '') s[k] = null; } return s; });
       const idField = table === 'archived_months' ? 'month' : (table === 'gps_tracks' ? 'trip_id' : 'id');
       const { error } = await supabase.from(table).upsert(payload, { onConflict: idField });
       if (error) console.warn(`Upsert en ${table}:`, error.message);
