@@ -488,6 +488,14 @@ function TVDashboard({ vehicles, activeTrips, trips, drivers, branches }) {
 }
 
 export default function App() {
+  // Forzar actualización del SW/caché
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(r => r.update());
+      });
+    }
+  }, []);
   const [view, setView] = useState('welcome');
   const [currentUser, setCurrentUser] = useState(null);
   const [vehicles, setVehicles] = useState(INITIAL_VEHICLES);
