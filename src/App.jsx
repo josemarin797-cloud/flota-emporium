@@ -2341,19 +2341,25 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
                 setStep('checklist');
               }
             }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} branches={branches} config={config} setChecklistKm={setChecklistKm} setStep={(s) => {
-              // Aviso de voz si el vehículo tiene cita próxima
-              if (s === 'checklist' && selectedVehicle) {
+              // Aviso de voz si el vehículo tiene cita próxima — una sola vez por día por vehículo
+              if ((s === 'start' || s === 'checklist') && selectedVehicle) {
                 const today = new Date().toISOString().slice(0,10);
                 const ap = appointments.filter(a => a.vehicleId === selectedVehicle.id && a.fecha >= today).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
                 if (ap) {
-                  const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000);
-                  const taller = ap.taller ? ` en ${ap.taller}` : '';
-                  const msg = days === 0
-                    ? `Atención: este vehículo tiene cita de taller hoy para ${ap.tipo}${taller}.`
-                    : days === 1
-                    ? `Atención: este vehículo tiene cita de taller mañana para ${ap.tipo}${taller}.`
-                    : `Atención: este vehículo tiene cita de taller en ${days} días para ${ap.tipo}${taller}.`;
-                  try { setTimeout(() => speakText(msg), 3500); } catch(e) {}
+                  const announcedKey = `emp:cita_anunciada_${selectedVehicle.id}_${today}`;
+                  const yaAnunciado = localStorage.getItem(announcedKey);
+                  if (!yaAnunciado) {
+                    const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000);
+                    const taller = ap.taller ? ` en ${ap.taller}` : '';
+                    const msg = days === 0
+                      ? `Atención: este vehículo tiene cita de taller hoy para ${ap.tipo}${taller}.`
+                      : days === 1
+                      ? `Atención: este vehículo tiene cita de taller mañana para ${ap.tipo}${taller}.`
+                      : `Atención: este vehículo tiene cita de taller en ${days} días para ${ap.tipo}${taller}.`;
+                    try {
+                      setTimeout(() => { speakText(msg); localStorage.setItem(announcedKey, '1'); }, 4000);
+                    } catch(e) {}
+                  }
                 }
               }
               setStep(s);
