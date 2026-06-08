@@ -2383,7 +2383,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) setChecklistKm(Number(km)); setStep('start'); }} onBack={() => setStep('select')} config={config} endShifts={endShifts} />}
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} initialOriginBranchId={(() => { const ch = (handoffs||[]).find(h => h.vehicleId === selectedVehicle?.id && h.status === 'confirmed' && h.toDriverId === currentDriver.id); return ch?.locationBranchId || null; })()} />}
-          {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
+          {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} appointments={appointments} saveAppointments={saveAppointments} />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} />}
           {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} kmInicial={endShiftTripData.kmUltimoViaje} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
           {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} drivers={drivers} trips={trips} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
@@ -2888,7 +2888,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   );
 }
 
-function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, onAddPhoto, gpsEnabled, currentPosition, fuelRecords = [], saveFuelRecords, config }) {
+function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, onAddPhoto, gpsEnabled, currentPosition, fuelRecords = [], saveFuelRecords, config, appointments = [], saveAppointments }) {
   const [elapsed, setElapsed] = useState('');
   const [showFinishForm, setShowFinishForm] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -3388,7 +3388,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
           </div>
           {trip.destinationBranchId === 'taller' && vehicle && (
             <div className="mt-3 pt-3 border-t border-white/20">
-              <TallerEntradaForm vehicle={vehicle} driver={driver} vehicles={allVehicles} saveVehicles={saveVehicles} config={config} />
+              <TallerEntradaForm vehicle={vehicle} driver={driver} vehicles={allVehicles} saveVehicles={saveVehicles} config={config} appointments={appointments} saveAppointments={saveAppointments} onRegistered={onCancel} />
             </div>
           )}
         </div>
@@ -3985,7 +3985,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
         {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
-        {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} />}
+        {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} appointments={appointments} saveAppointments={saveAppointments} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
         {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} maintRecords={maintRecords} saveMaintRecords={saveMaintRecords} appointments={appointments} saveAppointments={saveAppointments} config={config} />}
@@ -5881,7 +5881,7 @@ function VehicleForm({ v, onSave, onCancel, title }) {
   );
 }
 
-function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig }) {
+function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig, appointments = [], saveAppointments }) {
   const [editing, setEditing] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
 
@@ -5955,6 +5955,25 @@ function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig })
                     <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Días</div><div className="font-bold text-stone-900">{new Set(vt.map(t=>t.startDate)).size}</div></div>
                   </div>
                   {v.observations && <div className="mt-2 text-xs bg-amber-950/30 border border-amber-700/30 rounded p-2 text-amber-700">{v.observations}</div>}
+                  {v.status === 'EN TALLER' && (
+                    <div className="mt-3 bg-rose-50 border border-rose-200 rounded-xl p-3 space-y-2">
+                      <div className="text-xs font-bold text-rose-700 uppercase">🔧 En taller</div>
+                      <div className="text-xs text-rose-600">{v.tallerMotivo || 'En servicio'}</div>
+                      {v.tallerEntrada && <div className="text-xs text-stone-500">⏱️ {(() => { const s=Math.floor((Date.now()-v.tallerEntrada)/1000); const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60); return d>0?`${d}d ${h}h`:h>0?`${h}h ${m}m`:`${m}m`; })()} en taller</div>}
+                      <button onClick={() => {
+                        const km = prompt(`KM al retirar ${v.code} del taller:`, v.currentKm?.toString()||'0');
+                        if (!km || isNaN(Number(km))) return;
+                        const trabajo = prompt('Trabajo realizado en taller:') || '—';
+                        const today = new Date().toISOString().slice(0,10);
+                        saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, status: 'AL DIA', currentKm: Number(km), tallerSalida: Date.now(), tallerTrabajo: trabajo, tallerEntrada: null, tallerMotivo: null, tallerChofer: null } : x));
+                        if (saveAppointments) saveAppointments(appointments.filter(a => !(a.vehicleId === v.id && a.fecha >= today)));
+                        const wh = v.maintenanceWebhook || config?.discordWebhookMaintenance;
+                        if (wh) sendDiscordNotification(wh, { title: `✅ RETIRO DE TALLER · ${v.code}`, description: `Coordinador retiró **${v.code}** del taller`, color: 0x10b981, fields: [{ name: '🛠️ Trabajo', value: trabajo, inline: false }, { name: '📍 KM', value: Number(km).toLocaleString(), inline: true }] }).catch(()=>{});
+                      }} className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
+                        ✅ Retirar del taller (coordinador)
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -6353,7 +6372,7 @@ function RetirarTallerView({ vehicle, driver, vehicles, saveVehicles, config, on
   );
 }
 
-function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config }) {
+function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config, appointments = [], saveAppointments, onRegistered }) {
   const [motivo, setMotivo] = useState('');
   const [submitted, setSubmitted] = useState(vehicle?.status === 'EN TALLER');
 
@@ -6374,6 +6393,11 @@ function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config }) 
       tallerChofer: driver.name,
     } : v);
     saveVehicles(updatedVehicles);
+    // Eliminar citas pendientes del vehículo al entrar al taller
+    if (saveAppointments && appointments.length > 0) {
+      const today = new Date().toISOString().slice(0,10);
+      saveAppointments(appointments.filter(a => !(a.vehicleId === vehicle.id && a.fecha >= today)));
+    }
     const wh = getMaintWebhook(vehicle?.id, vehicles, config);
     if (wh) sendDiscordNotification(wh, {
       title: `🔧 EN TALLER · ${vehicle.code}`,
@@ -6386,6 +6410,8 @@ function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config }) 
       ],
     }).catch(() => {});
     setSubmitted(true);
+    // Salir automáticamente después de registrar
+    setTimeout(() => { if (onRegistered) onRegistered(); }, 1500);
   };
 
   return (
