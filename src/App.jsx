@@ -2347,8 +2347,13 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
                 const ap = appointments.filter(a => a.vehicleId === selectedVehicle.id && a.fecha >= today).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
                 if (ap) {
                   const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000);
-                  const msg = days === 0 ? `Atención: este vehículo tiene cita de taller hoy para ${ap.tipo}.` : days === 1 ? `Atención: este vehículo tiene cita de taller mañana para ${ap.tipo}.` : `Atención: este vehículo tiene cita de taller en ${days} días para ${ap.tipo}.`;
-                  try { speakText(msg); } catch(e) {}
+                  const taller = ap.taller ? ` en ${ap.taller}` : '';
+                  const msg = days === 0
+                    ? `Atención: este vehículo tiene cita de taller hoy para ${ap.tipo}${taller}.`
+                    : days === 1
+                    ? `Atención: este vehículo tiene cita de taller mañana para ${ap.tipo}${taller}.`
+                    : `Atención: este vehículo tiene cita de taller en ${days} días para ${ap.tipo}${taller}.`;
+                  try { setTimeout(() => speakText(msg), 3500); } catch(e) {}
                 }
               }
               setStep(s);
@@ -6582,6 +6587,18 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
     const v = vehicles.find(x => x.id === form.vehicleId);
     const rec = { id: Date.now().toString(), ...form, km: Number(form.km)||0, costoRepuesto: Number(form.costoRepuesto)||0, manoObra: Number(form.manoObra)||0, vehicleCode: v?.code || '', vehiclePlate: v?.plate || '' };
     saveMaintRecords([rec, ...maintRecords]);
+    // Eliminar citas pendientes del mismo vehículo que coincidan con el tipo de trabajo
+    if (saveAppointments) {
+      const today = new Date().toISOString().slice(0,10);
+      const remaining = appointments.filter(a => {
+        if (a.vehicleId !== form.vehicleId) return true;
+        if (a.fecha < today) return false; // ya vencidas igual se limpian
+        // Comparar tipo de servicio (flexible)
+        const tipoNorm = (s) => s.toLowerCase().replace(/[^a-z]/g,'');
+        return tipoNorm(a.tipo) !== tipoNorm(form.trabajo) && !form.trabajo.toLowerCase().includes(tipoNorm(a.tipo));
+      });
+      if (remaining.length < appointments.length) saveAppointments(remaining);
+    }
     setForm(emptyForm);
     setShowForm(false);
   };
