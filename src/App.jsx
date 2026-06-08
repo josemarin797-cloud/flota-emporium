@@ -865,6 +865,7 @@ export default function App() {
         incidents={incidents} saveIncidents={saveIncidents}
         fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords}
         endShifts={endShifts} saveEndShifts={saveEndShifts}
+        appointments={appointments}
       />
       <InstallAppButton />
     </>;
@@ -1676,7 +1677,7 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
     </div>
   );
 }
-function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents, fuelRecords = [], saveFuelRecords, endShifts = [], saveEndShifts }) {
+function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents, fuelRecords = [], saveFuelRecords, endShifts = [], saveEndShifts, appointments = [] }) {
   const [tab, setTab] = useState('trip');
   const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [step, setStep] = useState('select');
