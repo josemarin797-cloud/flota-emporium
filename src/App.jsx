@@ -6683,6 +6683,7 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
         </div>
       </div>
 
+
       {/* TARJETAS POR VEHÍCULO */}
       <div className="space-y-4">
         {alertVehicles.map(v => (
@@ -6829,6 +6830,40 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
           <div className="flex gap-2 justify-end pt-1">
             <button onClick={() => { setShowForm(false); setForm(emptyForm); }} className="px-4 py-2 text-sm text-stone-600 border border-stone-200 rounded-lg hover:bg-stone-50">Cancelar</button>
             <button onClick={handleAdd} disabled={!form.trabajo} className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold rounded-lg transition">Guardar registro</button>
+          </div>
+        </div>
+      )}
+
+      {/* GRAFICOS */}
+      {chartData.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
+            <div className="text-xs font-bold text-stone-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-rose-500" /> Gasto total por camion {filterMes !== 'all' ? `· ${filterMes}` : ''}
+            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
+                <Bar dataKey="Total" fill="#059669" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
+            <div className="text-xs font-bold text-stone-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-blue-500" /> Repuesto vs Mano de Obra {filterMes !== 'all' ? `· ${filterMes}` : ''}
+            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="Repuesto" fill="#F59E0B" radius={[4,4,0,0]} />
+                <Bar dataKey="Mano de Obra" fill="#3B82F6" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}
