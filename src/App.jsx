@@ -4084,43 +4084,78 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
           { key: 'grease',  label: 'Engrase',           icon: '⚙️', lastKey: 'lastGreaseKm',  freqKey: 'greaseFreq',  def: 3000,  warn: 500  },
           { key: 'brake',   label: 'Frenos',            icon: '🛑', lastKey: 'lastBrakeKm',   freqKey: 'brakeFreq',   def: 15000, warn: 1000 },
           { key: 'coolant', label: 'Refrigerante',      icon: '💧', lastKey: 'lastCoolantKm', freqKey: 'coolantFreq', def: 12000, warn: 1000 },
-          { key: 'prev',    label: 'Mant. Preventivo',  icon: '🔧', lastKey: 'lastPrevKm',    freqKey: 'prevFreq',    def: 15000, warn: 1000 },
+          { key: 'prev',    label: 'Mant. Prev.',       icon: '🔧', lastKey: 'lastPrevKm',    freqKey: 'prevFreq',    def: 15000, warn: 1000 },
         ];
-        const alertaAceite = vehicles.filter(v => v.status !== 'EN TALLER' && ((v.lastMaintKm||0) + (v.maintFreq||6000) - (v.currentKm||0)) < 500);
-        const alertaEngrase = vehicles.filter(v => v.status !== 'EN TALLER' && v.greaseFreq > 0 && ((v.lastGreaseKm||0) + (v.greaseFreq||3000) - (v.currentKm||0)) < 500);
-        // Calcular todas las alertas de servicios
-        const allServAlerts = [];
-        vehicles.filter(v => v.status !== 'EN TALLER').forEach(v => {
-          SERV_ALERTS.forEach(s => {
+        // Agrupar alertas por vehículo
+        const byVehicle = vehicles.filter(v => v.status !== 'EN TALLER').map(v => {
+          const alertas = SERV_ALERTS.map(s => {
             const last = v[s.lastKey] || 0;
             const freq = v[s.freqKey] || s.def;
             const rem = last + freq - (v.currentKm || 0);
-            if (rem < s.warn) allServAlerts.push({ v, s, rem });
-          });
-        });
-        if (enTaller.length === 0 && allServAlerts.length === 0) return null;
+            return rem < s.warn ? { ...s, rem } : null;
+          }).filter(Boolean);
+          return alertas.length > 0 ? { v, alertas } : null;
+        }).filter(Boolean);
+        if (enTaller.length === 0 && byVehicle.length === 0) return null;
         const fmt = (s) => { const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60); return d>0?`${d}d ${h}h`:`${h}h ${m}m`; };
+        const totalAlertas = byVehicle.reduce((s,x) => s + x.alertas.length, 0);
         return (
-          <div className="space-y-2">
-            {enTaller.map(v => (
-              <div key={v.id} className="bg-rose-50 border border-rose-300 rounded-xl p-3 flex items-center gap-3">
-                <div className="text-2xl">🔧</div>
-                <div className="flex-1">
-                  <div className="font-bold text-rose-800">{v.code} — EN TALLER</div>
-                  <div className="text-xs text-rose-600">{v.tallerMotivo || 'En servicio'} · {v.tallerChofer || '—'}</div>
-                  {v.tallerEntrada && <div className="text-xs text-rose-500 font-mono">{fmt(Math.floor((Date.now()-v.tallerEntrada)/1000))} en taller</div>}
-                </div>
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+            {/* Header */}
+            <div className="px-4 py-3 bg-rose-600 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-white" />
+                <span className="font-black text-white text-sm">Alertas de Mantenimiento</span>
               </div>
-            ))}
-            {allServAlerts.map(({ v, s, rem }, i) => (
-              <div key={i} className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center gap-3">
-                <div className="text-2xl">{s.icon}</div>
-                <div className="flex-1">
-                  <div className="font-bold text-amber-800">{v.code} — {rem < 0 ? `⚠️ ${s.label.toUpperCase()} VENCIDO` : `⚠️ ${s.label.toUpperCase()} PRÓXIMO`}</div>
-                  <div className="text-xs text-amber-600">{s.label} · {rem < 0 ? `${Math.abs(rem).toLocaleString()} km pasado` : `${rem.toLocaleString()} km restantes`}</div>
-                </div>
+              <div className="flex items-center gap-2">
+                {enTaller.length > 0 && <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold">{enTaller.length} en taller</span>}
+                {totalAlertas > 0 && <span className="text-[10px] bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full font-bold">{totalAlertas} {totalAlertas===1?'alerta':'alertas'}</span>}
               </div>
-            ))}
+            </div>
+            <div className="divide-y divide-stone-100">
+              {/* En taller */}
+              {enTaller.map(v => (
+                <div key={v.id} className="px-4 py-3 flex items-center gap-3 bg-rose-50">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm" style={{backgroundColor: v.color+'22', border: `2px solid ${v.color}`}}>
+                    <span style={{color: v.color}} className="font-black text-xs">{v.code.replace(/\s/g,'').slice(0,3)}</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-rose-800 text-sm">{v.code}</span>
+                      <span className="text-[10px] bg-rose-600 text-white px-2 py-0.5 rounded-full font-bold">🔧 EN TALLER</span>
+                    </div>
+                    <div className="text-xs text-rose-600 mt-0.5">{v.tallerMotivo || 'En servicio'}{v.tallerEntrada ? ` · ${fmt(Math.floor((Date.now()-v.tallerEntrada)/1000))}` : ''}</div>
+                  </div>
+                </div>
+              ))}
+              {/* Por vehículo */}
+              {byVehicle.map(({ v, alertas }) => {
+                const tieneVencido = alertas.some(a => a.rem < 0);
+                return (
+                  <div key={v.id} className={`px-4 py-3 ${tieneVencido ? 'bg-rose-50/50' : 'bg-amber-50/40'}`}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor: v.color}}></div>
+                      <span className="font-black text-stone-900 text-sm">{v.code}</span>
+                      <span className="text-xs text-stone-500 font-mono">{v.plate}</span>
+                      <span className="text-xs text-stone-400">· {(v.currentKm||0).toLocaleString()} km</span>
+                      {tieneVencido
+                        ? <span className="ml-auto text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-bold">⚠️ VENCIDO</span>
+                        : <span className="ml-auto text-[10px] bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full font-bold">⏰ PRÓXIMO</span>
+                      }
+                    </div>
+                    <div className="flex flex-wrap gap-2 pl-5">
+                      {alertas.map((a, i) => (
+                        <div key={i} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-medium border ${a.rem < 0 ? 'bg-rose-100 text-rose-800 border-rose-200' : 'bg-amber-100 text-amber-800 border-amber-200'}`}>
+                          <span>{a.icon}</span>
+                          <span>{a.label}</span>
+                          <span className="font-mono font-bold">{a.rem < 0 ? `−${Math.abs(a.rem).toLocaleString()}` : `+${a.rem.toLocaleString()}`} km</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         );
       })()}
