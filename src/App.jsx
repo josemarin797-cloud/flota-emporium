@@ -694,12 +694,16 @@ export default function App() {
             from_driver_name: h.fromDriverName,
             to_driver_id: h.toDriverId || '',
             to_driver_name_expected: h.toDriverNameExpected || '',
+            to_driver_name: h.toDriverName || '',
             km_at_handoff: h.kmAtHandoff || 0,
             fuel_at_handoff: h.fuelAtHandoff || '',
             notes: h.notes || '',
             handoff_date: h.handoffDate || '',
             handoff_time: h.handoffTime || '',
+            location_branch_id: h.locationBranchId || null,
             status: h.status || 'pending',
+            confirmed_at: h.confirmedAt || null,
+            reception_notes: h.receptionNotes || null,
           }),
         });
       }
@@ -2601,12 +2605,12 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                       {waitingForOther && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera por {pendingForV.toDriverNameExpected}</span>}
                       {waitingGeneral && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera</span>}
                       {occupiedByOther && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔒 Ocupado · {activeByOther.driverName || 'otro chofer'}</span>}
-                      {(() => { const ap = appointments.filter(a => a.vehicleId === v.id && a.fecha >= new Date().toISOString().slice(0,10)).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0]; return ap ? <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔧 Cita: {ap.fecha} · {ap.tipo}</span> : null; })()}
+                      {(() => { const ap = (appointments||[]).filter(a => a.vehicleId === v.id && a.fecha >= new Date().toISOString().slice(0,10)).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0]; return ap ? <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔧 Cita: {ap.fecha} · {ap.tipo}</span> : null; })()}
                     </div>
                     <div className="text-xs text-stone-500">{v.plate} · {v.performance} km/L</div>
                     {waitingForOther && <div className="text-[10px] text-orange-600 font-medium">Reservado para {pendingForV.toDriverNameExpected}</div>}
                     {occupiedByOther && <div className="text-[10px] text-red-600 font-medium">En viaje con {activeByOther.driverName || 'otro chofer'}</div>}
-                    {(() => { const ap = appointments.filter(a => a.vehicleId === v.id && a.fecha >= new Date().toISOString().slice(0,10)).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0]; if (!ap) return null; const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000); return <div className="text-[10px] text-indigo-600 font-medium">📅 Cita {days===0?'hoy':days===1?'mañana':`en ${days} días`}: {ap.taller||ap.tipo}</div>; })()}
+                    {(() => { const ap = (appointments||[]).filter(a => a.vehicleId === v.id && a.fecha >= new Date().toISOString().slice(0,10)).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0]; if (!ap) return null; const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000); return <div className="text-[10px] text-indigo-600 font-medium">📅 Cita {days===0?'hoy':days===1?'mañana':`en ${days} días`}: {ap.taller||ap.tipo}</div>; })()}
                   </div>
                 </div>
                 <div className="text-right">
@@ -2700,7 +2704,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   // Leer handoff confirmado desde Supabase para pre-seleccionar origen correctamente
   useEffect(() => {
     if (initialOriginBranchId) return; // ya viene pre-seleccionado
-    sbFetch('handoffs?vehicle_id=eq.' + vehicle.id + '&status=eq.confirmed&to_driver_id=eq.' + driver.id + '&select=location_branch_id&order=confirmed_at.desc&limit=1')
+    sbFetch('handoffs?vehicle_id=eq.' + vehicle.id + '&status=eq.confirmed&to_driver_id=eq.' + driver.id + '&select=location_branch_id&order=handoff_date.desc&limit=1')
       .then(data => {
         if (Array.isArray(data) && data[0]?.location_branch_id) {
           setForm(f => ({ ...f, originBranchId: data[0].location_branch_id }));
@@ -5967,7 +5971,7 @@ function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig, a
                         const trabajo = prompt('Trabajo realizado en taller:') || '—';
                         const today = new Date().toISOString().slice(0,10);
                         saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, status: 'AL DIA', currentKm: Number(km), tallerSalida: Date.now(), tallerTrabajo: trabajo, tallerEntrada: null, tallerMotivo: null, tallerChofer: null } : x));
-                        if (saveAppointments) saveAppointments(appointments.filter(a => !(a.vehicleId === v.id && a.fecha >= today)));
+                        if (saveAppointments) saveAppointments((appointments||[]).filter(a => !(a.vehicleId === v.id && a.fecha >= today)));
                         const wh = v.maintenanceWebhook || config?.discordWebhookMaintenance;
                         if (wh) sendDiscordNotification(wh, { title: `✅ RETIRO DE TALLER · ${v.code}`, description: `Coordinador retiró **${v.code}** del taller`, color: 0x10b981, fields: [{ name: '🛠️ Trabajo', value: trabajo, inline: false }, { name: '📍 KM', value: Number(km).toLocaleString(), inline: true }] }).catch(()=>{});
                       }} className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
@@ -6395,9 +6399,9 @@ function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config, ap
     } : v);
     saveVehicles(updatedVehicles);
     // Eliminar citas pendientes del vehículo al entrar al taller
-    if (saveAppointments && appointments.length > 0) {
+    if (saveAppointments && (appointments||[]).length > 0) {
       const today = new Date().toISOString().slice(0,10);
-      saveAppointments(appointments.filter(a => !(a.vehicleId === vehicle.id && a.fecha >= today)));
+      saveAppointments((appointments||[]).filter(a => !(a.vehicleId === vehicle.id && a.fecha >= today)));
     }
     const wh = getMaintWebhook(vehicle?.id, vehicles, config);
     if (wh) sendDiscordNotification(wh, {
@@ -6575,11 +6579,11 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
     }
   };
 
-  const delAppt = (id) => { if (confirm('Eliminar cita?')) saveAppointments(appointments.filter(a => a.id !== id)); };
+  const delAppt = (id) => { if (confirm('Eliminar cita?')) saveAppointments((appointments||[]).filter(a => a.id !== id)); };
 
   const today = new Date().toISOString().slice(0,10);
-  const upcomingAppts = appointments.filter(a => a.fecha >= today).sort((a,b) => a.fecha.localeCompare(b.fecha));
-  const pastAppts = appointments.filter(a => a.fecha < today).sort((a,b) => b.fecha.localeCompare(a.fecha));
+  const upcomingAppts = (appointments||[]).filter(a => a.fecha >= today).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const pastAppts = (appointments||[]).filter(a => a.fecha < today).sort((a,b) => b.fecha.localeCompare(a.fecha));
   // ── FIN CITAS ─────────────────────────────────────────────
 
   const SERVICIOS = [
@@ -6644,7 +6648,7 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
         const tipoNorm = (s) => s.toLowerCase().replace(/[^a-z]/g,'');
         return tipoNorm(a.tipo) !== tipoNorm(form.trabajo) && !form.trabajo.toLowerCase().includes(tipoNorm(a.tipo));
       });
-      if (remaining.length < appointments.length) saveAppointments(remaining);
+      if (remaining.length < (appointments||[]).length) saveAppointments(remaining);
     }
     setForm(emptyForm);
     setShowForm(false);
