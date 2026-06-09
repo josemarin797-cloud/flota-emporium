@@ -522,8 +522,8 @@ export default function App() {
           loadFromStorage(KEYS.ACTIVE_TRIPS),
           loadFromStorage(KEYS.ARCHIVED_MONTHS),
           loadFromStorage(KEYS.CONFIG),
-          loadFromStorage(KEYS.PHOTOS),
-          loadFromStorage(KEYS.GPS_TRACKS),
+          Promise.resolve(null),
+          Promise.resolve(null),
           loadFromStorage(KEYS.HANDOFFS),
         ]);
         const savedCfg = reads[6] ? { ...DEFAULT_CONFIG, ...reads[6] } : DEFAULT_CONFIG;
