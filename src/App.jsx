@@ -2463,12 +2463,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
   const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
   React.useEffect(() => {
     const fetchTrips = () => sbFetch('active_trips?select=*').then(data => {
-      if (Array.isArray(data)) setLiveActiveTrips(data.map(r => ({
-        ...r,
-        vehicleId: r.vehicleId || r.vehicle_id,
-        driverId: r.driverId || r.driver_id,
-        driverName: r.driverName || r.driver_name,
-      })));
+      if (Array.isArray(data)) setLiveActiveTrips(data);
     }).catch(() => {});
     fetchTrips();
     const interval = setInterval(fetchTrips, 15000); // actualizar cada 15 segundos
