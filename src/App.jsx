@@ -3865,7 +3865,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
   // ── AUTO-CIERRE MENSUAL ─────────────────────────────────────────────
   useEffect(() => {
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const unarchived = [...new Set(trips.map(t => t.startDate.slice(0, 7)))]
+    const unarchived = [...new Set(trips.map(t => t.startDate?.slice(0, 7)).filter(m => m && m.match(/^\d{4}-\d{2}$/)))]
       .filter(m => m < currentMonth)
       .filter(m => !archivedMonths.find(a => a.month === m))
       .sort();
