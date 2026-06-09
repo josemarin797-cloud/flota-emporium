@@ -3987,7 +3987,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} maintRecords={maintRecords} />}
         {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} saveChecklists={saveChecklists} sbFetch={sbFetch} />}
         {tab === 'discord' && <DiscordTab config={config} saveConfig={saveConfig} vehicles={vehicles} />}
-        {tab === 'settings' && <SettingsTab config={config} saveConfig={saveConfig} saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} savePhotos={savePhotos} saveGpsTracks={saveGpsTracks} saveArchived={saveArchived} vehicles={vehicles} saveVehicles={saveVehicles} />}
+        {tab === 'settings' && <SettingsTab config={config} saveConfig={saveConfig} saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} savePhotos={savePhotos} saveGpsTracks={saveGpsTracks} saveArchived={saveArchived} vehicles={vehicles} saveVehicles={saveVehicles} saveHandoffs={saveHandoffs} handoffs={handoffs} />}
       </main>
       <DarkInputStyles />
     </div>
@@ -8218,7 +8218,7 @@ function DiscordTab({ config, saveConfig, vehicles }) {
   );
 }
 
-function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhotos, saveGpsTracks, saveArchived, vehicles, saveVehicles }) {
+function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhotos, saveGpsTracks, saveArchived, vehicles, saveVehicles, saveHandoffs, handoffs }) {
   const [fuelPrice, setFuelPrice] = useState(config.fuelPrice || 0.5);
   const [availableVoices, setAvailableVoices] = useState([]);
   const [selectedVoice, setSelectedVoice] = useState(localStorage.getItem('emp:voice_name') || '');
