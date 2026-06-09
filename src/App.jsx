@@ -8258,7 +8258,7 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
     localStorage.setItem('emp:voice_muted', newMuted ? 'true' : 'false');
   };
 
-  const limpiarViajesPrueba = () => {
+  const limpiarViajesPrueba = async ()=> {
     if (!confirm('¿Borrar TODOS los viajes, fotos y recorridos GPS?\n\nEsto deja la app limpia para empezar de cero.\nLos vehículos, choferes y sucursales se mantienen.')) return;
     if (!confirm('Confirma una segunda vez: ¿Estás seguro?')) return;
     saveTrips([]);
@@ -8266,15 +8266,20 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
     savePhotos([]);
     saveGpsTracks([]);
     saveArchived([]);
-    // Resetear estado de vehículos
+    saveHandoffs([]);
+    await sbFetch('active_trips?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' }).catch(()=>{});
+    await sbFetch('handoffs?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' }).catch(()=>{});
+    
     saveVehicles(vehicles.map(v => ({ ...v, status: v.status === 'EN TALLER' ? 'EN TALLER' : 'AL DIA' })));
     alert('✅ App limpia. Puedes empezar a registrar viajes reales.');
   };
 
   const cancelarViajesActivos = async () => {
     if (!confirm(`¿Cancelar los ${vehicles.filter(v=>v.status==='EN RUTA').length || 'todos los'} viajes activos?\n\nLos camiones quedarán disponibles para nuevos viajes.`)) return;
-    try { const { supabase } = await import('./lib/syncStorage.js'); await supabase.from('app_data').delete().eq('key', 'emp:v4:active_trips'); } catch(e) {}
+    await sbFetch('active_trips?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' }).catch(()=>{});
+    await sbFetch('handoffs?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' }).catch(()=>{});
     saveActiveTrips([]);
+    saveHandoffs([]);
     saveVehicles(vehicles.map(v => v.status === 'EN RUTA' ? { ...v, status: 'AL DIA' } : v));
     alert('✅ Viajes activos cancelados.');
   };
