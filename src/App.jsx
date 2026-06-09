@@ -2371,7 +2371,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) setChecklistKm(Number(km)); setStep('start'); }} onBack={() => setStep('select')} config={config} endShifts={endShifts} />}
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} initialOriginBranchId={(() => { const ch = (handoffs||[]).find(h => h.vehicleId === selectedVehicle?.id && h.status === 'confirmed' && h.toDriverId === currentDriver.id); return ch?.locationBranchId || null; })()} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
-          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} appointments={appointments} saveAppointments={saveAppointments} onGoToSelect={() => { setCurrentTrip(null); setSelectedVehicle(null); setStep('select'); }} />}
+          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} appointments={appointments} saveAppointments={saveAppointments} onGoToSelect={() => { setCurrentTrip(null); setSelectedVehicle(null); setStep('select'); }} activeTrips={activeTrips} saveActiveTrips={saveActiveTrips} />}
           {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} kmInicial={endShiftTripData.kmUltimoViaje} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
           {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} drivers={drivers} trips={trips} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
         </>}
@@ -3244,7 +3244,7 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack, 
   );
 }
 
-function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, onLogout, onMarkDeparted, onFinishJornada, onEntregarUnidad, onWaitEnd, allVehicles, saveVehicles, appointments = [], saveAppointments, onGoToSelect }) {
+function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, onLogout, onMarkDeparted, onFinishJornada, onEntregarUnidad, onWaitEnd, allVehicles, saveVehicles, appointments = [], saveAppointments, onGoToSelect, activeTrips = [], saveActiveTrips }) {
   const origin = branches.find(b => b.id === trip.originBranchId) || (trip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
   const destination = { id: trip.destinationBranchId, name: resolveDestName(trip, branches) };
   const [timeAtDest, setTimeAtDest] = useState('');
@@ -3375,7 +3375,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
           </div>
           {trip.destinationBranchId === 'taller' && vehicle && (
             <div className="mt-3 pt-3 border-t border-white/20">
-              <TallerEntradaForm vehicle={vehicle} driver={driver} vehicles={allVehicles} saveVehicles={saveVehicles} config={config} onRegistered={onGoToSelect || onNewTrip} appointments={appointments} saveAppointments={saveAppointments} />
+              <TallerEntradaForm vehicle={vehicle} driver={driver} vehicles={allVehicles} saveVehicles={saveVehicles} config={config} onRegistered={onGoToSelect || onNewTrip} appointments={appointments} saveAppointments={saveAppointments} activeTrips={activeTrips} saveActiveTrips={saveActiveTrips} />
             </div>
           )}
         </div>
@@ -6340,7 +6340,7 @@ function RetirarTallerView({ vehicle, driver, vehicles, saveVehicles, config, on
   );
 }
 
-function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config, onRegistered, appointments = [], saveAppointments }) {
+function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config, onRegistered, appointments = [], saveAppointments, activeTrips = [], saveActiveTrips }) {
   const [motivo, setMotivo] = useState('');
   const [submitted, setSubmitted] = useState(vehicle?.status === 'EN TALLER');
 
@@ -6372,6 +6372,11 @@ function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config, on
         { name: '📅 Fecha', value: new Date().toLocaleString('es-VE'), inline: true },
       ],
     }).catch(() => {});
+    // Cancelar viaje activo del vehículo
+    if (saveActiveTrips) {
+      saveActiveTrips((activeTrips||[]).filter(t => t.vehicleId !== vehicle.id));
+      sbFetch('active_trips?vehicle_id=eq.' + vehicle.id, { method: 'DELETE' }).catch(() => {});
+    }
     setSubmitted(true);
     // Borrar citas pendientes del vehículo
     if (saveAppointments && appointments.length > 0) {
@@ -7972,6 +7977,9 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
                       </button>
                       <button onClick={() => setExpanded(isExpanded ? null : a.month)} className="text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold px-3 py-1.5 rounded-lg transition">
                         {isExpanded ? '▲ Cerrar' : '▼ Ver detalle'}
+                      </button>
+                      <button onClick={() => { if (confirm('¿Eliminar este mes del histórico?')) { saveArchived(archivedMonths.filter(x => x.month !== a.month)); sbFetch('archived_months?month=eq.' + (a.month||'null') + (a.month ? '' : '&month=is.null'), { method: 'DELETE' }).catch(()=>{}); } }} className="text-xs bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold px-3 py-1.5 rounded-lg transition">
+                        🗑️
                       </button>
                     </div>
                   </div>
