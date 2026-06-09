@@ -2352,7 +2352,19 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
                 }
               }
               setStep(s);
-            }} appointments={appointments} />
+            }} appointments={appointments} onContinueWithVoice={(vehicleId) => {
+              const today = new Date().toISOString().slice(0,10);
+              const ap = (appointments||[]).filter(a => a.vehicleId === vehicleId && a.fecha >= today).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
+              if (ap) {
+                const key = `emp:cita_anunciada_${vehicleId}_${today}`;
+                if (!localStorage.getItem(key)) {
+                  const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000);
+                  const taller = ap.taller ? ` en ${ap.taller}` : '';
+                  const msg = days === 0 ? `Atención: este vehículo tiene cita de taller hoy para ${ap.tipo}${taller}.` : days === 1 ? `Atención: este vehículo tiene cita de taller mañana para ${ap.tipo}${taller}.` : `Atención: este vehículo tiene cita de taller en ${days} días para ${ap.tipo}${taller}.`;
+                  setTimeout(() => { try { speakText(msg); localStorage.setItem(key, '1'); } catch(e){} }, 3500);
+                }
+              }
+            }} />
           </>}
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
@@ -2446,7 +2458,7 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
   );
 }
 
-function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep, appointments = [] }) {
+function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep, appointments = [], onContinueWithVoice }) {
   // Cargar active_trips frescos desde Supabase para bloqueo en tiempo real
   const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
   React.useEffect(() => {
@@ -2641,7 +2653,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
           </div>
         </div>
       )}
-      <button onClick={onContinue} disabled={!selectedVehicle || !!pendingHandoff}
+      <button onClick={() => { if (onContinueWithVoice && selectedVehicle) onContinueWithVoice(selectedVehicle.id); onContinue(); }} disabled={!selectedVehicle || !!pendingHandoff}
         className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle && !pendingHandoff ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400'}`}>
         Continuar <ArrowRight className="w-5 h-5" />
       </button>
@@ -3363,7 +3375,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
           </div>
           {trip.destinationBranchId === 'taller' && vehicle && (
             <div className="mt-3 pt-3 border-t border-white/20">
-              <TallerEntradaForm vehicle={vehicle} driver={driver} vehicles={allVehicles} saveVehicles={saveVehicles} config={config} />
+              <TallerEntradaForm vehicle={vehicle} driver={driver} vehicles={allVehicles} saveVehicles={saveVehicles} config={config} onRegistered={onCancel} appointments={appointments} saveAppointments={saveAppointments} />
             </div>
           )}
         </div>
@@ -6328,7 +6340,7 @@ function RetirarTallerView({ vehicle, driver, vehicles, saveVehicles, config, on
   );
 }
 
-function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config }) {
+function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config, onRegistered, appointments = [], saveAppointments }) {
   const [motivo, setMotivo] = useState('');
   const [submitted, setSubmitted] = useState(vehicle?.status === 'EN TALLER');
 
@@ -6361,6 +6373,13 @@ function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config }) 
       ],
     }).catch(() => {});
     setSubmitted(true);
+    // Borrar citas pendientes del vehículo
+    if (saveAppointments && appointments.length > 0) {
+      const today = new Date().toISOString().slice(0,10);
+      saveAppointments(appointments.filter(a => !(a.vehicleId === vehicle.id && a.fecha >= today)));
+    }
+    // Ir directo a selección de unidades
+    setTimeout(() => { if (onRegistered) onRegistered(); }, 1500);
   };
 
   return (
