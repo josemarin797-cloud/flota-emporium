@@ -543,24 +543,24 @@ export default function App() {
         if (reads[7]) setPhotos(reads[7]);
         if (reads[8]) setGpsTracks(reads[8]);
         if (reads[9]) setHandoffs(reads[9]);
-        const esLocal = await window.storage.get(KEYS.END_SHIFTS).catch(() => null);
+        const esLocal = null;
         if (esLocal?.value) setEndShifts(JSON.parse(esLocal.value));
         // Cargar checklists desde SUPABASE (sincronizados entre todos los dispositivos)
         const sbData = await loadSBChecklists();
         if (sbData !== null) {
           setChecklists(sbData);
         } else {
-          const local = await window.storage.get(KEYS.CHECKLISTS).catch(() => null);
+          const local = null;
           if (local?.value) setChecklists(JSON.parse(local.value));
         }
         // Cargar registros de mantenimiento desde storage
-        const mrLocal = await window.storage.get(KEYS.MAINT_RECORDS).catch(() => null);
+        const mrLocal = null;
         if (mrLocal?.value) setMaintRecords(JSON.parse(mrLocal.value));
-        const incLocal = await window.storage.get(KEYS.INCIDENTS).catch(() => null);
+        const incLocal = null;
         if (incLocal?.value) setIncidents(JSON.parse(incLocal.value));
-        const frLocal = await window.storage.get(KEYS.FUEL_RECORDS).catch(() => null);
+        const frLocal = null;
         if (frLocal?.value) setFuelRecords(JSON.parse(frLocal.value));
-        const apLocal = await window.storage.get(KEYS.APPOINTMENTS).catch(() => null);
+        const apLocal = null;
         if (apLocal?.value) setAppointments(JSON.parse(apLocal.value));
       } catch (e) {}
       setLoading(false);
@@ -569,36 +569,12 @@ export default function App() {
   }, []);
 
   // ── Offline-first storage ──────────────────────────────────────────
-  const persist = async (key, data) => {
+  const persist = (key, data) => {
     const serialized = JSON.stringify(data);
-    // 1. Guardar en localStorage PRIMERO (siempre funciona, offline o no)
     try { localStorage.setItem(key, serialized); } catch (e) {}
-    // 2. Intentar sincronizar con cloud storage
-    try {
-      await window.storage.set(key, serialized);
-      // Éxito: quitar de pendientes
-      try {
-        const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
-        localStorage.setItem(KEYS.PENDING, JSON.stringify(pending.filter(k => k !== key)));
-      } catch (e) {}
-    } catch (e) {
-      // Sin internet: marcar como pendiente de sync
-      try {
-        const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
-        if (!pending.includes(key)) localStorage.setItem(KEYS.PENDING, JSON.stringify([...pending, key]));
-      } catch (e2) {}
-    }
   };
 
-  const loadFromStorage = async (key) => {
-    try {
-      const result = await window.storage.get(key);
-      if (result?.value) {
-        try { localStorage.setItem(key, result.value); } catch (e) {}
-        return JSON.parse(result.value);
-      }
-    } catch (e) {}
-    // Fallback: localStorage
+  const loadFromStorage = (key) => {
     try {
       const local = localStorage.getItem(key);
       return local ? JSON.parse(local) : null;
@@ -614,7 +590,7 @@ export default function App() {
         for (const key of [...pending]) {
           const data = localStorage.getItem(key);
           if (data) {
-            try { await window.storage.set(key, data); synced++; } catch (e) { break; }
+            synced++;
           }
         }
         if (synced > 0) {
