@@ -2463,7 +2463,12 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
   const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
   React.useEffect(() => {
     const fetchTrips = () => sbFetch('active_trips?select=*').then(data => {
-      if (Array.isArray(data)) setLiveActiveTrips(data.map(r => ({ ...r, vehicleId: r.vehicleId || r.vehicle_id, driverId: r.driverId || r.driver_id, driverName: r.driverName || r.driver_name })));
+      if (Array.isArray(data)) setLiveActiveTrips(data.map(r => ({
+        ...r,
+        vehicleId: r.vehicleId || r.vehicle_id,
+        driverId: r.driverId || r.driver_id,
+        driverName: r.driverName || r.driver_name,
+      })));
     }).catch(() => {});
     fetchTrips();
     const interval = setInterval(fetchTrips, 15000); // actualizar cada 15 segundos
@@ -3987,7 +3992,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
         {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} maintRecords={maintRecords} />}
         {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} saveChecklists={saveChecklists} sbFetch={sbFetch} />}
         {tab === 'discord' && <DiscordTab config={config} saveConfig={saveConfig} vehicles={vehicles} />}
-        {tab === 'settings' && <SettingsTab config={config} saveConfig={saveConfig} saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} savePhotos={savePhotos} saveGpsTracks={saveGpsTracks} saveArchived={saveArchived} vehicles={vehicles} saveVehicles={saveVehicles} saveHandoffs={saveHandoffs} handoffs={handoffs} />}
+        {tab === 'settings' && <SettingsTab config={config} saveConfig={saveConfig} saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} savePhotos={savePhotos} saveGpsTracks={saveGpsTracks} saveArchived={saveArchived} vehicles={vehicles} saveVehicles={saveVehicles} />}
       </main>
       <DarkInputStyles />
     </div>
@@ -8218,7 +8223,7 @@ function DiscordTab({ config, saveConfig, vehicles }) {
   );
 }
 
-function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhotos, saveGpsTracks, saveArchived, vehicles, saveVehicles, saveHandoffs, handoffs }) {
+function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhotos, saveGpsTracks, saveArchived, vehicles, saveVehicles }) {
   const [fuelPrice, setFuelPrice] = useState(config.fuelPrice || 0.5);
   const [availableVoices, setAvailableVoices] = useState([]);
   const [selectedVoice, setSelectedVoice] = useState(localStorage.getItem('emp:voice_name') || '');
@@ -8258,7 +8263,7 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
     localStorage.setItem('emp:voice_muted', newMuted ? 'true' : 'false');
   };
 
-  const limpiarViajesPrueba = async ()=> {
+  const limpiarViajesPrueba = () => {
     if (!confirm('¿Borrar TODOS los viajes, fotos y recorridos GPS?\n\nEsto deja la app limpia para empezar de cero.\nLos vehículos, choferes y sucursales se mantienen.')) return;
     if (!confirm('Confirma una segunda vez: ¿Estás seguro?')) return;
     saveTrips([]);
@@ -8266,20 +8271,15 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
     savePhotos([]);
     saveGpsTracks([]);
     saveArchived([]);
-    saveHandoffs([]);
-    await sbFetch('active_trips?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' }).catch(()=>{});
-    await sbFetch('handoffs?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' }).catch(()=>{});
-    
+    // Resetear estado de vehículos
     saveVehicles(vehicles.map(v => ({ ...v, status: v.status === 'EN TALLER' ? 'EN TALLER' : 'AL DIA' })));
     alert('✅ App limpia. Puedes empezar a registrar viajes reales.');
   };
 
   const cancelarViajesActivos = async () => {
     if (!confirm(`¿Cancelar los ${vehicles.filter(v=>v.status==='EN RUTA').length || 'todos los'} viajes activos?\n\nLos camiones quedarán disponibles para nuevos viajes.`)) return;
-    await sbFetch('active_trips?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' }).catch(()=>{});
-    await sbFetch('handoffs?id=neq.00000000-0000-0000-0000-000000000000', { method: 'DELETE' }).catch(()=>{});
+    try { const { supabase } = await import('./lib/syncStorage.js'); await supabase.from('app_data').delete().eq('key', 'emp:v4:active_trips'); } catch(e) {}
     saveActiveTrips([]);
-    saveHandoffs([]);
     saveVehicles(vehicles.map(v => v.status === 'EN RUTA' ? { ...v, status: 'AL DIA' } : v));
     alert('✅ Viajes activos cancelados.');
   };
