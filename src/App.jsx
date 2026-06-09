@@ -3278,7 +3278,8 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     onMarkDeparted(trip.id); // guarda T.Destino hasta ahora
     setDeparted(true);       // detiene el timer morado
     setIsWaiting(true); localStorage.setItem('emp:isWaiting:'+trip.id, '1');
-    setWaitStart(Date.now()); localStorage.setItem('emp:waitStart:'+trip.id, Date.now());     const wh1 = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral;     const branchName = branches?.find(b => b.id === trip?.destinationBranchId)?.name || trip?.destinationBranchId || '—';
+    setWaitStart(Date.now()); localStorage.setItem('emp:waitStart:'+trip.id, Date.now());     const wh1 = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral;     const allBranches = (branches && branches.length > 0) ? branches : INITIAL_BRANCHES;
+    const branchName = allBranches.find(b => b.id === trip?.destinationBranchId)?.name || trip?.destinationBranchId || '—';
     if (wh1) sendDiscordNotification(wh1, {title: "EN ESPERA - " + vehicle?.code, description: driver?.name + " en espera en " + branchName});
   };
   const endWaiting = (goToNewTrip) => {
