@@ -676,7 +676,7 @@ export default function App() {
   const saveArchived = (d) => { setArchivedMonths(d); persist(KEYS.ARCHIVED_MONTHS, d); };
   const saveConfig = (d) => { setConfig(d); persist(KEYS.CONFIG, d); };
   const savePhotos = (d) => { setPhotos(d); persist(KEYS.PHOTOS, d); };
-  const saveGpsTracks = (d) => { setGpsTracks(d); persist(KEYS.GPS_TRACKS, d); };
+  const saveGpsTracks = (d) => { setGpsTracks(d); try { localStorage.setItem(KEYS.GPS_TRACKS, JSON.stringify(d)); } catch(e) {} };
   const saveHandoffs = async (d) => {
     setHandoffs(d);
     persist(KEYS.HANDOFFS, d);
