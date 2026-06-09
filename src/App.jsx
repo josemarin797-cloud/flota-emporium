@@ -865,7 +865,7 @@ export default function App() {
         incidents={incidents} saveIncidents={saveIncidents}
         fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords}
         endShifts={endShifts} saveEndShifts={saveEndShifts}
-        appointments={appointments}
+        appointments={appointments} saveAppointments={saveAppointments}
       />
       <InstallAppButton />
     </>;
@@ -2338,42 +2338,17 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
               } else if (selectedVehicle?.status === 'EN TALLER') {
                 setStep('retirar');
               } else {
-                // Aviso de voz cita — una sola vez por día por vehículo
-                if (selectedVehicle) {
-                  const today = new Date().toISOString().slice(0,10);
-                  const ap = (appointments||[]).filter(a => a.vehicleId === selectedVehicle.id && a.fecha >= today).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
-                  if (ap) {
-                    const announcedKey = `emp:cita_anunciada_${selectedVehicle.id}_${today}`;
-                    if (!localStorage.getItem(announcedKey)) {
-                      const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000);
-                      const taller = ap.taller ? ` en ${ap.taller}` : '';
-                      const msg = days === 0 ? `Atención: este vehículo tiene cita de taller hoy para ${ap.tipo}${taller}.` : days === 1 ? `Atención: este vehículo tiene cita de taller mañana para ${ap.tipo}${taller}.` : `Atención: este vehículo tiene cita de taller en ${days} días para ${ap.tipo}${taller}.`;
-                      setTimeout(() => { speakText(msg); localStorage.setItem(announcedKey, '1'); }, 3500);
-                    }
-                  }
-                }
                 setStep('checklist');
               }
             }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} branches={branches} config={config} setChecklistKm={setChecklistKm} setStep={(s) => {
-              // Aviso de voz si el vehículo tiene cita próxima — una sola vez por día por vehículo
-              if ((s === 'start' || s === 'checklist') && selectedVehicle) {
+              // Aviso de voz si el vehículo tiene cita próxima
+              if (s === 'checklist' && selectedVehicle) {
                 const today = new Date().toISOString().slice(0,10);
                 const ap = (appointments||[]).filter(a => a.vehicleId === selectedVehicle.id && a.fecha >= today).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
                 if (ap) {
-                  const announcedKey = `emp:cita_anunciada_${selectedVehicle.id}_${today}`;
-                  const yaAnunciado = localStorage.getItem(announcedKey);
-                  if (!yaAnunciado) {
-                    const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000);
-                    const taller = ap.taller ? ` en ${ap.taller}` : '';
-                    const msg = days === 0
-                      ? `Atención: este vehículo tiene cita de taller hoy para ${ap.tipo}${taller}.`
-                      : days === 1
-                      ? `Atención: este vehículo tiene cita de taller mañana para ${ap.tipo}${taller}.`
-                      : `Atención: este vehículo tiene cita de taller en ${days} días para ${ap.tipo}${taller}.`;
-                    try {
-                      setTimeout(() => { speakText(msg); localStorage.setItem(announcedKey, '1'); }, 4000);
-                    } catch(e) {}
-                  }
+                  const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000);
+                  const msg = days === 0 ? `Atención: este vehículo tiene cita de taller hoy para ${ap.tipo}.` : days === 1 ? `Atención: este vehículo tiene cita de taller mañana para ${ap.tipo}.` : `Atención: este vehículo tiene cita de taller en ${days} días para ${ap.tipo}.`;
+                  try { speakText(msg); } catch(e) {}
                 }
               }
               setStep(s);
@@ -6607,18 +6582,6 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
     const v = vehicles.find(x => x.id === form.vehicleId);
     const rec = { id: Date.now().toString(), ...form, km: Number(form.km)||0, costoRepuesto: Number(form.costoRepuesto)||0, manoObra: Number(form.manoObra)||0, vehicleCode: v?.code || '', vehiclePlate: v?.plate || '' };
     saveMaintRecords([rec, ...maintRecords]);
-    // Eliminar citas pendientes del mismo vehículo que coincidan con el tipo de trabajo
-    if (saveAppointments) {
-      const today = new Date().toISOString().slice(0,10);
-      const remaining = appointments.filter(a => {
-        if (a.vehicleId !== form.vehicleId) return true;
-        if (a.fecha < today) return false; // ya vencidas igual se limpian
-        // Comparar tipo de servicio (flexible)
-        const tipoNorm = (s) => s.toLowerCase().replace(/[^a-z]/g,'');
-        return tipoNorm(a.tipo) !== tipoNorm(form.trabajo) && !form.trabajo.toLowerCase().includes(tipoNorm(a.tipo));
-      });
-      if (remaining.length < appointments.length) saveAppointments(remaining);
-    }
     setForm(emptyForm);
     setShowForm(false);
   };
@@ -6682,7 +6645,6 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
           <div className="text-xs font-bold text-emerald-500 uppercase">Al día</div>
         </div>
       </div>
-
 
       {/* TARJETAS POR VEHÍCULO */}
       <div className="space-y-4">
@@ -6830,40 +6792,6 @@ function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRe
           <div className="flex gap-2 justify-end pt-1">
             <button onClick={() => { setShowForm(false); setForm(emptyForm); }} className="px-4 py-2 text-sm text-stone-600 border border-stone-200 rounded-lg hover:bg-stone-50">Cancelar</button>
             <button onClick={handleAdd} disabled={!form.trabajo} className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold rounded-lg transition">Guardar registro</button>
-          </div>
-        </div>
-      )}
-
-      {/* GRAFICOS */}
-      {chartData.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
-            <div className="text-xs font-bold text-stone-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <TrendingUp className="w-3.5 h-3.5 text-rose-500" /> Gasto total por camion {filterMes !== 'all' ? `· ${filterMes}` : ''}
-            </div>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
-                <Bar dataKey="Total" fill="#059669" radius={[4,4,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
-            <div className="text-xs font-bold text-stone-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Activity className="w-3.5 h-3.5 text-blue-500" /> Repuesto vs Mano de Obra {filterMes !== 'all' ? `· ${filterMes}` : ''}
-            </div>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700 }} />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="Repuesto" fill="#F59E0B" radius={[4,4,0,0]} />
-                <Bar dataKey="Mano de Obra" fill="#3B82F6" radius={[4,4,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
           </div>
         </div>
       )}
