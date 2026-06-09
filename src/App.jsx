@@ -2461,10 +2461,13 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
 function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep, appointments = [], onContinueWithVoice }) {
   // Cargar active_trips frescos desde Supabase para bloqueo en tiempo real
   const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
-  React.useEffect(() => {
-    sbFetch('active_trips?select=*').then(data => {
-      if (Array.isArray(data)) setLiveActiveTrips(data);
+ React.useEffect(() => {
+    const fetchTrips = () => sbFetch('active_trips?select=*').then(data => {
+      if (Array.isArray(data)) setLiveActiveTrips(data.map(r => ({ ...r, vehicleId: r.vehicleId || r.vehicle_id, driverId: r.driverId || r.driver_id })));
     }).catch(() => {});
+    fetchTrips();
+    const iv = setInterval(fetchTrips, 8000);
+    return () => clearInterval(iv);
   }, []);
 
   const pendingHandoff = selectedVehicle
