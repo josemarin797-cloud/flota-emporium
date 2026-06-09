@@ -3375,7 +3375,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
           </div>
           {trip.destinationBranchId === 'taller' && vehicle && (
             <div className="mt-3 pt-3 border-t border-white/20">
-              <TallerEntradaForm vehicle={vehicle} driver={driver} vehicles={allVehicles} saveVehicles={saveVehicles} config={config} onRegistered={onCancel} appointments={appointments} saveAppointments={saveAppointments} />
+              <TallerEntradaForm vehicle={vehicle} driver={driver} vehicles={allVehicles} saveVehicles={saveVehicles} config={config} onRegistered={onNewTrip} appointments={appointments} saveAppointments={saveAppointments} />
             </div>
           )}
         </div>
