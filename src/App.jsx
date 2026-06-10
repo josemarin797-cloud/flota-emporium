@@ -2342,7 +2342,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
                   setTimeout(() => { try { speakText(msg); localStorage.setItem(key, '1'); } catch(e){} }, 3500);
                 }
               }
-            }} />
+            }} onEntregarUnidad={() => setShowEntregarModal(true)} />
           </>}
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
@@ -2436,7 +2436,7 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
   );
 }
 
-function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep, appointments = [], onContinueWithVoice }) {
+function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep, appointments = [], onContinueWithVoice, onEntregarUnidad }) {
   // Cargar active_trips frescos desde Supabase para bloqueo en tiempo real
   const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
  React.useEffect(() => {
@@ -2636,6 +2636,19 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
             </button>
           </div>
         </div>
+      )}
+      {selectedVehicle && onEntregarUnidad && (
+        <button onClick={onEntregarUnidad}
+          className="w-full bg-white border border-stone-200 rounded-2xl px-4 py-3 flex items-center gap-3 hover:border-stone-300 hover:bg-stone-50 transition-all active:scale-[0.98]">
+          <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center flex-shrink-0">
+            <ArrowRight className="w-5 h-5 text-stone-500 rotate-90" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-bold text-stone-800">Entregar {selectedVehicle.code} a otro chofer</p>
+            <p className="text-xs text-stone-400">Traspaso sin necesidad de hacer un viaje</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-stone-400 flex-shrink-0" />
+        </button>
       )}
       <button onClick={() => { if (onContinueWithVoice && selectedVehicle) onContinueWithVoice(selectedVehicle.id); onContinue(); }} disabled={!selectedVehicle || !!pendingHandoff}
         className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle && !pendingHandoff ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400'}`}>
