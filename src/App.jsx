@@ -5850,6 +5850,63 @@ function VehicleForm({ v, onSave, onCancel, title }) {
 function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig }) {
   const [editing, setEditing] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [retiroModal, setRetiroModal] = useState(null); // vehicleId
+  const [retiroTrabajo, setRetiroTrabajo] = useState('');
+  const [retiroKm, setRetiroKm] = useState('');
+  const [retiroFoto, setRetiroFoto] = useState(null);
+  const [retiroLoading, setRetiroLoading] = useState(false);
+
+  const handleRetiroCoord = async () => {
+    if (!retiroTrabajo.trim()) { alert('Describe el trabajo realizado'); return; }
+    if (!retiroKm || isNaN(Number(retiroKm))) { alert('Ingresa el KM de salida'); return; }
+    setRetiroLoading(true);
+    const v = vehicles.find(x => x.id === retiroModal);
+    if (!v) { setRetiroLoading(false); return; }
+    const tiempoMs = v.tallerEntrada ? Date.now() - v.tallerEntrada : 0;
+    const fmt = (ms) => { const d=Math.floor(ms/86400000),h=Math.floor((ms%3600000)/3600000),hh=Math.floor(ms/3600000); return d>0?`${d}d ${hh%24}h`:`${hh}h ${Math.floor((ms%3600000)/60000)}m`; };
+    const updatedVehicles = vehicles.map(x => x.id === v.id ? {
+      ...x, status: 'AL DIA',
+      currentKm: Number(retiroKm),
+      tallerSalida: Date.now(),
+      tallerTrabajo: retiroTrabajo,
+      tallerDias: Math.max(1, Math.round(tiempoMs / 86400000)),
+      tallerEntrada: null,
+      tallerMotivo: null,
+      tallerChofer: null,
+    } : x);
+    saveVehicles(updatedVehicles);
+    const wh = getMaintWebhook(v.id, vehicles, config);
+    if (wh) {
+      const embed = {
+        title: `✅ RETIRO DE TALLER · ${v.code}`,
+        description: `**Coordinador** retiró **${v.code}** (${v.plate}) del taller`,
+        color: 0x10B981,
+        fields: [
+          { name: '🔧 Motivo entrada', value: v.tallerMotivo || '—', inline: false },
+          { name: '🛠️ Trabajo realizado', value: retiroTrabajo, inline: false },
+          { name: '⏱️ Tiempo en taller', value: fmt(tiempoMs), inline: true },
+          { name: '📍 KM salida', value: `${Number(retiroKm).toLocaleString()} km`, inline: true },
+          { name: '📅 Fecha', value: new Date().toLocaleString('es-VE'), inline: true },
+        ],
+      };
+      try {
+        if (retiroFoto) {
+          const blob = base64ToBlob(retiroFoto);
+          const fd = new FormData();
+          fd.append('files[0]', blob, 'retiro_taller.jpg');
+          fd.append('payload_json', JSON.stringify({ embeds: [embed] }));
+          await fetch(wh, { method: 'POST', body: fd });
+        } else {
+          await sendDiscordNotification(wh, embed);
+        }
+      } catch { await sendDiscordNotification(wh, embed).catch(()=>{}); }
+    }
+    setRetiroLoading(false);
+    setRetiroModal(null);
+    setRetiroTrabajo('');
+    setRetiroKm('');
+    setRetiroFoto(null);
+  };
 
   const handleSave = (v) => {
     if (v.id) saveVehicles(vehicles.map(x => x.id === v.id ? v : x));
@@ -5921,12 +5978,91 @@ function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig })
                     <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Días</div><div className="font-bold text-stone-900">{new Set(vt.map(t=>t.startDate)).size}</div></div>
                   </div>
                   {v.observations && <div className="mt-2 text-xs bg-amber-950/30 border border-amber-700/30 rounded p-2 text-amber-700">{v.observations}</div>}
+                  {v.status === 'EN TALLER' && (
+                    <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                      <div className="text-xs font-bold text-amber-800 uppercase tracking-wider">🔧 EN TALLER</div>
+                      <div className="text-xs text-amber-700">{v.tallerMotivo || 'Sin motivo registrado'}</div>
+                      {v.tallerEntrada && <div className="text-xs text-stone-500">⏱ {(() => { const ms=Date.now()-v.tallerEntrada; const d=Math.floor(ms/86400000),h=Math.floor(ms/3600000); return d>0?`${d}d ${h%24}h`:`${h}h ${Math.floor((ms%3600000)/60000)}m`; })()} en taller</div>}
+                      <button onClick={() => { setRetiroModal(v.id); setRetiroKm(v.currentKm?.toString()||''); }}
+                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
+                        ✅ Autorizar salida de taller
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           );
         })}
       </div>
+
+      {/* MODAL RETIRO COORDINADOR */}
+      {retiroModal && (() => {
+        const v = vehicles.find(x => x.id === retiroModal);
+        if (!v) return null;
+        return (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl space-y-4 p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-black text-stone-900 text-lg">🔧 Retiro de taller</h2>
+                  <p className="text-xs text-stone-500">{v.code} · {v.plate}</p>
+                </div>
+                <button onClick={() => setRetiroModal(null)} className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200">
+                  <X className="w-4 h-4 text-stone-600" />
+                </button>
+              </div>
+
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
+                <div className="text-xs font-bold text-rose-700 uppercase tracking-wider mb-1">Motivo de entrada</div>
+                <div className="text-sm font-medium text-rose-900">{v.tallerMotivo || '—'}</div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-1.5">
+                  🛠️ Trabajo realizado <span className="text-red-500">*</span>
+                </label>
+                <textarea rows={3} value={retiroTrabajo} onChange={e => setRetiroTrabajo(e.target.value)}
+                  placeholder="Ej: Cambio de aceite y filtros, revisión de frenos..."
+                  className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-400 resize-none" />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-1.5">📍 KM odómetro al retirar *</label>
+                <input type="number" value={retiroKm} onChange={e => setRetiroKm(e.target.value)}
+                  className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:border-emerald-400" />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-1.5">
+                  📷 Foto del trabajo <span className="text-stone-400 font-normal">(opcional)</span>
+                </label>
+                {retiroFoto ? (
+                  <div className="relative w-full rounded-xl overflow-hidden border border-stone-200">
+                    <img src={retiroFoto} alt="Foto taller" className="w-full h-36 object-cover" />
+                    <button onClick={() => setRetiroFoto(null)}
+                      className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center shadow">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="w-full h-24 rounded-xl border-2 border-dashed border-stone-300 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition">
+                    <Camera className="w-6 h-6 text-stone-400" />
+                    <span className="text-xs text-stone-400 mt-1">Agregar foto</span>
+                    <input type="file" accept="image/*" capture="environment" className="sr-only"
+                      onChange={e => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>setRetiroFoto(ev.target.result); r.readAsDataURL(f); }} />
+                  </label>
+                )}
+              </div>
+
+              <button onClick={handleRetiroCoord} disabled={retiroLoading}
+                className="w-full py-4 rounded-2xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2 transition disabled:opacity-50">
+                {retiroLoading ? 'Registrando...' : '✅ Confirmar salida → Discord'}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
