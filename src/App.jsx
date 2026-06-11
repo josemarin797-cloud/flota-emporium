@@ -1797,6 +1797,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         : t));
     }
 
+    const _esBombaDestino = data.destinationBranchId === 'surtir' ||
+      (data.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(data.customDestName || ''));
     const trip = {
       id: `at_${Date.now()}`,
       driverId: currentDriver.id, vehicleId: selectedVehicle.id,
@@ -1805,6 +1807,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       fuelLoaded: Number(data.fuelLoaded) || 0,
       customDestName: data.customDestName || '',
       customDestType: data.customDestType || '',
+      isBombaTrip: _esBombaDestino ? true : undefined,
     };
     saveActiveTrips([...activeTrips, trip]);
     setCurrentTrip(trip);
@@ -1910,6 +1913,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       arrivalNotes: data.arrivalNotes || '',
       createdAt: Date.now(),
       surtirRegistrado: currentTrip.surtirRegistrado || false,
+      isBombaTrip: currentTrip.isBombaTrip || undefined,
     };
 
     saveTrips([...trips, completed]);
@@ -1958,11 +1962,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     saveGpsTracks(gpsTracks.map(g => g.tripId === currentTrip.id ? { ...g, tripId: completed.id, completed: true } : g));
 
     stopGpsTracking();
-    const esSurtir = (completed.destinationBranchId === 'surtir' ||
-      (completed.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(completed.customDestName || ''))) &&
-      !completed.surtirRegistrado;
-    // Si es surtir, guardamos inmediatamente con surtirRegistrado=false para que al recargar no haga loop
-    // El flag se pone en true solo cuando el chofer completa el formulario de carga
+    // isBombaTrip se asigna cuando se CREA el viaje — es el único chequeo confiable
+    const esSurtir = completed.isBombaTrip === true && completed.surtirRegistrado !== true;
     const completedFinal = esSurtir ? { ...completed, surtirRegistrado: false } : completed;
     setCurrentTrip(completedFinal);
     setStep(esSurtir ? 'surtir' : 'finish');
