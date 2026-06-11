@@ -1678,9 +1678,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       if (active && step === 'select') {
         setCurrentTrip(active);
         // Si era un viaje a bomba pendiente de registrar combustible
-        const erasSurtir = (active.destinationBranchId === 'surtir' ||
-          (active.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(active.customDestName || '')));
-        if (erasSurtir && active.surtirRegistrado === false) {
+        // Solo mostrar surtir si el viaje fue explícitamente marcado como bomba al crearse
+        if (active.isBombaTrip === true && active.surtirRegistrado !== true) {
           setStep('surtir');
         } else {
           setStep('active');
@@ -1834,7 +1833,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         setTimeout(() => speakText(`¡Buen viaje ${nombreCorto}! ${mensajeRandom}`), 600);
 
     // Notificación Discord
-    const origin = branches.find(b => b.id === data.originBranchId) || (data.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
+    const origin = branches.find(b => b.id === data.originBranchId) || (data.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : data.originBranchId === 'surtir' ? { id: 'surtir', name: '⛽ Bomba de combustible' } : null);
     const destName = resolveDestName(data, branches);
     // Discord: viajes → canal viajes, otro-mant → canal mantenimiento
     const webhookUrl = data.destinationBranchId === 'otro' && data.customDestType === 'mantenimiento'
@@ -1988,7 +1987,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const webhookUrl = currentTrip.destinationBranchId === 'otro' && currentTrip.customDestType === 'mantenimiento'
       ? (getMaintWebhook(v?.id, vehicles, config))
       : (config.discordWebhookByVehicle?.[v?.id] || config.discordWebhookGeneral);
-    sendDiscordNotification(webhookUrl, {
+    if (!completed.isBombaTrip) sendDiscordNotification(webhookUrl, {
       title: `✅ VIAJE COMPLETADO · ${v.code}`,
       description: `**${currentDriver.name}** llegó a **${destName}** desde **${origin?.name}**`,
       color: 0x059669,
@@ -2377,8 +2376,15 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
             vehicles={vehicles}
             saveVehicles={saveVehicles}
             onDone={() => {
+              // Leer trips frescos de localStorage para evitar stale closure
+              const TKEY = 'emp:v4:trips';
+              try {
+                const fresh = JSON.parse(localStorage.getItem(TKEY) || '[]');
+                const updated = fresh.map(t => t.id === currentTrip.id ? {...t, surtirRegistrado: true} : t);
+                localStorage.setItem(TKEY, JSON.stringify(updated));
+                saveTrips(updated);
+              } catch(e) {}
               setCurrentTrip(t => ({ ...t, surtirRegistrado: true }));
-              saveTrips(trips.map(t => t.id === currentTrip.id ? { ...t, surtirRegistrado: true } : t));
               setStep('finish');
             }}
           />}
@@ -2696,7 +2702,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   const lastTrip = useMemo(() => [...trips].filter(t => t.vehicleId === vehicle.id).sort((a, b) => b.createdAt - a.createdAt)[0], [trips, vehicle]);
   const now = new Date();
   const [formOpenedAt] = useState(() => Date.now());
-  const defaultOrigin = initialOriginBranchId || (lastTrip && lastTrip.destinationBranchId !== 'surtir' ? lastTrip.destinationBranchId : (branches[0]?.id || ''));
+  const defaultOrigin = initialOriginBranchId || (lastTrip ? (lastTrip.destinationBranchId === 'surtir' ? 'surtir' : lastTrip.destinationBranchId) : (branches[0]?.id || ''));
   const [form, setForm] = useState({
     originBranchId: defaultOrigin,
     destinationBranchId: '',
@@ -2790,6 +2796,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
               className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'taller' ? 'border-rose-400 bg-rose-100 text-rose-800' : 'border-rose-200 text-rose-600 hover:border-rose-400 bg-rose-50'}`}>
               🔧 Taller
             </button>
+
           </div>
         </div>
 
