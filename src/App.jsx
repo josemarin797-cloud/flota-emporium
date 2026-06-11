@@ -1909,6 +1909,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       route: data.route || 'LOCAL', fuelLoaded: currentTrip.fuelLoaded || 0, notes: data.notes || '',
       arrivalNotes: data.arrivalNotes || '',
       createdAt: Date.now(),
+      surtirRegistrado: currentTrip.surtirRegistrado || false,
     };
 
     saveTrips([...trips, completed]);
