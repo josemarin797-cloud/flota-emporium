@@ -1787,8 +1787,6 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         : t));
     }
 
-    const _isBomba = data.destinationBranchId === 'surtir' ||
-      (data.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(data.customDestName || ''));
     const trip = {
       id: `at_${Date.now()}`,
       driverId: currentDriver.id, vehicleId: selectedVehicle.id,
@@ -1797,7 +1795,6 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       fuelLoaded: Number(data.fuelLoaded) || 0,
       customDestName: data.customDestName || '',
       customDestType: data.customDestType || '',
-      isBombaTrip: _isBomba || undefined,
     };
     saveActiveTrips([...activeTrips, trip]);
     setCurrentTrip(trip);
@@ -1950,11 +1947,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     saveGpsTracks(gpsTracks.map(g => g.tripId === currentTrip.id ? { ...g, tripId: completed.id, completed: true } : g));
 
     stopGpsTracking();
-    // Heredar isBombaTrip del active trip original
-    const completedFinal = { ...completed, isBombaTrip: currentTrip.isBombaTrip || undefined };
-    setCurrentTrip(completedFinal);
-    const esSurtir = completedFinal.isBombaTrip === true;
-    setStep(esSurtir ? 'surtir' : 'finish');
+    setCurrentTrip(completed);
+    setStep('finish');
     // 🎙️ Voz al cerrar el viaje
         const mensajesCierre = [
           'Viaje completado.',
