@@ -1821,7 +1821,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         setTimeout(() => speakText(`¡Buen viaje ${nombreCorto}! ${mensajeRandom}`), 600);
 
     // Notificación Discord
-    const origin = branches.find(b => b.id === data.originBranchId) || (data.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
+    const origin = branches.find(b => b.id === data.originBranchId) || (data.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : data.originBranchId === 'surtir' ? { id: 'surtir', name: '⛽ Bomba' } : null);
     const destName = resolveDestName(data, branches);
     // Discord: viajes → canal viajes, otro-mant → canal mantenimiento
     const webhookUrl = data.destinationBranchId === 'otro' && data.customDestType === 'mantenimiento'
@@ -1968,7 +1968,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     playBeep();
 
     // Notificación Discord
-    const origin = branches.find(b => b.id === currentTrip.originBranchId) || (currentTrip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
+    const origin = branches.find(b => b.id === currentTrip.originBranchId) || (currentTrip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : currentTrip.originBranchId === 'surtir' ? { id: 'surtir', name: '⛽ Bomba' } : null);
     const destName = resolveDestName(currentTrip, branches);
     const webhookUrl = currentTrip.destinationBranchId === 'otro' && currentTrip.customDestType === 'mantenimiento'
       ? (getMaintWebhook(v?.id, vehicles, config))
@@ -2775,6 +2775,10 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
               className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'taller' ? 'border-rose-400 bg-rose-100 text-rose-800' : 'border-rose-200 text-rose-600 hover:border-rose-400 bg-rose-50'}`}>
               🔧 Taller
             </button>
+            <button onClick={() => setForm({ ...form, originBranchId: 'surtir' })}
+              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
+              ⛽ Bomba
+            </button>
           </div>
         </div>
 
@@ -2900,6 +2904,7 @@ function SurtirCombustibleForm({ trip, vehicle, driver, fuelRecords = [], saveFu
   const [fuelLiters, setFuelLiters] = useState(isL300 ? '30' : '');
   const [tankLevel, setTankLevel] = useState('');
   const [fuelPhoto, setFuelPhoto] = useState(null);
+  const [nombreBomba, setNombreBomba] = useState('');
   const [saving, setSaving] = useState(false);
 
   const totalCost = isL300 ? 15 : (Number(fuelLiters) * pricePerLiter);
@@ -2918,7 +2923,7 @@ function SurtirCombustibleForm({ trip, vehicle, driver, fuelRecords = [], saveFu
       pricePerLiter: isL300 ? 0.5 : pricePerLiter,
       tankLevelBefore: tankLevel,
       createdAt: Date.now(),
-      notes: isL300 ? 'Bomba gasolinera' : 'Gasoil · Tanque',
+      notes: nombreBomba ? nombreBomba : (isL300 ? 'Bomba gasolinera' : 'Gasoil · Tanque'),
       cost: totalCost,
     };
     saveFuelRecords([rec, ...fuelRecords]);
@@ -2937,6 +2942,7 @@ function SurtirCombustibleForm({ trip, vehicle, driver, fuelRecords = [], saveFu
           { name: '💵 Costo', value: `$${totalCost.toFixed(2)}`, inline: true },
           { name: '📍 KM', value: (vehicle?.currentKm || 0).toLocaleString(), inline: true },
           ...(tankLevel ? [{ name: '🪣 Nivel antes', value: tankLevel, inline: true }] : []),
+          ...(nombreBomba ? [{ name: '⛽ Bomba', value: nombreBomba, inline: true }] : []),
           ...(kmSince > 0 ? [{ name: '🛣️ KM desde última carga', value: `${kmSince.toLocaleString()} km`, inline: true }] : []),
           { name: '📅 Fecha', value: now.toLocaleString('es-VE'), inline: true },
         ],
@@ -2969,6 +2975,14 @@ function SurtirCombustibleForm({ trip, vehicle, driver, fuelRecords = [], saveFu
             <div className="font-black text-amber-900 text-base">Registro de carga</div>
             <div className="text-xs text-amber-600">{vehicle?.code} · {isL300 ? 'Gasolina' : 'Gasoil'}</div>
           </div>
+        </div>
+
+        {/* Nombre de la bomba */}
+        <div>
+          <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">⛽ ¿En qué bomba surtiste? <span className="text-stone-400 font-normal">(opcional)</span></label>
+          <input type="text" value={nombreBomba} onChange={e => setNombreBomba(e.target.value)}
+            placeholder="Ej: Bomba La Colmena, Pdvsa Casarapa..."
+            className="w-full border-2 border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-amber-400" />
         </div>
 
         {/* Nivel antes de surtir */}
@@ -3054,7 +3068,7 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
     return () => clearInterval(id);
   }, [trip]);
 
-  const origin = branches.find(b => b.id === trip.originBranchId) || (trip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
+  const origin = branches.find(b => b.id === trip.originBranchId) || (trip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : trip.originBranchId === 'surtir' ? { id: 'surtir', name: '⛽ Bomba' } : null);
   const destination = { id: trip.destinationBranchId, name: resolveDestName(trip, branches) };
 
   if (showCamera) return <PhotoCapture onCapture={(p) => { onAddPhoto(p); setShowCamera(false); }} onCancel={() => setShowCamera(false)} />;
