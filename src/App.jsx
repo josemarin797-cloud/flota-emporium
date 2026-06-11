@@ -1948,7 +1948,10 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     stopGpsTracking();
     setCurrentTrip(completed);
-    setStep('finish');
+    // Si el destino es bomba/surtir → mostrar pantalla de carga antes de la morada
+    const _esBomba = completed.destinationBranchId === 'surtir' ||
+      (completed.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(completed.customDestName || ''));
+    setStep(_esBomba ? 'surtir' : 'finish');
     // 🎙️ Voz al cerrar el viaje
         const mensajesCierre = [
           'Viaje completado.',
