@@ -175,7 +175,7 @@ const getMaintWebhook = (vehicleId, vehicles, config) => {
 // Resolver nombre legible de destino
 const resolveDestName = (trip, branches) => {
   if (!trip) return '—';
-  if (trip.destinationBranchId === 'surtir') return '⛽ Surtir combustible';
+  if (trip.destinationBranchId === 'surtir') return '⛽ Bomba de combustible';
   if (trip.destinationBranchId === 'taller') return '🔧 Taller';
   if (trip.destinationBranchId === 'otro') return `📍 ${trip.customDestName || 'Otro'}`;
   return branches?.find(b => b.id === trip.destinationBranchId)?.name || trip.destinationBranchId || '—';
@@ -1948,8 +1948,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     stopGpsTracking();
     setCurrentTrip(completed);
-    const esSurtir = completed.destinationBranchId === 'surtir' ||
-      (completed.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(completed.customDestName || ''));
+    const esSurtir = (completed.destinationBranchId === 'surtir' ||
+      (completed.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(completed.customDestName || ''))) &&
+      !completed.surtirRegistrado;
     setStep(esSurtir ? 'surtir' : 'finish');
     // 🎙️ Voz al cerrar el viaje
         const mensajesCierre = [
@@ -2360,7 +2361,11 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
             config={config}
             vehicles={vehicles}
             saveVehicles={saveVehicles}
-            onDone={() => setStep('finish')}
+            onDone={() => {
+              setCurrentTrip(t => ({ ...t, surtirRegistrado: true }));
+              saveTrips(trips.map(t => t.id === currentTrip.id ? { ...t, surtirRegistrado: true } : t));
+              setStep('finish');
+            }}
           />}
           {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} appointments={appointments} saveAppointments={saveAppointments} onGoToSelect={() => { setCurrentTrip(null); setSelectedVehicle(null); setStep('select'); }} />}
           {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} kmInicial={endShiftTripData.kmUltimoViaje} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
@@ -2676,7 +2681,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   const lastTrip = useMemo(() => [...trips].filter(t => t.vehicleId === vehicle.id).sort((a, b) => b.createdAt - a.createdAt)[0], [trips, vehicle]);
   const now = new Date();
   const [formOpenedAt] = useState(() => Date.now());
-  const defaultOrigin = initialOriginBranchId || (lastTrip ? lastTrip.destinationBranchId : (branches[0]?.id || ''));
+  const defaultOrigin = initialOriginBranchId || (lastTrip && lastTrip.destinationBranchId !== 'surtir' ? lastTrip.destinationBranchId : (branches[0]?.id || ''));
   const [form, setForm] = useState({
     originBranchId: defaultOrigin,
     destinationBranchId: '',
