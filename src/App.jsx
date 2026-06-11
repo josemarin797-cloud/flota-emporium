@@ -3055,8 +3055,7 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
   const [showFinishForm, setShowFinishForm] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [showKmBomba, setShowKmBomba] = useState(false);
-  const [kmBomba, setKmBomba] = useState('');
+
   
 
   useEffect(() => {
@@ -3192,8 +3191,14 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
           const esBomba = trip.destinationBranchId === 'surtir' ||
             (trip.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(trip.customDestName || ''));
           if (esBomba) {
-            setKmBomba(String(vehicle?.currentKm || trip.kmStart));
-            setShowKmBomba(true);
+            const now = new Date();
+            onFinish({
+              kmEnd: vehicle?.currentKm || trip.kmStart,
+              endDate: now.toISOString().slice(0,10),
+              endTime: now.toTimeString().slice(0,5),
+              deliveries: 0, tripsCount: 1, route: 'LOCAL', notes: '', arrivalNotes: '',
+              arrivalPhotos: [],
+            });
           } else {
             setShowFinishForm(true);
           }
@@ -3232,36 +3237,6 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
       )}
 
       {/* MINI MODAL KM BOMBA */}
-      {showKmBomba && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-5 space-y-4">
-            <div className="text-center">
-              <div className="text-2xl mb-1">⛽</div>
-              <h2 className="font-black text-stone-900 text-lg">Llegando a la bomba</h2>
-              <p className="text-xs text-stone-500">Confirma el KM del odómetro</p>
-            </div>
-            <div>
-              <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-1.5">KM al llegar *</label>
-              <input type="number" value={kmBomba} onChange={e => setKmBomba(e.target.value)}
-                className="w-full border-2 border-stone-200 rounded-xl px-4 py-3 text-2xl font-black text-center focus:border-amber-400 focus:outline-none" />
-            </div>
-            <button onClick={() => {
-              const now = new Date();
-              setShowKmBomba(false);
-              onFinish({
-                kmEnd: Number(kmBomba) || vehicle?.currentKm || trip.kmStart,
-                endDate: now.toISOString().slice(0,10),
-                endTime: now.toTimeString().slice(0,5),
-                deliveries: 0, tripsCount: 1, route: 'LOCAL', notes: '', arrivalNotes: '',
-                arrivalPhotos: [],
-              });
-            }} disabled={!kmBomba || Number(kmBomba) < trip.kmStart}
-              className="w-full py-4 rounded-2xl font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:bg-stone-200 disabled:text-stone-400 transition">
-              Confirmar llegada →
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
