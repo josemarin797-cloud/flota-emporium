@@ -3185,7 +3185,22 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
       </button>
       
 
-      <button onClick={() => setShowFinishForm(true)}
+      <button onClick={() => {
+          const esBomba = trip.destinationBranchId === 'surtir' ||
+            (trip.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(trip.customDestName || ''));
+          if (esBomba) {
+            const now = new Date();
+            onFinish({
+              kmEnd: vehicle?.currentKm || trip.kmStart,
+              endDate: now.toISOString().slice(0,10),
+              endTime: now.toTimeString().slice(0,5),
+              deliveries: 0, tripsCount: 1, route: 'LOCAL', notes: '', arrivalNotes: '',
+              arrivalPhotos: [],
+            });
+          } else {
+            setShowFinishForm(true);
+          }
+        }}
         className="w-full py-5 rounded-2xl font-bold text-white bg-gradient-to-r from-rose-500 to-rose-700 hover:from-rose-400 active:scale-[0.98] shadow-xl shadow-rose-500/40 flex items-center justify-center gap-2 text-lg">
         <Square className="w-6 h-6 fill-white" /> REGISTRAR LLEGADA
       </button>
