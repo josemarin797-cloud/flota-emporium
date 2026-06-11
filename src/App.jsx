@@ -1675,7 +1675,17 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   useEffect(() => {
     if (selectedVehicle) {
       const active = myActiveTrips.find(t => t.vehicleId === selectedVehicle.id);
-      if (active && step === 'select') { setCurrentTrip(active); setStep('active'); }
+      if (active && step === 'select') {
+        setCurrentTrip(active);
+        // Si era un viaje a bomba pendiente de registrar combustible
+        const erasSurtir = (active.destinationBranchId === 'surtir' ||
+          (active.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(active.customDestName || '')));
+        if (erasSurtir && active.surtirRegistrado === false) {
+          setStep('surtir');
+        } else {
+          setStep('active');
+        }
+      }
     }
   }, [selectedVehicle, myActiveTrips]);
 
@@ -1947,10 +1957,13 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     saveGpsTracks(gpsTracks.map(g => g.tripId === currentTrip.id ? { ...g, tripId: completed.id, completed: true } : g));
 
     stopGpsTracking();
-    setCurrentTrip(completed);
     const esSurtir = (completed.destinationBranchId === 'surtir' ||
       (completed.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(completed.customDestName || ''))) &&
       !completed.surtirRegistrado;
+    // Si es surtir, guardamos inmediatamente con surtirRegistrado=false para que al recargar no haga loop
+    // El flag se pone en true solo cuando el chofer completa el formulario de carga
+    const completedFinal = esSurtir ? { ...completed, surtirRegistrado: false } : completed;
+    setCurrentTrip(completedFinal);
     setStep(esSurtir ? 'surtir' : 'finish');
     // 🎙️ Voz al cerrar el viaje
         const mensajesCierre = [
