@@ -1663,7 +1663,10 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   const [currentPosition, setCurrentPosition] = useState(null);
   const watchIdRef = useRef(null);
   const [showEntregarModal, setShowEntregarModal] = useState(false);
-  const [checklistKm, setChecklistKm] = useState(null);
+  const [checklistKm, setChecklistKm] = useState(() => {
+    const saved = localStorage.getItem('emp:checklistKm_' + (selectedVehicle?.id || ''));
+    return saved ? Number(saved) : null;
+  });
   const [showEndShiftForm, setShowEndShiftForm] = useState(false);
   const [endShiftTripData, setEndShiftTripData] = useState(null);
 
@@ -2349,7 +2352,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           </>}
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
-          {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) setChecklistKm(Number(km)); setStep('start'); }} onBack={() => setStep('select')} config={config} endShifts={endShifts} />}
+          {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) { setChecklistKm(Number(km)); localStorage.setItem('emp:checklistKm_' + selectedVehicle?.id, String(Number(km))); } setStep('start'); }} onBack={() => setStep('select')} config={config} endShifts={endShifts} />}
           {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} initialOriginBranchId={(() => { const ch = (handoffs||[]).find(h => h.vehicleId === selectedVehicle?.id && h.status === 'confirmed' && h.toDriverId === currentDriver.id); return ch?.locationBranchId || null; })()} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
           {step === 'surtir' && currentTrip && <SurtirCombustibleForm
@@ -2732,7 +2735,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
     return () => clearInterval(id);
   }, [lastTrip, showTimeAtBranch]);
 
-  const valid = form.originBranchId && form.destinationBranchId && form.originBranchId !== form.destinationBranchId && form.kmStart > 0 && form.startTime && (form.destinationBranchId !== 'otro' || customDestName.trim().length > 0);
+  const valid = form.originBranchId && form.destinationBranchId && (form.originBranchId === 'surtir' || form.originBranchId !== form.destinationBranchId) && form.kmStart > 0 && form.startTime && (form.destinationBranchId !== 'otro' || customDestName.trim().length > 0);
   const originBranch = branches.find(b => b.id === form.originBranchId);
 
   return (
@@ -2922,7 +2925,7 @@ function SurtirCombustibleForm({ trip, vehicle, driver, fuelRecords = [], saveFu
       vehicleId: vehicle?.id || '', vehicleCode: vehicle?.code || '', vehiclePlate: vehicle?.plate || '',
       driverId: driver?.id || '', driverName: driver?.name || '',
       date: now.toISOString().slice(0, 10), time: now.toTimeString().slice(0, 5),
-      km: vehicle?.currentKm || trip?.kmEnd || 0,
+      km: trip?.kmEnd || vehicle?.currentKm || 0,
       liters: isL300 ? 30 : Number(fuelLiters),
       pricePerLiter: isL300 ? 0.5 : pricePerLiter,
       tankLevelBefore: tankLevel,
