@@ -2354,7 +2354,12 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) { setChecklistKm(Number(km)); localStorage.setItem('emp:checklistKm_' + selectedVehicle?.id, String(Number(km))); } setStep('start'); }} onBack={() => setStep('select')} config={config} endShifts={endShifts} />}
-          {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} initialOriginBranchId={(() => { const ch = (handoffs||[]).find(h => h.vehicleId === selectedVehicle?.id && h.status === 'confirmed' && h.toDriverId === currentDriver.id); return ch?.locationBranchId || null; })()} />}
+          {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} initialOriginBranchId={(() => {
+            const ch = (handoffs||[]).find(h => h.vehicleId === selectedVehicle?.id && h.status === 'confirmed' && h.toDriverId === currentDriver.id);
+            if (ch?.locationBranchId) return ch.locationBranchId;
+            if (localStorage.getItem('emp:salio_bomba_' + selectedVehicle?.id) === '1') return 'surtir';
+            return null;
+          })()} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
           {step === 'surtir' && currentTrip && <SurtirCombustibleForm
             trip={currentTrip}
