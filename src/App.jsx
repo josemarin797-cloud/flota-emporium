@@ -2786,7 +2786,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
           <div className="w-1 h-3 bg-emerald-400 rounded-full"></div> Datos del viaje
         </h2>
 
-        <div>
+        {!_salioBlomba && <div>
           <label className="text-xs font-semibold text-stone-600 mb-2 block uppercase tracking-wider font-mono">📍 Salida</label>
           <div className="grid grid-cols-2 gap-2">
             {branches.map(b => (
@@ -2799,14 +2799,12 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
               className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'taller' ? 'border-rose-400 bg-rose-100 text-rose-800' : 'border-rose-200 text-rose-600 hover:border-rose-400 bg-rose-50'}`}>
               🔧 Taller
             </button>
-            {_salioBlomba && (
-              <button onClick={() => setForm({ ...form, originBranchId: 'surtir' })}
-                className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
-                ⛽ Salir de bomba
-              </button>
-            )}
           </div>
-        </div>
+        </div>}
+        {_salioBlomba && <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
+          <span>⛽</span>
+          <span className="text-sm font-bold text-amber-800">Saliendo desde la bomba de combustible</span>
+        </div>}
 
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-2 block uppercase tracking-wider font-mono">🎯 Destino</label>
