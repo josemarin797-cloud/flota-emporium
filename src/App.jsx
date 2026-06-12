@@ -2821,12 +2821,10 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
                 🔧 Taller
               </button>
             )}
-            {form.originBranchId !== 'surtir' && (
-              <button onClick={() => setForm({ ...form, destinationBranchId: 'surtir' })}
-                className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.destinationBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
-                ⛽ Surtir combustible
-              </button>
-            )}
+            <button onClick={() => setForm({ ...form, destinationBranchId: 'surtir' })}
+              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.destinationBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
+              ⛽ Surtir combustible
+            </button>
             <button onClick={() => setForm({ ...form, destinationBranchId: 'otro' })}
               className={`p-2.5 rounded-lg border-2 text-sm font-bold transition col-span-2 ${form.destinationBranchId === 'otro' ? 'border-purple-400 bg-purple-100 text-purple-800' : 'border-purple-200 text-purple-600 hover:border-purple-400 bg-purple-50'}`}>
               📍 Otro destino
