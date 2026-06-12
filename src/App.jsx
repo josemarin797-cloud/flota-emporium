@@ -2359,6 +2359,10 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
             const ch = (handoffs||[]).find(h => h.vehicleId === selectedVehicle?.id && h.status === 'confirmed' && h.toDriverId === currentDriver.id);
             if (ch?.locationBranchId) return ch.locationBranchId;
             if (localStorage.getItem('emp:salio_bomba_' + selectedVehicle?.id) === '1') return 'surtir';
+            // Pre-seleccionar último destino como origen automáticamente
+            const myTrips = trips.filter(t => t.vehicleId === selectedVehicle?.id).sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+            const lastDest = myTrips[0]?.destinationBranchId;
+            if (lastDest && lastDest !== 'surtir' && lastDest !== 'taller' && lastDest !== 'otro') return lastDest;
             return null;
           })()} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
