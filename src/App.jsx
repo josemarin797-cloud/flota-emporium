@@ -2799,13 +2799,11 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
               className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'taller' ? 'border-rose-400 bg-rose-100 text-rose-800' : 'border-rose-200 text-rose-600 hover:border-rose-400 bg-rose-50'}`}>
               🔧 Taller
             </button>
+            <button onClick={() => setForm({ ...form, originBranchId: 'surtir' })}
+              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
+              ⛽ Salir de bomba
+            </button>
           </div>
-          {form.originBranchId === 'surtir' && (
-            <div className="mt-2 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-              <span className="text-base">⛽</span>
-              <span className="text-xs font-bold text-amber-700">Salida desde la bomba de combustible</span>
-            </div>
-          )}
         </div>
 
         <div>
