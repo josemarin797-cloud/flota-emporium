@@ -2686,7 +2686,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   const [formOpenedAt] = useState(() => Date.now());
   const defaultOrigin = initialOriginBranchId || (lastTrip ? lastTrip.destinationBranchId : (branches[0]?.id || ''));
   // Si el último viaje fue a la bomba, pre-seleccionar 'surtir' como origen automáticamente
-  const autoOrigin = defaultOrigin === 'surtir' ? 'surtir' : defaultOrigin;
+  const autoOrigin = defaultOrigin === 'surtir' ? 'surtir' : (defaultOrigin || branches[0]?.id || '');
   const [form, setForm] = useState({
     originBranchId: autoOrigin,
     destinationBranchId: '',
@@ -2709,7 +2709,8 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
     sbFetch('handoffs?vehicle_id=eq.' + vehicle.id + '&status=eq.confirmed&to_driver_id=eq.' + driver.id + '&select=location_branch_id&order=confirmed_at.desc&limit=1')
       .then(data => {
         if (Array.isArray(data) && data[0]?.location_branch_id) {
-          setForm(f => ({ ...f, originBranchId: data[0].location_branch_id }));
+          // Solo sobrescribir si el origen actual NO es válido
+          setForm(f => f.originBranchId ? f : ({ ...f, originBranchId: data[0].location_branch_id }));
         }
       }).catch(() => {});
   }, []);
