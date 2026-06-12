@@ -2705,37 +2705,22 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
     originBranchId: autoOrigin,
     destinationBranchId: '',
     kmStart: (() => {
-      // Prioridad: 1) último viaje de HOY, 2) KM del checklist, 3) último viaje histórico, 4) KM actual del vehículo
+      // Prioridad: 1) último viaje de HOY, 2) KM del checklist (localStorage), 3) último viaje histórico, 4) KM actual del vehículo
       const todayStr = new Date().toISOString().slice(0, 10);
       const todayTrips = trips.filter(t => t.vehicleId === vehicle.id && t.endDate === todayStr)
         .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      if (todayTrips.length > 0) return todayTrips[0].kmEnd;
-      if (initialKm) return Number(initialKm);
-      if (lastTrip) return lastTrip.kmEnd;
+      if (todayTrips.length > 0 && todayTrips[0].kmEnd > 0) return todayTrips[0].kmEnd;
+      if (initialKm && Number(initialKm) > 0) return Number(initialKm);
+      // Leer checklistKm del localStorage directamente (evita problemas de estado stale)
+      const savedKm = localStorage.getItem('emp:checklistKm_' + vehicle.id);
+      if (savedKm && Number(savedKm) > 0) return Number(savedKm);
+      if (lastTrip && lastTrip.kmEnd > 0) return lastTrip.kmEnd;
       return vehicle.currentKm;
     })(),
     startDate: now.toISOString().slice(0, 10), startTime: now.toTimeString().slice(0, 5),
     fuelLoaded: 0,
   });
-  // Al montar, verificar si el chofer acaba de salir de la bomba
-  useEffect(() => {
-    const flag = localStorage.getItem('emp:salio_bomba_' + vehicle.id);
-    if (flag === '1') {
-      setForm(f => ({ ...f, originBranchId: 'surtir' }));
-    }
-  }, []);
 
-  // Leer handoff confirmado desde Supabase para pre-seleccionar origen correctamente
-  useEffect(() => {
-    if (initialOriginBranchId) return; // ya viene pre-seleccionado
-    sbFetch('handoffs?vehicle_id=eq.' + vehicle.id + '&status=eq.confirmed&to_driver_id=eq.' + driver.id + '&select=location_branch_id&order=confirmed_at.desc&limit=1')
-      .then(data => {
-        if (Array.isArray(data) && data[0]?.location_branch_id) {
-          // Solo sobrescribir si el origen actual NO es válido
-          setForm(f => f.originBranchId ? f : ({ ...f, originBranchId: data[0].location_branch_id }));
-        }
-      }).catch(() => {});
-  }, []);
 
   const [timeAtBranch, setTimeAtBranch] = useState('');
   const [showFuel, setShowFuel] = useState(false);
