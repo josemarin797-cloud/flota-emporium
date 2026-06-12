@@ -2355,7 +2355,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) { setChecklistKm(Number(km)); localStorage.setItem('emp:checklistKm_' + selectedVehicle?.id, String(Number(km))); } setStep('start'); }} onBack={() => setStep('select')} config={config} endShifts={endShifts} />}
-          {step === 'start' && <StartTripForm key={tripFormKey} driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} initialOriginBranchId={(() => {
+          {step === 'start' && <StartTripForm key={tripFormKey} driver={currentDriver} vehicle={vehicles.find(v => v.id === selectedVehicle?.id) || selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} initialOriginBranchId={(() => {
             const ch = (handoffs||[]).find(h => h.vehicleId === selectedVehicle?.id && h.status === 'confirmed' && h.toDriverId === currentDriver.id);
             if (ch?.locationBranchId) return ch.locationBranchId;
             if (localStorage.getItem('emp:salio_bomba_' + selectedVehicle?.id) === '1') return 'surtir';
@@ -2698,9 +2698,10 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   const now = new Date();
   const [formOpenedAt] = useState(() => Date.now());
   const _salioBlomba = localStorage.getItem('emp:salio_bomba_' + vehicle.id) === '1';
-  const defaultOrigin = initialOriginBranchId || (_salioBlomba ? 'surtir' : (lastTrip ? lastTrip.destinationBranchId : (branches[0]?.id || '')));
+  const _lastTripValidDest = (lastTrip?.destinationBranchId && lastTrip.destinationBranchId !== 'otro') ? lastTrip.destinationBranchId : null;
+  const defaultOrigin = initialOriginBranchId || (_salioBlomba ? 'surtir' : (_lastTripValidDest || (branches[0]?.id || '')));
   // Si el último viaje fue a la bomba, pre-seleccionar 'surtir' como origen automáticamente
-  const autoOrigin = defaultOrigin === 'surtir' ? 'surtir' : (defaultOrigin || branches[0]?.id || '');
+  const autoOrigin = defaultOrigin === 'surtir' ? 'surtir' : defaultOrigin === 'taller' ? 'taller' : (defaultOrigin || branches[0]?.id || '');
   const [form, setForm] = useState({
     originBranchId: autoOrigin,
     destinationBranchId: '',
@@ -2790,7 +2791,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
             </button>
             <button onClick={() => setForm({ ...form, originBranchId: 'surtir' })}
               className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
-              ⛽ Bomba
+              ⛽ Surtir combustible
             </button>
           </div>
         </div>
