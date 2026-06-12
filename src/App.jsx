@@ -2707,6 +2707,14 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
     startDate: now.toISOString().slice(0, 10), startTime: now.toTimeString().slice(0, 5),
     fuelLoaded: 0,
   });
+  // Al montar, verificar si el chofer acaba de salir de la bomba
+  useEffect(() => {
+    const flag = localStorage.getItem('emp:salio_bomba_' + vehicle.id);
+    if (flag === '1') {
+      setForm(f => ({ ...f, originBranchId: 'surtir' }));
+    }
+  }, []);
+
   // Leer handoff confirmado desde Supabase para pre-seleccionar origen correctamente
   useEffect(() => {
     if (initialOriginBranchId) return; // ya viene pre-seleccionado
