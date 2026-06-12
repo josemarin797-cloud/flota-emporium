@@ -1801,6 +1801,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     };
     saveActiveTrips([...activeTrips, trip]);
     setCurrentTrip(trip);
+    localStorage.removeItem('emp:salio_bomba_' + trip.vehicleId);
     setStep('active');
 
     // Iniciar GPS
@@ -2365,7 +2366,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
             vehicles={vehicles}
             saveVehicles={saveVehicles}
             onDone={() => {
-              // Limpiar isBombaTrip del currentTrip para que el retorno no caiga en surtir
+              // Guardar flag para que el próximo formulario sepa que salimos de la bomba
+              const vid = currentTrip?.vehicleId;
+              if (vid) localStorage.setItem('emp:salio_bomba_' + vid, '1');
               setCurrentTrip(t => ({ ...t, isBombaTrip: undefined }));
               setStep('finish');
             }}
@@ -2684,7 +2687,8 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   const lastTrip = useMemo(() => [...trips].filter(t => t.vehicleId === vehicle.id).sort((a, b) => b.createdAt - a.createdAt)[0], [trips, vehicle]);
   const now = new Date();
   const [formOpenedAt] = useState(() => Date.now());
-  const defaultOrigin = initialOriginBranchId || (lastTrip ? lastTrip.destinationBranchId : (branches[0]?.id || ''));
+  const _salioBlomba = localStorage.getItem('emp:salio_bomba_' + vehicle.id) === '1';
+  const defaultOrigin = initialOriginBranchId || (_salioBlomba ? 'surtir' : (lastTrip ? lastTrip.destinationBranchId : (branches[0]?.id || '')));
   // Si el último viaje fue a la bomba, pre-seleccionar 'surtir' como origen automáticamente
   const autoOrigin = defaultOrigin === 'surtir' ? 'surtir' : (defaultOrigin || branches[0]?.id || '');
   const [form, setForm] = useState({
@@ -2805,10 +2809,12 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
                 🔧 Taller
               </button>
             )}
-            <button onClick={() => setForm({ ...form, destinationBranchId: 'surtir' })}
-              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.destinationBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
-              ⛽ Surtir combustible
-            </button>
+            {form.originBranchId !== 'surtir' && (
+              <button onClick={() => setForm({ ...form, destinationBranchId: 'surtir' })}
+                className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.destinationBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
+                ⛽ Surtir combustible
+              </button>
+            )}
             <button onClick={() => setForm({ ...form, destinationBranchId: 'otro' })}
               className={`p-2.5 rounded-lg border-2 text-sm font-bold transition col-span-2 ${form.destinationBranchId === 'otro' ? 'border-purple-400 bg-purple-100 text-purple-800' : 'border-purple-200 text-purple-600 hover:border-purple-400 bg-purple-50'}`}>
               📍 Otro destino
