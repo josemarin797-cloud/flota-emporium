@@ -2021,7 +2021,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setCurrentTrip(null);
     setStep('select');
   };
-  const newTrip = () => { setCurrentTrip(null); setStep('start'); }; // mantiene camión seleccionado
+  const [tripFormKey, setTripFormKey] = useState(0);
+  const newTrip = () => { setCurrentTrip(null); setTripFormKey(k => k + 1); setStep('start'); }; // mantiene camión seleccionado
   const handleWaitEnd = (tripId, waitMin) => {
     if (!waitMin || waitMin <= 0) return;
     const updated = trips.map(t => t.id === tripId ? { ...t, waitMinutes: waitMin } : t);
@@ -2354,7 +2355,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
           {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) { setChecklistKm(Number(km)); localStorage.setItem('emp:checklistKm_' + selectedVehicle?.id, String(Number(km))); } setStep('start'); }} onBack={() => setStep('select')} config={config} endShifts={endShifts} />}
-          {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} initialOriginBranchId={(() => {
+          {step === 'start' && <StartTripForm key={tripFormKey} driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} initialOriginBranchId={(() => {
             const ch = (handoffs||[]).find(h => h.vehicleId === selectedVehicle?.id && h.status === 'confirmed' && h.toDriverId === currentDriver.id);
             if (ch?.locationBranchId) return ch.locationBranchId;
             if (localStorage.getItem('emp:salio_bomba_' + selectedVehicle?.id) === '1') return 'surtir';
