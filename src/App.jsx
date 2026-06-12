@@ -2786,7 +2786,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
           <div className="w-1 h-3 bg-emerald-400 rounded-full"></div> Datos del viaje
         </h2>
 
-        {!_salioBlomba && <div>
+        <div>
           <label className="text-xs font-semibold text-stone-600 mb-2 block uppercase tracking-wider font-mono">📍 Salida</label>
           <div className="grid grid-cols-2 gap-2">
             {branches.map(b => (
@@ -2799,19 +2799,19 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
               className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'taller' ? 'border-rose-400 bg-rose-100 text-rose-800' : 'border-rose-200 text-rose-600 hover:border-rose-400 bg-rose-50'}`}>
               🔧 Taller
             </button>
+            <button onClick={() => setForm({ ...form, originBranchId: 'surtir' })}
+              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
+              ⛽ Bomba
+            </button>
           </div>
-        </div>}
-        {_salioBlomba && <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
-          <span>⛽</span>
-          <span className="text-sm font-bold text-amber-800">Saliendo desde la bomba de combustible</span>
-        </div>}
+        </div>
 
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-2 block uppercase tracking-wider font-mono">🎯 Destino</label>
           <div className="grid grid-cols-2 gap-2">
             {branches.filter(b => b.id !== form.originBranchId).map(b => (
               <button key={b.id} onClick={() => setForm({ ...form, destinationBranchId: b.id })}
-                className={`p-2.5 rounded-lg border-2 text-sm font-medium transition ${form.destinationBranchId === b.id ? 'border-amber-400 bg-amber-500/15 text-amber-200' : 'border-stone-200 text-emerald-700 hover:border-emerald-600 bg-stone-50'}`}>
+                className={`p-2.5 rounded-lg border-2 text-sm font-medium transition ${form.destinationBranchId === b.id ? 'border-amber-400 bg-amber-500/15 text-stone-900' : 'border-stone-200 text-emerald-700 hover:border-emerald-600 bg-stone-50'}`}>
                 {b.name}
               </button>
             ))}
@@ -2826,11 +2826,6 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
                 className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.destinationBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
                 ⛽ Surtir combustible
               </button>
-            )}
-            {form.originBranchId === 'surtir' && (
-              <div className="col-span-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 font-bold">
-                ⛽ Saliendo desde la bomba — selecciona tu destino
-              </div>
             )}
             <button onClick={() => setForm({ ...form, destinationBranchId: 'otro' })}
               className={`p-2.5 rounded-lg border-2 text-sm font-bold transition col-span-2 ${form.destinationBranchId === 'otro' ? 'border-purple-400 bg-purple-100 text-purple-800' : 'border-purple-200 text-purple-600 hover:border-purple-400 bg-purple-50'}`}>
