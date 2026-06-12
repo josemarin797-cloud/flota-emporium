@@ -2362,7 +2362,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
             // Pre-seleccionar último destino como origen automáticamente
             const myTrips = trips.filter(t => t.vehicleId === selectedVehicle?.id).sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
             const lastDest = myTrips[0]?.destinationBranchId;
-            if (lastDest && lastDest !== 'surtir' && lastDest !== 'taller' && lastDest !== 'otro') return lastDest;
+            if (lastDest === 'surtir') return 'surtir'; // último viaje fue a la bomba
+            if (lastDest === 'taller') return 'taller'; // último viaje fue al taller
+            if (lastDest && lastDest !== 'otro') return lastDest;
             return null;
           })()} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
@@ -2697,7 +2699,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   const lastTrip = useMemo(() => [...trips].filter(t => t.vehicleId === vehicle.id).sort((a, b) => b.createdAt - a.createdAt)[0], [trips, vehicle]);
   const now = new Date();
   const [formOpenedAt] = useState(() => Date.now());
-  const _salioBlomba = localStorage.getItem('emp:salio_bomba_' + vehicle.id) === '1';
+  const _salioBlomba = localStorage.getItem('emp:salio_bomba_' + vehicle.id) === '1' || lastTrip?.destinationBranchId === 'surtir';
   const _lastTripValidDest = (lastTrip?.destinationBranchId && lastTrip.destinationBranchId !== 'otro') ? lastTrip.destinationBranchId : null;
   const defaultOrigin = initialOriginBranchId || (_salioBlomba ? 'surtir' : (_lastTripValidDest || (branches[0]?.id || '')));
   // Si el último viaje fue a la bomba, pre-seleccionar 'surtir' como origen automáticamente
@@ -2744,7 +2746,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
     return () => clearInterval(id);
   }, [lastTrip, showTimeAtBranch]);
 
-  const valid = form.originBranchId && form.destinationBranchId && (form.originBranchId === 'surtir' || form.originBranchId !== form.destinationBranchId) && form.kmStart > 0 && form.startTime && (form.destinationBranchId !== 'otro' || customDestName.trim().length > 0);
+  const valid = form.originBranchId && form.destinationBranchId && (form.originBranchId === 'surtir' || form.originBranchId !== form.destinationBranchId) && Number(form.kmStart) > 0 && form.startTime && (form.destinationBranchId !== 'otro' || customDestName.trim().length > 0);
   const originBranch = branches.find(b => b.id === form.originBranchId);
 
   return (
