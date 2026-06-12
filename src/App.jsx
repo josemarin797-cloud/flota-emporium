@@ -2799,10 +2799,12 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
               className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'taller' ? 'border-rose-400 bg-rose-100 text-rose-800' : 'border-rose-200 text-rose-600 hover:border-rose-400 bg-rose-50'}`}>
               🔧 Taller
             </button>
-            <button onClick={() => setForm({ ...form, originBranchId: 'surtir' })}
-              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
-              ⛽ Salir de bomba
-            </button>
+            {_salioBlomba && (
+              <button onClick={() => setForm({ ...form, originBranchId: 'surtir' })}
+                className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
+                ⛽ Salir de bomba
+              </button>
+            )}
           </div>
         </div>
 
@@ -2826,6 +2828,11 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
                 className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.destinationBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
                 ⛽ Surtir combustible
               </button>
+            )}
+            {form.originBranchId === 'surtir' && (
+              <div className="col-span-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 font-bold">
+                ⛽ Saliendo desde la bomba — selecciona tu destino
+              </div>
             )}
             <button onClick={() => setForm({ ...form, destinationBranchId: 'otro' })}
               className={`p-2.5 rounded-lg border-2 text-sm font-bold transition col-span-2 ${form.destinationBranchId === 'otro' ? 'border-purple-400 bg-purple-100 text-purple-800' : 'border-purple-200 text-purple-600 hover:border-purple-400 bg-purple-50'}`}>
