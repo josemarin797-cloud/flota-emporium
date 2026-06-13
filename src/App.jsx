@@ -2708,17 +2708,16 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
     originBranchId: autoOrigin,
     destinationBranchId: '',
     kmStart: (() => {
-      // Prioridad: 1) último viaje de HOY, 2) KM del checklist (localStorage), 3) último viaje histórico, 4) KM actual del vehículo
-      const todayStr = new Date().toISOString().slice(0, 10);
-      const todayTrips = trips.filter(t => t.vehicleId === vehicle.id && t.endDate === todayStr)
+      // Prioridad: 1) último viaje histórico (más reciente) si tiene kmEnd válido
+      //            2) hoy trips, 3) checklist, 4) localStorage, 5) currentKm del vehículo
+      const allVehicleTrips = [...trips].filter(t => t.vehicleId === vehicle.id && t.kmEnd > 0)
         .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-      if (todayTrips.length > 0 && todayTrips[0].kmEnd > 0) return todayTrips[0].kmEnd;
+      if (allVehicleTrips.length > 0) return allVehicleTrips[0].kmEnd;
       if (initialKm && Number(initialKm) > 0) return Number(initialKm);
       // Leer checklistKm del localStorage directamente (evita problemas de estado stale)
       const savedKm = localStorage.getItem('emp:checklistKm_' + vehicle.id);
       if (savedKm && Number(savedKm) > 0) return Number(savedKm);
-      if (lastTrip && lastTrip.kmEnd > 0) return lastTrip.kmEnd;
-      return vehicle.currentKm;
+      return Number(vehicle.currentKm) || 0;
     })(),
     startDate: now.toISOString().slice(0, 10), startTime: now.toTimeString().slice(0, 5),
     fuelLoaded: 0,
@@ -2813,10 +2812,12 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
                 🔧 Taller
               </button>
             )}
-            <button onClick={() => setForm({ ...form, destinationBranchId: 'surtir' })}
-              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.destinationBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
-              ⛽ Surtir combustible
-            </button>
+            {form.originBranchId !== 'surtir' && (
+              <button onClick={() => setForm({ ...form, destinationBranchId: 'surtir' })}
+                className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.destinationBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
+                ⛽ Surtir combustible
+              </button>
+            )}
             <button onClick={() => setForm({ ...form, destinationBranchId: 'otro' })}
               className={`p-2.5 rounded-lg border-2 text-sm font-bold transition col-span-2 ${form.destinationBranchId === 'otro' ? 'border-purple-400 bg-purple-100 text-purple-800' : 'border-purple-200 text-purple-600 hover:border-purple-400 bg-purple-50'}`}>
               📍 Otro destino
