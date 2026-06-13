@@ -1825,7 +1825,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         setTimeout(() => speakText(`¡Buen viaje ${nombreCorto}! ${mensajeRandom}`), 600);
 
     // Notificación Discord
-    const origin = branches.find(b => b.id === data.originBranchId) || (data.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : data.originBranchId === 'surtir' ? { id: 'surtir', name: '⛽ Bomba' } : null);
+    const origin = branches.find(b => b.id === data.originBranchId) || (data.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : data.originBranchId === 'surtir' ? { id: 'surtir', name: '⛽ Surtir combustible' } : null);
     const destName = resolveDestName(data, branches);
     // Discord: viajes → canal viajes, otro-mant → canal mantenimiento
     const webhookUrl = data.destinationBranchId === 'otro' && data.customDestType === 'mantenimiento'
@@ -1881,6 +1881,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const kmTraveled = Math.max(0, Number(data.kmEnd) - currentTrip.kmStart);
     const liters = (kmTraveled * (v.litersPer100km || 21)) / 100;
     const cost = liters * config.fuelPrice;
+    const newFuelLevel = Math.max(0, Math.round(((v.fuelLevel || 0) - liters) * 100) / 100);
     const startMs = parseDateTime(currentTrip.startDate, currentTrip.startTime);
     const endMs = parseDateTime(data.endDate, data.endTime);
     const tripMinutes = Math.max(0, Math.round((endMs - startMs) / 60000));
@@ -1908,7 +1909,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     saveTrips([...trips, completed]);
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
     const newKm = Number(data.kmEnd);
-    if (newKm > v.currentKm) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, currentKm: newKm } : x));
+    saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, ...(newKm > x.currentKm ? { currentKm: newKm } : {}), fuelLevel: newFuelLevel } : x));
 
     // Verificar alertas de mantenimiento al actualizar KM
     const SERV_DEF = [
@@ -1972,7 +1973,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     playBeep();
 
     // Notificación Discord
-    const origin = branches.find(b => b.id === currentTrip.originBranchId) || (currentTrip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : currentTrip.originBranchId === 'surtir' ? { id: 'surtir', name: '⛽ Bomba' } : null);
+    const origin = branches.find(b => b.id === currentTrip.originBranchId) || (currentTrip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : currentTrip.originBranchId === 'surtir' ? { id: 'surtir', name: '⛽ Surtir combustible' } : null);
     const destName = resolveDestName(currentTrip, branches);
     const webhookUrl = currentTrip.destinationBranchId === 'otro' && currentTrip.customDestType === 'mantenimiento'
       ? (getMaintWebhook(v?.id, vehicles, config))
@@ -1986,7 +1987,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         { name: '📍 KM Llegada', value: Number(data.kmEnd).toLocaleString(), inline: true },
         { name: '🛣️ KM Recorridos', value: `${kmTraveled} km`, inline: true },
         { name: '⏱️ Duración', value: formatDuration(tripMinutes), inline: true },
-        { name: '⛽ Combustible', value: `${liters.toFixed(2)} L`, inline: true },
+        { name: '⛽ Consumo viaje', value: `${liters.toFixed(2)} L`, inline: true },
+        { name: '🪣 Combustible restante', value: `${newFuelLevel.toFixed(1)} L`, inline: true },
         { name: '💵 Costo', value: `$${cost.toFixed(2)}`, inline: true },
         { name: '📦 Entregas', value: `${data.deliveries || 0}`, inline: true },
         { name: '🕐 Hora llegada', value: data.endTime, inline: true },
@@ -2944,6 +2946,13 @@ function SurtirCombustibleForm({ trip, vehicle, driver, fuelRecords = [], saveFu
       cost: totalCost,
     };
     saveFuelRecords([rec, ...fuelRecords]);
+
+    // Actualizar nivel de combustible del vehículo
+    if (saveVehicles && vehicles) {
+      saveVehicles(vehicles.map(v => v.id === rec.vehicleId
+        ? { ...v, fuelLevel: Math.round(((v.fuelLevel || 0) + rec.liters) * 100) / 100 }
+        : v));
+    }
 
     // Discord mantenimiento
     const wh = vehicle?.maintenanceWebhook || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
