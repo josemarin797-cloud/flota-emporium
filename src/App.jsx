@@ -538,6 +538,36 @@ export default function App() {
         if (reads[2]) setBranches(reads[2]);
         if (reads[3]) setTrips(reads[3]);
         if (reads[4]) setActiveTrips(reads[4]);
+
+        // Cargar viajes desde Supabase (sync cross-device)
+        try {
+          const sbTrips = await sbFetch('trips?select=id,driver_id,vehicle_id,origin_branch_id,destination_branch_id,custom_dest_name,km_start,km_end,km_traveled,start_date,start_time,end_date,end_time,trip_minutes,time_at_branch_prev_minutes,time_at_destination_minutes,liters,fuel_price,cost,deliveries,trips_count,route,fuel_loaded,notes,arrival_notes,created_at&order=created_at.desc&limit=2000');
+          if (Array.isArray(sbTrips) && sbTrips.length > 0) {
+            const remote = sbTrips.map(t => ({
+              id: t.id, driverId: t.driver_id||'', vehicleId: t.vehicle_id||'',
+              originBranchId: t.origin_branch_id||'', destinationBranchId: t.destination_branch_id||'',
+              customDestName: t.custom_dest_name||'', kmStart: Number(t.km_start)||0,
+              kmEnd: Number(t.km_end)||0, kmTraveled: Number(t.km_traveled)||0,
+              startDate: t.start_date||'', startTime: t.start_time||'',
+              endDate: t.end_date||'', endTime: t.end_time||'',
+              tripMinutes: Number(t.trip_minutes)||0,
+              timeAtBranchPrevMinutes: Number(t.time_at_branch_prev_minutes)||0,
+              timeAtDestinationMinutes: Number(t.time_at_destination_minutes)||0,
+              liters: Number(t.liters)||0, fuelPrice: Number(t.fuel_price)||0,
+              cost: Number(t.cost)||0, deliveries: Number(t.deliveries)||0,
+              tripsCount: Number(t.trips_count)||1, route: t.route||'LOCAL',
+              fuelLoaded: Number(t.fuel_loaded)||0, notes: t.notes||'',
+              arrivalNotes: t.arrival_notes||'', createdAt: Number(t.created_at)||0,
+            }));
+            const local = reads[3] || [];
+            const localIds = new Set(local.map(x => x.id));
+            const merged = [...local, ...remote.filter(x => !localIds.has(x.id))];
+            if (merged.length > local.length) {
+              setTrips(merged);
+              try { localStorage.setItem('emp:v4:trips', JSON.stringify(merged)); } catch(e) {}
+            }
+          }
+        } catch(e) {}
         if (reads[5]) setArchivedMonths(reads[5]);
         if (reads[6]) setConfig(savedCfg);
         if (reads[7]) setPhotos(reads[7]);
@@ -1908,6 +1938,47 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     saveTrips([...trips, completed]);
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
+
+    // Sync a Supabase EN BACKGROUND — corre DESPUÉS del guardado local, nunca bloquea el flujo
+    const _syncTrip = completed;
+    setTimeout(() => {
+      try {
+        sbFetch('trips', {
+          method: 'POST',
+          headers: { 'Prefer': 'resolution=merge-duplicates' },
+          body: JSON.stringify({
+            id: _syncTrip.id,
+            driver_id: _syncTrip.driverId || '',
+            vehicle_id: _syncTrip.vehicleId || '',
+            origin_branch_id: _syncTrip.originBranchId || '',
+            destination_branch_id: _syncTrip.destinationBranchId || '',
+            custom_dest_name: _syncTrip.customDestName || '',
+            custom_dest_type: _syncTrip.customDestType || '',
+            km_start: _syncTrip.kmStart || 0,
+            km_end: _syncTrip.kmEnd || 0,
+            km_traveled: _syncTrip.kmTraveled || 0,
+            start_date: _syncTrip.startDate || '',
+            start_time: _syncTrip.startTime || '',
+            end_date: _syncTrip.endDate || '',
+            end_time: _syncTrip.endTime || '',
+            trip_minutes: _syncTrip.tripMinutes || 0,
+            time_at_branch_prev_minutes: _syncTrip.timeAtBranchPrevMinutes || 0,
+            time_at_destination_minutes: _syncTrip.timeAtDestinationMinutes || 0,
+            departed_destination_at: _syncTrip.departedDestinationAt || '',
+            liters: _syncTrip.liters || 0,
+            fuel_price: _syncTrip.fuelPrice || 0,
+            cost: _syncTrip.cost || 0,
+            deliveries: _syncTrip.deliveries || 0,
+            trips_count: _syncTrip.tripsCount || 1,
+            route: _syncTrip.route || 'LOCAL',
+            fuel_loaded: _syncTrip.fuelLoaded || 0,
+            notes: _syncTrip.notes || '',
+            arrival_notes: _syncTrip.arrivalNotes || '',
+            created_at: _syncTrip.createdAt || Date.now(),
+          }),
+        }).catch(() => {});
+      } catch(e) {}
+    }, 2000);
     const newKm = Number(data.kmEnd);
     saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, ...(newKm > x.currentKm ? { currentKm: newKm } : {}), fuelLevel: newFuelLevel } : x));
 
