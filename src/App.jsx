@@ -3389,6 +3389,14 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
   const [waitStart, setWaitStart] = useState(localStorage.getItem('emp:waitStart:'+trip.id) ? Number(localStorage.getItem('emp:waitStart:'+trip.id)) : null);
   const [waitDisplay, setWaitDisplay] = useState('0m 00s');
 
+  // Variables de alerta de tiempo (calculadas fuera del JSX para compatibilidad con Vite)
+  const _alertMins = confirmedMinutes ?? trip.timeAtDestinationMinutes ?? 0;
+  const _alertMaxMin = (vehicle?.id === 'v1' || vehicle?.id === 'v2') ? 75 : 45;
+  const _alertOver = trip.destinationBranchId !== 'surtir' && trip.destinationBranchId !== 'taller' && _alertMins > _alertMaxMin;
+  const _alertOverBy = _alertMins - _alertMaxMin;
+  const _alertBorderCls = _alertOver ? 'bg-rose-50 border-rose-400' : 'bg-emerald-50 border-emerald-300';
+  const _alertTextCls = _alertOver ? 'text-rose-700' : 'text-emerald-700';
+
   useEffect(() => {
     if (!isWaiting || !waitStart) return;
     const update = () => {
@@ -3530,30 +3538,22 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
           )}
         </div>
       ) : (
-        {(() => {
-          const mins = confirmedMinutes ?? trip.timeAtDestinationMinutes ?? 0;
-          const maxMin = (vehicle?.id === 'v1' || vehicle?.id === 'v2') ? 75 : 45;
-          const over = trip.destinationBranchId !== 'surtir' && trip.destinationBranchId !== 'taller' && mins > maxMin;
-          const overBy = mins - maxMin;
-          return (
-            <div className={`border-2 rounded-2xl p-4 ${over ? 'bg-rose-50 border-rose-400' : 'bg-emerald-50 border-emerald-300'}`}>
-              <div className={`text-xs font-bold font-mono uppercase ${over ? 'text-rose-700' : 'text-emerald-700'}`}>
-                {over ? '⚠️ Tiempo excedido en ' : '✅ Tiempo en '}{destination?.name}
-              </div>
-              <div className={`text-3xl font-bold mt-1 font-mono ${over ? 'text-rose-700' : 'text-stone-900'}`}>
-                {formatDuration(mins)}
-              </div>
-              {over ? (
-                <div className="mt-2 space-y-1">
-                  <div className="text-xs font-bold text-rose-600">🚨 Excedió {formatDuration(maxMin)} por {formatDuration(overBy)}</div>
-                  <div className="text-xs text-rose-500">Aviso enviado a coordinador por Discord</div>
-                </div>
-              ) : (
-                <div className="text-xs text-stone-500 mt-1 font-mono">Salida registrada · Dentro del límite</div>
-              )}
+        <div className={`border-2 rounded-2xl p-4 ${_alertBorderCls}`}>
+          <div className={`text-xs font-bold font-mono uppercase ${_alertTextCls}`}>
+            {_alertOver ? '⚠️ Tiempo excedido en ' : '✅ Tiempo en '}{destination?.name}
+          </div>
+          <div className={`text-3xl font-bold mt-1 font-mono ${_alertTextCls}`}>
+            {formatDuration(_alertMins)}
+          </div>
+          {_alertOver ? (
+            <div className="mt-2 space-y-1">
+              <div className="text-xs font-bold text-rose-600">🚨 Excedió {formatDuration(_alertMaxMin)} por {formatDuration(_alertOverBy)}</div>
+              <div className="text-xs text-rose-500">Aviso enviado a coordinador por Discord</div>
             </div>
-          );
-        })()}
+          ) : (
+            <div className="text-xs text-stone-500 mt-1 font-mono">Salida registrada · Dentro del límite</div>
+          )}
+        </div>
       )}
 
       {isWaiting && (
