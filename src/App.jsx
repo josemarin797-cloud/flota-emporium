@@ -538,48 +538,6 @@ export default function App() {
         if (reads[2]) setBranches(reads[2]);
         if (reads[3]) setTrips(reads[3]);
         if (reads[4]) setActiveTrips(reads[4]);
-
-        // Fetch viajes desde Supabase app_data (sync coordinador↔choferes, sin cambios de schema)
-        try {
-          const rows = await sbFetch('trips?select=*&order=created_at.desc&limit=3000');
-          if (Array.isArray(rows) && rows.length > 0) {
-            const remote = rows.map(t => ({
-              id: t.id,
-              driverId: t.driver_id || t.driverId || '',
-              vehicleId: t.vehicle_id || t.vehicleId || '',
-              originBranchId: t.origin_branch_id || t.originBranchId || '',
-              destinationBranchId: t.destination_branch_id || t.destinationBranchId || '',
-              customDestName: t.custom_dest_name || t.customDestName || '',
-              customDestType: t.custom_dest_type || t.customDestType || '',
-              kmStart: Number(t.km_start || t.kmStart) || 0,
-              kmEnd: Number(t.km_end || t.kmEnd) || 0,
-              kmTraveled: Number(t.km_traveled || t.kmTraveled) || 0,
-              startDate: t.start_date || t.startDate || '',
-              startTime: t.start_time || t.startTime || '',
-              endDate: t.end_date || t.endDate || '',
-              endTime: t.end_time || t.endTime || '',
-              tripMinutes: Number(t.trip_minutes || t.tripMinutes) || 0,
-              timeAtBranchPrevMinutes: Number(t.time_at_branch_prev_minutes || t.timeAtBranchPrevMinutes) || 0,
-              timeAtDestinationMinutes: Number(t.time_at_destination_minutes || t.timeAtDestinationMinutes) || 0,
-              departedDestinationAt: t.departed_destination_at || t.departedDestinationAt || '',
-              liters: Number(t.liters) || 0,
-              fuelPrice: Number(t.fuel_price || t.fuelPrice) || 0,
-              cost: Number(t.cost) || 0,
-              deliveries: Number(t.deliveries) || 0,
-              tripsCount: Number(t.trips_count || t.tripsCount) || 1,
-              route: t.route || 'LOCAL',
-              fuelLoaded: Number(t.fuel_loaded || t.fuelLoaded) || 0,
-              notes: t.notes || '',
-              arrivalNotes: t.arrival_notes || t.arrivalNotes || '',
-              createdAt: Number(t.created_at || t.createdAt) || 0,
-            }));
-            const local = reads[3] || [];
-            const localIds = new Set(local.map(x => x.id));
-            const merged = [...local, ...remote.filter(x => !localIds.has(x.id))];
-            setTrips(merged);
-            try { localStorage.setItem('emp:v4:trips', JSON.stringify(merged)); } catch(e) {}
-          }
-        } catch(e) {}
         if (reads[5]) setArchivedMonths(reads[5]);
         if (reads[6]) setConfig(savedCfg);
         if (reads[7]) setPhotos(reads[7]);
@@ -1950,42 +1908,6 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     saveTrips([...trips, completed]);
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
-
-    // Sync viaje completado a Supabase tabla trips
-    sbFetch('trips', {
-      method: 'POST',
-      headers: { 'Prefer': 'resolution=merge-duplicates' },
-      body: JSON.stringify({
-        id: completed.id,
-        driver_id: completed.driverId,
-        vehicle_id: completed.vehicleId,
-        origin_branch_id: completed.originBranchId || '',
-        destination_branch_id: completed.destinationBranchId || '',
-        custom_dest_name: completed.customDestName || '',
-        custom_dest_type: completed.customDestType || '',
-        km_start: completed.kmStart || 0,
-        km_end: completed.kmEnd || 0,
-        km_traveled: completed.kmTraveled || 0,
-        start_date: completed.startDate || '',
-        start_time: completed.startTime || '',
-        end_date: completed.endDate || '',
-        end_time: completed.endTime || '',
-        trip_minutes: completed.tripMinutes || 0,
-        time_at_branch_prev_minutes: completed.timeAtBranchPrevMinutes || 0,
-        time_at_destination_minutes: completed.timeAtDestinationMinutes || 0,
-        departed_destination_at: completed.departedDestinationAt || '',
-        liters: completed.liters || 0,
-        fuel_price: completed.fuelPrice || 0,
-        cost: completed.cost || 0,
-        deliveries: completed.deliveries || 0,
-        trips_count: completed.tripsCount || 1,
-        route: completed.route || 'LOCAL',
-        fuel_loaded: completed.fuelLoaded || 0,
-        notes: completed.notes || '',
-        arrival_notes: completed.arrivalNotes || '',
-        created_at: completed.createdAt || Date.now(),
-      }),
-    }).catch(() => {});
     const newKm = Number(data.kmEnd);
     saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, ...(newKm > x.currentKm ? { currentKm: newKm } : {}), fuelLevel: newFuelLevel } : x));
 
@@ -3446,14 +3368,10 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
   const [isWaiting, setIsWaiting] = useState(!!localStorage.getItem('emp:isWaiting:'+trip.id));
   const [waitStart, setWaitStart] = useState(localStorage.getItem('emp:waitStart:'+trip.id) ? Number(localStorage.getItem('emp:waitStart:'+trip.id)) : null);
   const [waitDisplay, setWaitDisplay] = useState('0m 00s');
-
-  // Variables de alerta de tiempo (calculadas fuera del JSX para compatibilidad con Vite)
   const _alertMins = confirmedMinutes ?? trip.timeAtDestinationMinutes ?? 0;
   const _alertMaxMin = (vehicle?.id === 'v1' || vehicle?.id === 'v2') ? 75 : 45;
   const _alertOver = trip.destinationBranchId !== 'surtir' && trip.destinationBranchId !== 'taller' && _alertMins > _alertMaxMin;
   const _alertOverBy = _alertMins - _alertMaxMin;
-  const _alertBorderCls = _alertOver ? 'bg-rose-50 border-rose-400' : 'bg-emerald-50 border-emerald-300';
-  const _alertTextCls = _alertOver ? 'text-rose-700' : 'text-emerald-700';
 
   useEffect(() => {
     if (!isWaiting || !waitStart) return;
@@ -3514,25 +3432,20 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     const wh2 = isFuelDest
       ? (vehicle?.maintenanceWebhook || config.discordWebhookMaintenance || config.discordWebhookGeneral)
       : (config.discordWebhookByVehicle?.[trip.vehicleId] || config.discordWebhookGeneral);
-    // Límites de tiempo por unidad: NPR01/02 = 75 min, resto = 45 min
     const waitMaxMin = (vehicle?.id === 'v1' || vehicle?.id === 'v2') ? 75 : 45;
     const waitExceeded = !isFuelDest && minutes > waitMaxMin;
     const waitMaxStr = waitMaxMin === 75 ? '1h 15min' : '45 min';
     const waitTimeStr = minutes > 59 ? `${Math.floor(minutes/60)}h ${minutes%60}min` : `${minutes} min`;
-    const waitExcStr = waitExceeded ? `+${minutes - waitMaxMin} min sobre el límite` : null;
-
     if (wh2) sendDiscordNotification(wh2, {
       title: waitExceeded
-        ? `⚠️ TIEMPO EXCEDIDO — Salida de sucursal · ${vehicle?.code}`
+        ? `⚠️ TIEMPO EXCEDIDO — Salida · ${vehicle?.code}`
         : `🚪 Salida de sucursal · ${vehicle?.code}`,
-      description: waitExceeded
-        ? `🔴 **${vehicle?.code}** salió de **${destination?.name}** — Excedió el tiempo máximo permitido`
-        : `⏱️ **${vehicle?.code}** salió de **${destination?.name}** dentro del tiempo permitido`,
+      description: `⏱️ Tiempo en ${destination?.name}: ${waitTimeStr}`,
       color: waitExceeded ? 0xe11d48 : isFuelDest ? 0xf59e0b : 0x8b5cf6,
       fields: [
-        { name: '⏱ Tiempo en sucursal', value: waitTimeStr, inline: true },
-        { name: '⚙️ Límite permitido', value: waitMaxStr, inline: true },
-        ...(waitExceeded ? [{ name: '🚨 Exceso', value: waitExcStr, inline: true }] : [{ name: '✅ Estado', value: 'Dentro del límite', inline: true }]),
+        { name: '⏱ Tiempo', value: waitTimeStr, inline: true },
+        { name: '⚙️ Límite', value: waitMaxStr, inline: true },
+        { name: waitExceeded ? '🚨 Exceso' : '✅ Estado', value: waitExceeded ? `+${minutes - waitMaxMin} min` : 'Dentro del límite', inline: true },
       ],
       footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` }
     }).catch(() => {});
@@ -3596,21 +3509,16 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
           )}
         </div>
       ) : (
-        <div className={`border-2 rounded-2xl p-4 ${_alertBorderCls}`}>
-          <div className={`text-xs font-bold font-mono uppercase ${_alertTextCls}`}>
+        <div className={`border-2 rounded-2xl p-4 ${_alertOver ? 'bg-rose-50 border-rose-400' : 'bg-emerald-50 border-emerald-300'}`}>
+          <div className={`text-xs font-bold font-mono uppercase ${_alertOver ? 'text-rose-700' : 'text-emerald-700'}`}>
             {_alertOver ? '⚠️ Tiempo excedido en ' : '✅ Tiempo en '}{destination?.name}
           </div>
-          <div className={`text-3xl font-bold mt-1 font-mono ${_alertTextCls}`}>
+          <div className={`text-3xl font-bold mt-1 font-mono ${_alertOver ? 'text-rose-700' : 'text-stone-900'}`}>
             {formatDuration(_alertMins)}
           </div>
-          {_alertOver ? (
-            <div className="mt-2 space-y-1">
-              <div className="text-xs font-bold text-rose-600">🚨 Excedió {formatDuration(_alertMaxMin)} por {formatDuration(_alertOverBy)}</div>
-              <div className="text-xs text-rose-500">Aviso enviado a coordinador por Discord</div>
-            </div>
-          ) : (
-            <div className="text-xs text-stone-500 mt-1 font-mono">Salida registrada · Dentro del límite</div>
-          )}
+          {_alertOver
+            ? <div className="text-xs font-bold text-rose-600 mt-2">🚨 Excedió {formatDuration(_alertMaxMin)} por {formatDuration(_alertOverBy)}</div>
+            : <div className="text-xs text-stone-500 mt-1 font-mono">Salida registrada · Dentro del límite</div>}
         </div>
       )}
 
@@ -4197,7 +4105,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
       <main className="max-w-7xl mx-auto px-4 py-5">
         {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} incidents={incidents} saveHandoffs={saveHandoffs} sbFetch={sbFetch} />}
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
-        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} sbFetch={sbFetch} />}
+        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
         {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
@@ -4729,148 +4637,89 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
   );
 }
 
-// ════════════════════════════════════════════════════════════════
-// KPIs OPERATIVOS
-// ════════════════════════════════════════════════════════════════
-// Límites de tiempo en sucursal por unidad (minutos)
 const WAIT_LIMITS = { 'v1': 75, 'v2': 75, 'v3': 45, 'v4': 45, 'v5': 45 };
-
 function KPIsOperativos({ trips, vehicles, branches, selectedMonth }) {
   const fd = (m) => m == null ? '—' : m >= 60 ? `${Math.floor(m/60)}h ${m%60}m` : `${m}m`;
-
   const vMetrics = vehicles.map(v => {
     const vt = trips.filter(t => t.vehicleId === v.id && (t.kmTraveled > 0 || t.tripMinutes > 0));
     const maxWait = WAIT_LIMITS[v.id] || 45;
     const refKmL = 100 / (v.litersPer100km || 21);
-
-    const speedTrips = vt.filter(t => t.tripMinutes > 0 && t.kmTraveled > 0);
-    const avgSpeed = speedTrips.length > 0
-      ? speedTrips.reduce((s, t) => s + (t.kmTraveled / (t.tripMinutes / 60)), 0) / speedTrips.length : 0;
-
-    const totalKm = vt.reduce((s, t) => s + (t.kmTraveled || 0), 0);
-    const totalL  = vt.reduce((s, t) => s + (t.liters || 0), 0);
-    const kmPerL  = totalL > 0 ? totalKm / totalL : 0;
-
+    const speedT = vt.filter(t => t.tripMinutes > 0 && t.kmTraveled > 0);
+    const avgSpeed = speedT.length > 0 ? speedT.reduce((s,t) => s + (t.kmTraveled/(t.tripMinutes/60)),0)/speedT.length : 0;
+    const totalKm = vt.reduce((s,t) => s+(t.kmTraveled||0),0);
+    const totalL = vt.reduce((s,t) => s+(t.liters||0),0);
+    const kmPerL = totalL > 0 ? totalKm/totalL : 0;
     const waitT = vt.filter(t => t.timeAtDestinationMinutes > 0);
-    const onTime  = waitT.filter(t => t.timeAtDestinationMinutes <= maxWait).length;
-    const branchEff = waitT.length > 0 ? Math.round(onTime / waitT.length * 100) : null;
-    const avgWait   = waitT.length > 0 ? Math.round(waitT.reduce((s,t)=>s+t.timeAtDestinationMinutes,0)/waitT.length) : null;
-
+    const onTime = waitT.filter(t => t.timeAtDestinationMinutes <= maxWait).length;
+    const branchEff = waitT.length > 0 ? Math.round(onTime/waitT.length*100) : null;
+    const avgWait = waitT.length > 0 ? Math.round(waitT.reduce((s,t)=>s+t.timeAtDestinationMinutes,0)/waitT.length) : null;
     const totalMove = vt.reduce((s,t)=>s+(t.tripMinutes||0),0);
     const totalIdle = vt.reduce((s,t)=>s+(t.timeAtDestinationMinutes||0),0);
     const ratio = totalMove+totalIdle>0 ? Math.round(totalMove/(totalMove+totalIdle)*100) : 0;
-
     return { v, vt, avgSpeed, kmPerL, refKmL, branchEff, avgWait, ratio, maxWait, waitT, onTime };
   }).filter(m => m.vt.length > 0);
-
   const branchMap = {};
   trips.forEach(t => {
     const bid = t.destinationBranchId;
     if (t.timeAtDestinationMinutes > 0 && bid && bid !== 'surtir' && bid !== 'taller' && bid !== 'otro') {
-      if (!branchMap[bid]) branchMap[bid] = { total: 0, count: 0 };
-      branchMap[bid].total += t.timeAtDestinationMinutes;
-      branchMap[bid].count++;
+      if (!branchMap[bid]) branchMap[bid] = { total:0, count:0 };
+      branchMap[bid].total += t.timeAtDestinationMinutes; branchMap[bid].count++;
     }
   });
-  const branchRank = Object.entries(branchMap)
-    .map(([id, { total, count }]) => ({ id, avg: Math.round(total/count), count }))
-    .sort((a,b) => b.avg - a.avg);
+  const branchRank = Object.entries(branchMap).map(([id,{total,count}]) => ({id, avg:Math.round(total/count), count})).sort((a,b)=>b.avg-a.avg);
   const maxB = branchRank[0]?.avg || 1;
-
-  if (vMetrics.length === 0) return (
-    <div className="mt-4 bg-stone-800 rounded-xl p-4 text-stone-500 text-sm text-center">
-      Sin viajes registrados para calcular KPIs este mes
-    </div>
-  );
-
-  const monthLabel = new Date(selectedMonth + '-15').toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
-
+  if (vMetrics.length === 0) return <div className="mt-4 bg-stone-800 rounded-xl p-4 text-stone-500 text-sm text-center">Sin viajes este mes para calcular KPIs</div>;
+  const monthLabel = new Date(selectedMonth+'-15').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
   return (
     <div className="mt-4 space-y-4">
-      <div className="flex items-center gap-2 border-b border-stone-700 pb-2">
-        <span className="text-emerald-400 font-bold text-xs uppercase tracking-wider">📊 KPIs Operativos · {monthLabel}</span>
-      </div>
-
-      {/* Tabla de métricas por unidad */}
+      <div className="border-b border-stone-700 pb-2"><span className="text-emerald-400 font-bold text-xs uppercase tracking-wider">📊 KPIs Operativos · {monthLabel}</span></div>
       <div className="bg-stone-800 rounded-xl overflow-hidden border border-stone-700">
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-stone-900 text-stone-400 uppercase tracking-wider text-[10px]">
-                <th className="text-left px-3 py-2">Unidad</th>
-                <th className="text-right px-2 py-2 text-amber-400" title="Velocidad promedio durante el trayecto">🚀 Vel. comercial</th>
-                <th className="text-right px-2 py-2 text-amber-400" title="Km recorridos por litro consumido">⛽ Rend. gasolina</th>
-                <th className="text-right px-2 py-2 text-blue-400" title="% del tiempo total que el camión está en movimiento">⏩ Mov. vs Det.</th>
-                <th className="text-right px-2 py-2 text-emerald-400" title="% de visitas dentro del tiempo máximo permitido">🏪 Efic. sucursal</th>
-                <th className="text-right px-2 py-2 text-rose-400" title="Tiempo promedio de espera en destino">⏱ T. espera prom.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vMetrics.map(({ v, avgSpeed, kmPerL, refKmL, branchEff, avgWait, ratio, maxWait, waitT, onTime }, i) => {
-                const eC = branchEff===null ? 'text-stone-500' : branchEff>=80 ? 'text-emerald-400' : branchEff>=60 ? 'text-amber-400' : 'text-rose-400';
-                const sC = avgSpeed>=30 ? 'text-emerald-400' : avgSpeed>=15 ? 'text-amber-400' : 'text-rose-400';
-                const rC = kmPerL>=refKmL*0.9 ? 'text-emerald-400' : kmPerL>=refKmL*0.7 ? 'text-amber-400' : 'text-rose-400';
-                const mC = ratio>=65 ? 'text-emerald-400' : ratio>=50 ? 'text-amber-400' : 'text-rose-400';
-                const wC = avgWait==null ? 'text-stone-500' : avgWait>maxWait ? 'text-rose-400' : 'text-emerald-400';
-                return (
-                  <tr key={v.id} className={i%2===0 ? 'bg-stone-800' : 'bg-stone-750 bg-opacity-50'}>
-                    <td className="px-3 py-2 font-bold text-stone-200">
-                      <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{background:v.color}}></span>
-                      {v.code}
-                      <span className="text-stone-600 font-normal text-[10px] ml-1">max {maxWait===75?'1h15m':'45m'}</span>
-                    </td>
-                    <td className={`px-2 py-2 text-right font-bold ${sC}`}>{avgSpeed>0 ? `${avgSpeed.toFixed(1)} km/h` : '—'}</td>
-                    <td className={`px-2 py-2 text-right font-bold ${rC}`}>
-                      {kmPerL>0 ? `${kmPerL.toFixed(1)} km/L` : '—'}
-                      {kmPerL>0 && <span className="text-stone-600 font-normal text-[10px] ml-1">ref {refKmL.toFixed(1)}</span>}
-                    </td>
-                    <td className={`px-2 py-2 text-right font-bold ${mC}`}>{ratio>0 ? `${ratio}%` : '—'}</td>
-                    <td className={`px-2 py-2 text-right font-bold ${eC}`}>
-                      {branchEff!==null ? `${branchEff}%` : '—'}
-                      {branchEff!==null && <span className="text-stone-600 font-normal text-[10px] ml-1">{onTime}/{waitT.length} viajes</span>}
-                    </td>
-                    <td className={`px-2 py-2 text-right font-bold ${wC}`}>
-                      {fd(avgWait)}
-                      {avgWait!=null && avgWait>maxWait && <span className="text-rose-500 ml-1 text-[10px]">⚠️ excede</span>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
+            <thead><tr className="bg-stone-900 text-stone-400 uppercase tracking-wider text-[10px]">
+              <th className="text-left px-3 py-2">Unidad</th>
+              <th className="text-right px-2 py-2">🚀 Vel.</th>
+              <th className="text-right px-2 py-2">⛽ Rend.</th>
+              <th className="text-right px-2 py-2">⏩ Mov.</th>
+              <th className="text-right px-2 py-2">🏪 Efic.</th>
+              <th className="text-right px-2 py-2">⏱ T.Espera</th>
+            </tr></thead>
+            <tbody>{vMetrics.map(({v,avgSpeed,kmPerL,refKmL,branchEff,avgWait,ratio,maxWait,waitT,onTime},i) => {
+              const eC = branchEff===null?'text-stone-500':branchEff>=80?'text-emerald-400':branchEff>=60?'text-amber-400':'text-rose-400';
+              const sC = avgSpeed>=30?'text-emerald-400':avgSpeed>=15?'text-amber-400':'text-rose-400';
+              const rC = kmPerL>=refKmL*0.9?'text-emerald-400':kmPerL>=refKmL*0.7?'text-amber-400':'text-rose-400';
+              const mC = ratio>=65?'text-emerald-400':ratio>=50?'text-amber-400':'text-rose-400';
+              const wC = avgWait==null?'text-stone-500':avgWait>maxWait?'text-rose-400':'text-emerald-400';
+              return (<tr key={v.id} className={i%2===0?'bg-stone-800':'bg-stone-900'}>
+                <td className="px-3 py-2 font-bold text-stone-200"><span className="inline-block w-2 h-2 rounded-full mr-1" style={{background:v.color}}></span>{v.code}<span className="text-stone-600 font-normal text-[10px] ml-1">max {maxWait===75?'1h15':'45m'}</span></td>
+                <td className={`px-2 py-2 text-right font-bold ${sC}`}>{avgSpeed>0?`${avgSpeed.toFixed(1)}km/h`:'—'}</td>
+                <td className={`px-2 py-2 text-right font-bold ${rC}`}>{kmPerL>0?`${kmPerL.toFixed(1)}km/L`:'—'}</td>
+                <td className={`px-2 py-2 text-right font-bold ${mC}`}>{ratio>0?`${ratio}%`:'—'}</td>
+                <td className={`px-2 py-2 text-right font-bold ${eC}`}>{branchEff!==null?`${branchEff}%`:'—'}{branchEff!==null&&<span className="text-stone-600 text-[10px] ml-1">{onTime}/{waitT.length}</span>}</td>
+                <td className={`px-2 py-2 text-right font-bold ${wC}`}>{fd(avgWait)}{avgWait!=null&&avgWait>maxWait&&<span className="text-rose-400 ml-1">⚠️</span>}</td>
+              </tr>);
+            })}</tbody>
           </table>
         </div>
       </div>
-
-      {/* Cuello de botella por sucursal */}
       {branchRank.length > 0 && (
         <div className="bg-stone-800 rounded-xl p-3 border border-stone-700">
-          <div className="text-stone-400 font-bold text-[10px] uppercase tracking-wider mb-3">
-            🏪 Cuello de botella · Tiempo promedio de estancia por sucursal
-          </div>
-          <div className="space-y-2">
-            {branchRank.slice(0, 6).map(({ id, avg, count }) => {
-              const br = branches.find(b => b.id === id);
-              if (!br) return null;
-              const pct = Math.min(100, Math.round(avg / maxB * 100));
-              const col = avg >= 60 ? '#E24B4A' : avg >= 40 ? '#EF9F27' : '#1D9E75';
-              return (
-                <div key={id} className="flex items-center gap-2">
-                  <div className="text-stone-300 text-xs w-28 flex-shrink-0 truncate">{br.name}</div>
-                  <div className="flex-1 h-2 bg-stone-700 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all" style={{width:`${pct}%`,background:col}} />
-                  </div>
-                  <div className="text-[11px] text-stone-400 w-24 text-right">{fd(avg)} <span className="text-stone-600">· {count}v</span></div>
-                  {avg >= 60 && <span className="text-[10px] text-rose-400 font-bold">⚠️</span>}
-                </div>
-              );
-            })}
-          </div>
+          <div className="text-stone-400 font-bold text-[10px] uppercase tracking-wider mb-3">🏪 Tiempo promedio por sucursal</div>
+          <div className="space-y-2">{branchRank.slice(0,6).map(({id,avg,count}) => {
+            const br = branches.find(b=>b.id===id); if (!br) return null;
+            const col = avg>=60?'#E24B4A':avg>=40?'#EF9F27':'#1D9E75';
+            return (<div key={id} className="flex items-center gap-2">
+              <div className="text-stone-300 text-xs w-28 flex-shrink-0 truncate">{br.name}</div>
+              <div className="flex-1 h-2 bg-stone-700 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{width:`${Math.min(100,Math.round(avg/maxB*100))}%`,background:col}}/></div>
+              <div className="text-[11px] text-stone-400 w-20 text-right">{fd(avg)} · {count}v</div>
+              {avg>=60&&<span className="text-[10px] text-rose-400">⚠️</span>}
+            </div>);
+          })}</div>
         </div>
       )}
     </div>
   );
 }
-
 
 function DarkKpi({ icon: Icon, label, value, accent }) {
   const colors = {
@@ -5061,7 +4910,7 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
 // ============================================================
 // VIAJES TABLE
 // ============================================================
-function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [], maintRecords = [], fuelRecords = [], sbFetch }) {
+function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [], maintRecords = [], fuelRecords = [] }) {
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
   // Refrescar cada minuto para actualizar los cronómetros "aún ahí"
@@ -5512,66 +5361,6 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         wsDash['!cols'] = [{wch:22},{wch:22},{wch:4},{wch:10},{wch:14},{wch:12},{wch:8},{wch:9}];
         wsDash['!rows'] = [{hpt:30},{hpt:16},{hpt:8},{hpt:22},{hpt:30},{hpt:14},{hpt:8}];
         XLSX.utils.book_append_sheet(wb, wsDash, 'Dashboard');
-
-        // ════════════════════════════════════════════════════════════════
-        // HOJA KPIs OPERATIVOS
-        // ════════════════════════════════════════════════════════════════
-        (() => {
-          const kd = [];
-          const ML = { 'v1': 75, 'v2': 75, 'v3': 45, 'v4': 45, 'v5': 45 };
-          kd.push(['KPIs OPERATIVOS — TRANSPORTE EMPORIUM', '', '', '', '', '', '']);
-          kd.push([`Mes: ${new Date(selectedMonth + '-15').toLocaleDateString('es-VE',{month:'long',year:'numeric'})}`, '', '', '', '', '', '']);
-          kd.push(['']);
-          kd.push(['Unidad', 'Vel. Comercial (km/h)', 'Rend. Gasolina (km/L)', 'Ref. Gasolina', 'Mov. vs Det. (%)', 'Efic. Sucursal (%)', 'T. Espera Prom.', 'T. Máx Permitido', 'Estado']);
-          vehicles.forEach(v => {
-            const vt = trips.filter(t => t.vehicleId === v.id && (t.kmTraveled > 0 || t.tripMinutes > 0));
-            if (vt.length === 0) return;
-            const maxWait = ML[v.id] || 45;
-            const refKmL = (100 / (v.litersPer100km || 21)).toFixed(1);
-            const speedT = vt.filter(t => t.tripMinutes > 0 && t.kmTraveled > 0);
-            const avgSpd = speedT.length > 0 ? (speedT.reduce((s,t)=>s+(t.kmTraveled/(t.tripMinutes/60)),0)/speedT.length).toFixed(1) : 0;
-            const totalKm = vt.reduce((s,t)=>s+(t.kmTraveled||0),0);
-            const totalL = vt.reduce((s,t)=>s+(t.liters||0),0);
-            const kmL = totalL > 0 ? (totalKm/totalL).toFixed(1) : 0;
-            const waitT = vt.filter(t => t.timeAtDestinationMinutes > 0);
-            const onT = waitT.filter(t=>t.timeAtDestinationMinutes<=maxWait).length;
-            const eff = waitT.length > 0 ? Math.round(onT/waitT.length*100) : null;
-            const avgW = waitT.length > 0 ? Math.round(waitT.reduce((s,t)=>s+t.timeAtDestinationMinutes,0)/waitT.length) : null;
-            const totalMov = vt.reduce((s,t)=>s+(t.tripMinutes||0),0);
-            const totalDet = vt.reduce((s,t)=>s+(t.timeAtDestinationMinutes||0),0);
-            const ratio = totalMov+totalDet>0 ? Math.round(totalMov/(totalMov+totalDet)*100) : 0;
-            const maxStr = maxWait === 75 ? '1h 15m' : '45 min';
-            const wStr = avgW == null ? 'Sin datos' : avgW >= 60 ? `${Math.floor(avgW/60)}h ${avgW%60}m` : `${avgW}m`;
-            const estado = avgW == null ? 'SIN DATOS' : avgW > maxWait ? 'EXCEDE LÍMITE' : eff != null && eff >= 80 ? 'EFICIENTE' : 'NORMAL';
-            kd.push([v.code, avgSpd ? Number(avgSpd) : 0, kmL ? Number(kmL) : 0, Number(refKmL), ratio, eff ?? 0, wStr, maxStr, estado]);
-          });
-          kd.push(['']);
-          kd.push(['CUELLO DE BOTELLA POR SUCURSAL', '', '', '', '', '', '']);
-          kd.push(['Sucursal', 'T. Prom. Estancia', 'N° Visitas', 'Límite ref. 45min', '']);
-          const bMap = {};
-          trips.forEach(t => {
-            const bid = t.destinationBranchId;
-            if (t.timeAtDestinationMinutes > 0 && bid && bid !== 'surtir' && bid !== 'taller' && bid !== 'otro') {
-              if (!bMap[bid]) bMap[bid] = { total: 0, count: 0 };
-              bMap[bid].total += t.timeAtDestinationMinutes; bMap[bid].count++;
-            }
-          });
-          Object.entries(bMap).sort((a,b)=>b[1].total/b[1].count - a[1].total/a[1].count).forEach(([id, { total, count }]) => {
-            const br = branches.find(b => b.id === id);
-            if (!br) return;
-            const avg = Math.round(total/count);
-            const avgStr = avg >= 60 ? `${Math.floor(avg/60)}h ${avg%60}m` : `${avg}m`;
-            const st = avg >= 60 ? 'CRITICO' : avg >= 45 ? 'ALTO' : 'NORMAL';
-            kd.push([br.name, avgStr, count, 45, st]);
-          });
-          const wsK = XLSX.utils.aoa_to_sheet(kd);
-          wsK['!cols'] = [{wch:16},{wch:20},{wch:20},{wch:16},{wch:18},{wch:18},{wch:16},{wch:18},{wch:16}];
-          // Estilos header
-          if (wsK['A1']) wsK['A1'].s = ST.title;
-          if (wsK['A4']) wsK['A4'].s = ST.header;
-          ['B4','C4','D4','E4','F4','G4','H4','I4'].forEach(c => { if (wsK[c]) wsK[c].s = ST.header; });
-          XLSX.utils.book_append_sheet(wb, wsK, 'KPIs Operativos');
-        })();
 
         // ════════════════════════════════════════════════════════════════
         // HOJAS POR CAMIÓN — Detalle por viaje + Resumen diario
@@ -6098,55 +5887,10 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
             className="w-full pl-9 pr-3 py-2 bg-white border border-stone-200 shadow-sm rounded-lg text-sm text-stone-900 outline-none focus:border-emerald-500 placeholder:text-stone-400" />
         </div>
-        <div className="flex items-center gap-2">
         <button onClick={exportToExcel} disabled={exporting}
-          className={`text-white px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm font-bold shadow-lg transition ${exporting ? 'bg-stone-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-700/30'}`}>
-          <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'EXCEL'}
+          className={`text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition ${exporting ? 'bg-stone-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-700/30'}`}>
+          <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'REPORTE MENSUAL'}
         </button>
-        <button onClick={async () => {
-          try {
-            const rows = await sbFetch('trips?select=*&order=created_at.desc&limit=3000');
-            if (Array.isArray(rows) && rows.length > 0) {
-              const remote = rows.map(t => ({
-                id: t.id,
-                driverId: t.driver_id || t.driverId || '',
-                vehicleId: t.vehicle_id || t.vehicleId || '',
-                originBranchId: t.origin_branch_id || t.originBranchId || '',
-                destinationBranchId: t.destination_branch_id || t.destinationBranchId || '',
-                customDestName: t.custom_dest_name || t.customDestName || '',
-                customDestType: t.custom_dest_type || t.customDestType || '',
-                kmStart: Number(t.km_start || t.kmStart) || 0,
-                kmEnd: Number(t.km_end || t.kmEnd) || 0,
-                kmTraveled: Number(t.km_traveled || t.kmTraveled) || 0,
-                startDate: t.start_date || t.startDate || '',
-                startTime: t.start_time || t.startTime || '',
-                endDate: t.end_date || t.endDate || '',
-                endTime: t.end_time || t.endTime || '',
-                tripMinutes: Number(t.trip_minutes || t.tripMinutes) || 0,
-                timeAtBranchPrevMinutes: Number(t.time_at_branch_prev_minutes || t.timeAtBranchPrevMinutes) || 0,
-                timeAtDestinationMinutes: Number(t.time_at_destination_minutes || t.timeAtDestinationMinutes) || 0,
-                departedDestinationAt: t.departed_destination_at || t.departedDestinationAt || '',
-                liters: Number(t.liters) || 0,
-                fuelPrice: Number(t.fuel_price || t.fuelPrice) || 0,
-                cost: Number(t.cost) || 0,
-                deliveries: Number(t.deliveries) || 0,
-                tripsCount: Number(t.trips_count || t.tripsCount) || 1,
-                route: t.route || 'LOCAL',
-                fuelLoaded: Number(t.fuel_loaded || t.fuelLoaded) || 0,
-                notes: t.notes || '',
-                arrivalNotes: t.arrival_notes || t.arrivalNotes || '',
-                createdAt: Number(t.created_at || t.createdAt) || 0,
-              }));
-              const localIds = new Set(allTrips.map(x => x.id));
-              const merged = [...allTrips, ...remote.filter(x => !localIds.has(x.id))];
-              saveTrips(merged);
-            } else { alert('Sin viajes en la nube aún.'); }
-          } catch(e) { alert('Error sync: ' + e.message); }
-        }}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-bold">
-          🔄 Sync
-        </button>
-        </div>
       </div>
       <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
           <input type="date" value={deleteUntil} onChange={e => setDeleteUntil(e.target.value)}
