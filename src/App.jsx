@@ -541,12 +541,41 @@ export default function App() {
 
         // Fetch viajes desde Supabase app_data (sync coordinador↔choferes, sin cambios de schema)
         try {
-          const rows = await sbFetch('app_data?key=like.trip:%25&select=key,value&limit=3000');
+          const rows = await sbFetch('trips?select=*&order=created_at.desc&limit=3000');
           if (Array.isArray(rows) && rows.length > 0) {
-            const remote = rows.map(r => { try { return JSON.parse(r.value || r.data || ''); } catch(e) { return null; } }).filter(Boolean);
+            const remote = rows.map(t => ({
+              id: t.id,
+              driverId: t.driver_id || t.driverId || '',
+              vehicleId: t.vehicle_id || t.vehicleId || '',
+              originBranchId: t.origin_branch_id || t.originBranchId || '',
+              destinationBranchId: t.destination_branch_id || t.destinationBranchId || '',
+              customDestName: t.custom_dest_name || t.customDestName || '',
+              customDestType: t.custom_dest_type || t.customDestType || '',
+              kmStart: Number(t.km_start || t.kmStart) || 0,
+              kmEnd: Number(t.km_end || t.kmEnd) || 0,
+              kmTraveled: Number(t.km_traveled || t.kmTraveled) || 0,
+              startDate: t.start_date || t.startDate || '',
+              startTime: t.start_time || t.startTime || '',
+              endDate: t.end_date || t.endDate || '',
+              endTime: t.end_time || t.endTime || '',
+              tripMinutes: Number(t.trip_minutes || t.tripMinutes) || 0,
+              timeAtBranchPrevMinutes: Number(t.time_at_branch_prev_minutes || t.timeAtBranchPrevMinutes) || 0,
+              timeAtDestinationMinutes: Number(t.time_at_destination_minutes || t.timeAtDestinationMinutes) || 0,
+              departedDestinationAt: t.departed_destination_at || t.departedDestinationAt || '',
+              liters: Number(t.liters) || 0,
+              fuelPrice: Number(t.fuel_price || t.fuelPrice) || 0,
+              cost: Number(t.cost) || 0,
+              deliveries: Number(t.deliveries) || 0,
+              tripsCount: Number(t.trips_count || t.tripsCount) || 1,
+              route: t.route || 'LOCAL',
+              fuelLoaded: Number(t.fuel_loaded || t.fuelLoaded) || 0,
+              notes: t.notes || '',
+              arrivalNotes: t.arrival_notes || t.arrivalNotes || '',
+              createdAt: Number(t.created_at || t.createdAt) || 0,
+            }));
             const local = reads[3] || [];
             const localIds = new Set(local.map(x => x.id));
-            const merged = [...local, ...remote.filter(x => x && !localIds.has(x.id))];
+            const merged = [...local, ...remote.filter(x => !localIds.has(x.id))];
             setTrips(merged);
             try { localStorage.setItem('emp:v4:trips', JSON.stringify(merged)); } catch(e) {}
           }
@@ -1922,11 +1951,40 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     saveTrips([...trips, completed]);
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
 
-    // Sync a Supabase app_data (sin cambios de schema)
-    sbFetch('app_data', {
+    // Sync viaje completado a Supabase tabla trips
+    sbFetch('trips', {
       method: 'POST',
       headers: { 'Prefer': 'resolution=merge-duplicates' },
-      body: JSON.stringify({ key: 'trip:' + completed.id, value: JSON.stringify(completed) }),
+      body: JSON.stringify({
+        id: completed.id,
+        driver_id: completed.driverId,
+        vehicle_id: completed.vehicleId,
+        origin_branch_id: completed.originBranchId || '',
+        destination_branch_id: completed.destinationBranchId || '',
+        custom_dest_name: completed.customDestName || '',
+        custom_dest_type: completed.customDestType || '',
+        km_start: completed.kmStart || 0,
+        km_end: completed.kmEnd || 0,
+        km_traveled: completed.kmTraveled || 0,
+        start_date: completed.startDate || '',
+        start_time: completed.startTime || '',
+        end_date: completed.endDate || '',
+        end_time: completed.endTime || '',
+        trip_minutes: completed.tripMinutes || 0,
+        time_at_branch_prev_minutes: completed.timeAtBranchPrevMinutes || 0,
+        time_at_destination_minutes: completed.timeAtDestinationMinutes || 0,
+        departed_destination_at: completed.departedDestinationAt || '',
+        liters: completed.liters || 0,
+        fuel_price: completed.fuelPrice || 0,
+        cost: completed.cost || 0,
+        deliveries: completed.deliveries || 0,
+        trips_count: completed.tripsCount || 1,
+        route: completed.route || 'LOCAL',
+        fuel_loaded: completed.fuelLoaded || 0,
+        notes: completed.notes || '',
+        arrival_notes: completed.arrivalNotes || '',
+        created_at: completed.createdAt || Date.now(),
+      }),
     }).catch(() => {});
     const newKm = Number(data.kmEnd);
     saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, ...(newKm > x.currentKm ? { currentKm: newKm } : {}), fuelLevel: newFuelLevel } : x));
@@ -6047,13 +6105,42 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         </button>
         <button onClick={async () => {
           try {
-            const rows = await sbFetch('app_data?key=like.trip:%25&select=key,value&limit=3000');
+            const rows = await sbFetch('trips?select=*&order=created_at.desc&limit=3000');
             if (Array.isArray(rows) && rows.length > 0) {
-              const remote = rows.map(r => { try { return JSON.parse(r.value || r.data || ''); } catch(e) { return null; } }).filter(Boolean);
+              const remote = rows.map(t => ({
+                id: t.id,
+                driverId: t.driver_id || t.driverId || '',
+                vehicleId: t.vehicle_id || t.vehicleId || '',
+                originBranchId: t.origin_branch_id || t.originBranchId || '',
+                destinationBranchId: t.destination_branch_id || t.destinationBranchId || '',
+                customDestName: t.custom_dest_name || t.customDestName || '',
+                customDestType: t.custom_dest_type || t.customDestType || '',
+                kmStart: Number(t.km_start || t.kmStart) || 0,
+                kmEnd: Number(t.km_end || t.kmEnd) || 0,
+                kmTraveled: Number(t.km_traveled || t.kmTraveled) || 0,
+                startDate: t.start_date || t.startDate || '',
+                startTime: t.start_time || t.startTime || '',
+                endDate: t.end_date || t.endDate || '',
+                endTime: t.end_time || t.endTime || '',
+                tripMinutes: Number(t.trip_minutes || t.tripMinutes) || 0,
+                timeAtBranchPrevMinutes: Number(t.time_at_branch_prev_minutes || t.timeAtBranchPrevMinutes) || 0,
+                timeAtDestinationMinutes: Number(t.time_at_destination_minutes || t.timeAtDestinationMinutes) || 0,
+                departedDestinationAt: t.departed_destination_at || t.departedDestinationAt || '',
+                liters: Number(t.liters) || 0,
+                fuelPrice: Number(t.fuel_price || t.fuelPrice) || 0,
+                cost: Number(t.cost) || 0,
+                deliveries: Number(t.deliveries) || 0,
+                tripsCount: Number(t.trips_count || t.tripsCount) || 1,
+                route: t.route || 'LOCAL',
+                fuelLoaded: Number(t.fuel_loaded || t.fuelLoaded) || 0,
+                notes: t.notes || '',
+                arrivalNotes: t.arrival_notes || t.arrivalNotes || '',
+                createdAt: Number(t.created_at || t.createdAt) || 0,
+              }));
               const localIds = new Set(allTrips.map(x => x.id));
-              const merged = [...allTrips, ...remote.filter(x => x && !localIds.has(x.id))];
+              const merged = [...allTrips, ...remote.filter(x => !localIds.has(x.id))];
               saveTrips(merged);
-            } else { alert('Sin viajes nuevos en la nube'); }
+            } else { alert('Sin viajes en la nube aún.'); }
           } catch(e) { alert('Error sync: ' + e.message); }
         }}
           className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-bold">
