@@ -6040,9 +6040,10 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
             className="w-full pl-9 pr-3 py-2 bg-white border border-stone-200 shadow-sm rounded-lg text-sm text-stone-900 outline-none focus:border-emerald-500 placeholder:text-stone-400" />
         </div>
+        <div className="flex items-center gap-2">
         <button onClick={exportToExcel} disabled={exporting}
-          className={`text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition ${exporting ? 'bg-stone-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-700/30'}`}>
-          <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'REPORTE MENSUAL'}
+          className={`text-white px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm font-bold shadow-lg transition ${exporting ? 'bg-stone-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-700/30'}`}>
+          <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'EXCEL'}
         </button>
         <button onClick={async () => {
           try {
@@ -6058,6 +6059,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-bold">
           🔄 Sync
         </button>
+        </div>
       </div>
       <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
           <input type="date" value={deleteUntil} onChange={e => setDeleteUntil(e.target.value)}
