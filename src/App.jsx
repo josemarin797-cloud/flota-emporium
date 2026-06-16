@@ -647,7 +647,34 @@ export default function App() {
   const saveVehicles = (d) => { setVehicles(d); persist(KEYS.VEHICLES, d); };
   const saveDrivers = (d) => { setDrivers(d); persist(KEYS.DRIVERS, d); };
   const saveBranches = (d) => { setBranches(d); persist(KEYS.BRANCHES, d); };
-  const saveTrips = (d) => { setTrips(d); persist(KEYS.TRIPS, d); };
+  const saveTrips = (d) => {
+    setTrips(d);
+    persist(KEYS.TRIPS, d);
+    // Sync último viaje a Supabase (fire-and-forget, no bloquea nada)
+    const newTrip = d.length > 0 ? d[d.length - 1] : null;
+    if (newTrip?.startDate && newTrip?.endDate) {
+      sbFetch('trips', {
+        method: 'POST',
+        headers: { 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify([{
+          id: newTrip.id, driver_id: newTrip.driverId||null, vehicle_id: newTrip.vehicleId||null,
+          origin_branch_id: newTrip.originBranchId||null, destination_branch_id: newTrip.destinationBranchId||null,
+          custom_dest_name: newTrip.customDestName||null,
+          km_start: newTrip.kmStart||0, km_end: newTrip.kmEnd||0, km_traveled: newTrip.kmTraveled||0,
+          start_date: newTrip.startDate, start_time: newTrip.startTime||null,
+          end_date: newTrip.endDate, end_time: newTrip.endTime||null,
+          trip_minutes: newTrip.tripMinutes||0,
+          time_at_branch_prev_minutes: newTrip.timeAtBranchPrevMinutes||0,
+          time_at_destination_minutes: newTrip.timeAtDestinationMinutes||0,
+          liters: newTrip.liters||0, fuel_price: newTrip.fuelPrice||0, cost: newTrip.cost||0,
+          deliveries: newTrip.deliveries||0, trips_count: newTrip.tripsCount||1,
+          route: newTrip.route||'LOCAL', fuel_loaded: newTrip.fuelLoaded||0,
+          notes: newTrip.notes||null, arrival_notes: newTrip.arrivalNotes||null,
+          created_at: newTrip.createdAt||Date.now(),
+        }]),
+      }).catch(() => {});
+    }
+  };
   const saveActiveTrips = (d) => { setActiveTrips(d); persist(KEYS.ACTIVE_TRIPS, d); };
   const saveArchived = (d) => { setArchivedMonths(d); persist(KEYS.ARCHIVED_MONTHS, d); };
   const saveConfig = (d) => { setConfig(d); persist(KEYS.CONFIG, d); };
@@ -3987,7 +4014,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
   // ── AUTO-CIERRE MENSUAL ─────────────────────────────────────────────
   useEffect(() => {
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const unarchived = [...new Set(trips.map(t => t.startDate.slice(0, 7)))]
+    const unarchived = [...new Set(trips.filter(t=>t.startDate).map(t => t.startDate.slice(0, 7)))]
       .filter(m => m < currentMonth)
       .filter(m => !archivedMonths.find(a => a.month === m))
       .sort();
@@ -3995,7 +4022,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     const newArchived = [...archivedMonths];
     const labels = [];
     unarchived.forEach(m => {
-      const mt = trips.filter(t => t.startDate.startsWith(m));
+      const mt = trips.filter(t => t.startDate?.startsWith(m));
       if (mt.length === 0) return;
       newArchived.push({
         month: m, closedAt: Date.now(), autoArchived: true, tripCount: mt.length,
@@ -4013,7 +4040,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     setTimeout(() => setAutoArchiveBanner(null), 9000);
   }, []);
 
-  const monthTrips = useMemo(() => trips.filter(t => t.startDate.startsWith(selectedMonth)), [trips, selectedMonth]);
+  const monthTrips = useMemo(() => trips.filter(t => t.startDate?.startsWith(selectedMonth)), [trips, selectedMonth]);
   const monthPhotos = useMemo(() => photos.filter(p => p.date.startsWith(selectedMonth)), [photos, selectedMonth]);
 
   const tabs = [
@@ -4092,7 +4119,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
       <main className="max-w-7xl mx-auto px-4 py-5">
         {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} incidents={incidents} saveHandoffs={saveHandoffs} sbFetch={sbFetch} />}
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
-        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
+        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} sbFetch={sbFetch} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
         {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
@@ -4897,7 +4924,24 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
 // ============================================================
 // VIAJES TABLE
 // ============================================================
-function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [], maintRecords = [], fuelRecords = [] }) {
+function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [], maintRecords = [], fuelRecords = [], sbFetch }) {
+  useEffect(() => {
+    if (!sbFetch) return;
+    const toSB = t => ({ id:t.id, driver_id:t.driverId||null, vehicle_id:t.vehicleId||null, origin_branch_id:t.originBranchId||null, destination_branch_id:t.destinationBranchId||null, custom_dest_name:t.customDestName||null, km_start:t.kmStart||0, km_end:t.kmEnd||0, km_traveled:t.kmTraveled||0, start_date:t.startDate||null, start_time:t.startTime||null, end_date:t.endDate||null, end_time:t.endTime||null, trip_minutes:t.tripMinutes||0, time_at_branch_prev_minutes:t.timeAtBranchPrevMinutes||0, time_at_destination_minutes:t.timeAtDestinationMinutes||0, liters:t.liters||0, fuel_price:t.fuelPrice||0, cost:t.cost||0, deliveries:t.deliveries||0, trips_count:t.tripsCount||1, route:t.route||'LOCAL', fuel_loaded:t.fuelLoaded||0, notes:t.notes||null, arrival_notes:t.arrivalNotes||null, created_at:t.createdAt||Date.now() });
+    const fromSB = t => ({ id:t.id, driverId:t.driver_id||'', vehicleId:t.vehicle_id||'', originBranchId:t.origin_branch_id||'', destinationBranchId:t.destination_branch_id||'', customDestName:t.custom_dest_name||'', kmStart:Number(t.km_start)||0, kmEnd:Number(t.km_end)||0, kmTraveled:Number(t.km_traveled)||0, startDate:t.start_date||'', startTime:t.start_time||'', endDate:t.end_date||'', endTime:t.end_time||'', tripMinutes:Number(t.trip_minutes)||0, timeAtBranchPrevMinutes:Number(t.time_at_branch_prev_minutes)||0, timeAtDestinationMinutes:Number(t.time_at_destination_minutes)||0, liters:Number(t.liters)||0, fuelPrice:Number(t.fuel_price)||0, cost:Number(t.cost)||0, deliveries:Number(t.deliveries)||0, tripsCount:Number(t.trips_count)||1, route:t.route||'LOCAL', fuelLoaded:Number(t.fuel_loaded)||0, notes:t.notes||'', arrivalNotes:t.arrival_notes||'', createdAt:Number(t.created_at)||0 });
+    // Subir viajes locales válidos a Supabase
+    const valid = allTrips.filter(t => t.startDate && t.endDate);
+    if (valid.length > 0) sbFetch('trips',{ method:'POST', headers:{'Prefer':'resolution=merge-duplicates'}, body:JSON.stringify(valid.map(toSB)) }).catch(()=>{});
+    // Bajar viajes remotos (solo los que tienen fechas válidas para no romper filtros)
+    sbFetch('trips?select=id,driver_id,vehicle_id,origin_branch_id,destination_branch_id,custom_dest_name,km_start,km_end,km_traveled,start_date,start_time,end_date,end_time,trip_minutes,time_at_branch_prev_minutes,time_at_destination_minutes,liters,fuel_price,cost,deliveries,trips_count,route,fuel_loaded,notes,arrival_notes,created_at&order=created_at.desc&limit=2000')
+      .then(rows => {
+        if (!Array.isArray(rows)||!rows.length) return;
+        const remote = rows.map(fromSB).filter(x => x.startDate && x.endDate); // solo fechas válidas
+        const ids = new Set(allTrips.map(x=>x.id));
+        const news = remote.filter(x=>!ids.has(x.id));
+        if (news.length > 0) saveTrips([...allTrips, ...news]);
+      }).catch(()=>{});
+  }, []);
 
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
@@ -5138,6 +5182,55 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }, 100);
+  };
+
+  const exportToExcelDaily = async () => {
+    const todayStr = new Date().toLocaleDateString('es-VE', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const todayTrips = trips.filter(t => t.startDate === todayISO || t.endDate === todayISO);
+    if (todayTrips.length === 0) {
+      alert('No hay viajes registrados hoy');
+      return;
+    }
+    if (!XLSX || !XLSX.utils) { alert('Excel no disponible'); return; }
+    const wb = XLSX.utils.book_new();
+    const ST = {
+      title: { font:{bold:true,sz:14,color:{rgb:'1D6A4A'}}, fill:{fgColor:{rgb:'E8F5E9'}} },
+      header: { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1D6A4A'}}, alignment:{horizontal:'center'} },
+      even: { fill:{fgColor:{rgb:'F5FAF7'}} },
+    };
+    // Hoja resumen del día
+    const dd = [];
+    dd.push(['REPORTE DIARIO — TRANSPORTE EMPORIUM', '', '', '', '', '', '', '', '']);
+    dd.push([todayStr, '', '', '', '', '', '', '', '']);
+    dd.push(['']);
+    dd.push(['CHOFER', 'UNIDAD', 'RUTA', 'KM SALIDA', 'KM LLEGADA', 'KM REC.', 'DURACIÓN', '$ COSTO', 'LITROS']);
+    todayTrips.forEach((t, i) => {
+      const driver = drivers.find(d => d.id === t.driverId);
+      const vehicle = vehicles.find(v => v.id === t.vehicleId);
+      const origin = branches.find(b => b.id === t.originBranchId)?.name || t.originBranchId || '';
+      const dest = branches.find(b => b.id === t.destinationBranchId)?.name || t.destinationBranchId || '';
+      const dur = t.tripMinutes > 59 ? `${Math.floor(t.tripMinutes/60)}h ${t.tripMinutes%60}m` : `${t.tripMinutes||0}m`;
+      dd.push([
+        driver?.name || t.driverId, vehicle?.code || t.vehicleId,
+        `${origin} → ${dest}`,
+        t.kmStart||0, t.kmEnd||0, t.kmTraveled||0,
+        dur, Number((t.cost||0).toFixed(2)), Number((t.liters||0).toFixed(2))
+      ]);
+    });
+    dd.push(['']);
+    const totalKm = todayTrips.reduce((s,t)=>s+(t.kmTraveled||0),0);
+    const totalCost = todayTrips.reduce((s,t)=>s+(t.cost||0),0);
+    const totalL = todayTrips.reduce((s,t)=>s+(t.liters||0),0);
+    dd.push(['TOTALES DEL DÍA', '', `${todayTrips.length} viajes`, '', '', totalKm, '', Number(totalCost.toFixed(2)), Number(totalL.toFixed(2))]);
+    const ws = XLSX.utils.aoa_to_sheet(dd);
+    ws['!cols'] = [{wch:22},{wch:10},{wch:32},{wch:10},{wch:10},{wch:8},{wch:10},{wch:10},{wch:8}];
+    if (ws['A1']) ws['A1'].s = ST.title;
+    if (ws['A4']) ws['A4'].s = ST.header;
+    ['B4','C4','D4','E4','F4','G4','H4','I4'].forEach(c => { if(ws[c]) ws[c].s = ST.header; });
+    XLSX.utils.book_append_sheet(wb, ws, 'Reporte del día');
+    const fecha = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, `Reporte_Diario_${fecha}.xlsx`);
   };
 
   const exportToExcel = async () => {
@@ -5875,10 +5968,16 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
             className="w-full pl-9 pr-3 py-2 bg-white border border-stone-200 shadow-sm rounded-lg text-sm text-stone-900 outline-none focus:border-emerald-500 placeholder:text-stone-400" />
         </div>
-        <button onClick={exportToExcel} disabled={exporting}
-          className={`text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition ${exporting ? 'bg-stone-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-700/30'}`}>
-          <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'REPORTE MENSUAL'}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={exportToExcelDaily}
+            className="text-white px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm font-bold shadow-lg transition bg-blue-600 hover:bg-blue-700">
+            <FileSpreadsheet className="w-4 h-4" /> HOY
+          </button>
+          <button onClick={exportToExcel} disabled={exporting}
+            className={`text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition ${exporting ? 'bg-stone-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-700/30'}`}>
+            <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'REPORTE MENSUAL'}
+          </button>
+        </div>
       </div>
       <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
           <input type="date" value={deleteUntil} onChange={e => setDeleteUntil(e.target.value)}
