@@ -26,9 +26,12 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         cleanupOutdatedCaches: true,
-        // skipWaiting y clientsClaim ELIMINADOS — causaban pantalla negra en PC
-        // El SW nuevo espera a que no haya clientes activos antes de activarse
         runtimeCaching: [
+          {
+            // Supabase — NetworkOnly: nunca cachear, siempre ir directo a la red
+            urlPattern: /^https:\/\/sieadibkcqnvbwlwlmds\.supabase\.co\/.*/i,
+            handler: 'NetworkOnly',
+          },
           {
             urlPattern: /^https:\/\/cdn\.sheetjs\.com\/.*/i,
             handler: 'CacheFirst',
