@@ -538,34 +538,6 @@ export default function App() {
         if (reads[2]) setBranches(reads[2]);
         if (reads[3]) setTrips(reads[3]);
         if (reads[4]) setActiveTrips(reads[4]);
-
-        // Cargar viajes de Supabase (solo fechas válidas, functional update)
-        try {
-          const sbT = await sbFetch('trips?select=id,driver_id,vehicle_id,origin_branch_id,destination_branch_id,custom_dest_name,km_start,km_end,km_traveled,start_date,start_time,end_date,end_time,trip_minutes,time_at_branch_prev_minutes,time_at_destination_minutes,liters,fuel_price,cost,deliveries,trips_count,route,fuel_loaded,notes,arrival_notes,created_at&order=created_at.desc&limit=2000');
-          if (Array.isArray(sbT) && sbT.length > 0) {
-            const remote = sbT.filter(t => t.start_date && t.end_date).map(t => ({
-              id:t.id, driverId:t.driver_id||'', vehicleId:t.vehicle_id||'',
-              originBranchId:t.origin_branch_id||'', destinationBranchId:t.destination_branch_id||'',
-              customDestName:t.custom_dest_name||'', kmStart:Number(t.km_start)||0,
-              kmEnd:Number(t.km_end)||0, kmTraveled:Number(t.km_traveled)||0,
-              startDate:t.start_date, startTime:t.start_time||'',
-              endDate:t.end_date, endTime:t.end_time||'',
-              tripMinutes:Number(t.trip_minutes)||0,
-              timeAtBranchPrevMinutes:Number(t.time_at_branch_prev_minutes)||0,
-              timeAtDestinationMinutes:Number(t.time_at_destination_minutes)||0,
-              liters:Number(t.liters)||0, fuelPrice:Number(t.fuel_price)||0,
-              cost:Number(t.cost)||0, deliveries:Number(t.deliveries)||0,
-              tripsCount:Number(t.trips_count)||1, route:t.route||'LOCAL',
-              fuelLoaded:Number(t.fuel_loaded)||0, notes:t.notes||'',
-              arrivalNotes:t.arrival_notes||'', createdAt:Number(t.created_at)||0
-            }));
-            setTrips(prev => {
-              const ids = new Set(prev.map(x => x.id));
-              const newOnes = remote.filter(x => !ids.has(x.id));
-              return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
-            });
-          }
-        } catch(e) {}
         if (reads[5]) setArchivedMonths(reads[5]);
         if (reads[6]) setConfig(savedCfg);
         if (reads[7]) setPhotos(reads[7]);
@@ -893,7 +865,6 @@ export default function App() {
         saveMaintRecords={saveMaintRecords}
         saveIncidents={saveIncidents}
         saveFuelRecords={saveFuelRecords}
-        sbFetch={sbFetch}
         saveHandoffs={saveHandoffs}
         endShifts={endShifts}
         appointments={appointments}
@@ -1937,8 +1908,6 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     saveTrips([...trips, completed]);
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
-
-
     const newKm = Number(data.kmEnd);
     saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, ...(newKm > x.currentKm ? { currentKm: newKm } : {}), fuelLevel: newFuelLevel } : x));
 
@@ -4002,40 +3971,15 @@ function DriverHistoryView({ trips, vehicles, branches }) {
 // ============================================================
 // COORDINADOR
 // ============================================================
-function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], incidents = [], fuelRecords = [], appointments = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents, saveFuelRecords, saveHandoffs, saveAppointments, sbFetch }) {
+function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], incidents = [], fuelRecords = [], appointments = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents, saveFuelRecords, saveHandoffs, saveAppointments }) {
   const [tab, setTab] = useState('dashboard');
-  const [remoteTrips, setRemoteTrips] = useState([]);
-
-  // Cargar viajes remotos de Supabase (estado LOCAL del coordinador, no toca estado global)
-  useEffect(() => {
-    if (!sbFetch) return;
-    sbFetch('trips?select=id,driver_id,vehicle_id,origin_branch_id,destination_branch_id,custom_dest_name,km_start,km_end,km_traveled,start_date,start_time,end_date,end_time,trip_minutes,time_at_branch_prev_minutes,time_at_destination_minutes,liters,fuel_price,cost,deliveries,trips_count,route,fuel_loaded,notes,arrival_notes,created_at&order=created_at.desc&limit=2000')
-      .then(rows => {
-        if (!Array.isArray(rows) || !rows.length) return;
-        const remote = rows.filter(t => t.start_date && t.end_date).map(t => ({
-          id:t.id, driverId:t.driver_id||'', vehicleId:t.vehicle_id||'',
-          originBranchId:t.origin_branch_id||'', destinationBranchId:t.destination_branch_id||'',
-          customDestName:t.custom_dest_name||'', kmStart:Number(t.km_start)||0,
-          kmEnd:Number(t.km_end)||0, kmTraveled:Number(t.km_traveled)||0,
-          startDate:t.start_date, startTime:t.start_time||'', endDate:t.end_date, endTime:t.end_time||'',
-          tripMinutes:Number(t.trip_minutes)||0, timeAtBranchPrevMinutes:Number(t.time_at_branch_prev_minutes)||0,
-          timeAtDestinationMinutes:Number(t.time_at_destination_minutes)||0,
-          liters:Number(t.liters)||0, fuelPrice:Number(t.fuel_price)||0, cost:Number(t.cost)||0,
-          deliveries:Number(t.deliveries)||0, tripsCount:Number(t.trips_count)||1, route:t.route||'LOCAL',
-          fuelLoaded:Number(t.fuel_loaded)||0, notes:t.notes||'', arrivalNotes:t.arrival_notes||'',
-          createdAt:Number(t.created_at)||0
-        }));
-        const localIds = new Set(trips.map(x => x.id));
-        setRemoteTrips(remote.filter(x => !localIds.has(x.id)));
-      }).catch(() => {});
-  }, []);
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [autoArchiveBanner, setAutoArchiveBanner] = useState(null);
 
   // ── AUTO-CIERRE MENSUAL ─────────────────────────────────────────────
   useEffect(() => {
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const unarchived = [...new Set(trips.filter(t=>t.startDate).map(t => t.startDate.slice(0, 7)))]
+    const unarchived = [...new Set(trips.map(t => t.startDate.slice(0, 7)))]
       .filter(m => m < currentMonth)
       .filter(m => !archivedMonths.find(a => a.month === m))
       .sort();
@@ -4043,7 +3987,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     const newArchived = [...archivedMonths];
     const labels = [];
     unarchived.forEach(m => {
-      const mt = trips.filter(t => t.startDate?.startsWith(m));
+      const mt = trips.filter(t => t.startDate.startsWith(m));
       if (mt.length === 0) return;
       newArchived.push({
         month: m, closedAt: Date.now(), autoArchived: true, tripCount: mt.length,
@@ -4061,7 +4005,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     setTimeout(() => setAutoArchiveBanner(null), 9000);
   }, []);
 
-  const monthTrips = useMemo(() => trips.filter(t => t.startDate?.startsWith(selectedMonth)), [trips, selectedMonth]);
+  const monthTrips = useMemo(() => trips.filter(t => t.startDate.startsWith(selectedMonth)), [trips, selectedMonth]);
   const monthPhotos = useMemo(() => photos.filter(p => p.date.startsWith(selectedMonth)), [photos, selectedMonth]);
 
   const tabs = [
@@ -4140,7 +4084,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
       <main className="max-w-7xl mx-auto px-4 py-5">
         {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} incidents={incidents} saveHandoffs={saveHandoffs} sbFetch={sbFetch} />}
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
-        {tab === 'trips' && <TripsTable trips={[...monthTrips, ...remoteTrips.filter(t=>t.startDate?.startsWith(selectedMonth))]} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={[...trips,...remoteTrips]} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
+        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
         {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
@@ -5110,13 +5054,12 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
     const wb = XLSX.utils.book_new();
     const rows = [['CHOFER','UNIDAD','RUTA','KM SAL','KM LLE','KM REC','DURACIÓN','$ COSTO','LITROS']];
     todayTrips.forEach(t => {
-      const dr = drivers.find(d=>d.id===t.driverId); const vh = vehicles.find(v=>v.id===t.vehicleId);
-      const or = branches.find(b=>b.id===t.originBranchId)?.name||t.originBranchId||'';
-      const ds = branches.find(b=>b.id===t.destinationBranchId)?.name||t.destinationBranchId||'';
-      const dur = t.tripMinutes>59?`${Math.floor(t.tripMinutes/60)}h ${t.tripMinutes%60}m`:`${t.tripMinutes||0}m`;
-      rows.push([dr?.name||'',vh?.code||'',`${or} → ${ds}`,t.kmStart||0,t.kmEnd||0,t.kmTraveled||0,dur,Number((t.cost||0).toFixed(2)),Number((t.liters||0).toFixed(2))]);
+      const dr=drivers.find(d=>d.id===t.driverId), vh=vehicles.find(v=>v.id===t.vehicleId);
+      const or=branches.find(b=>b.id===t.originBranchId)?.name||'', ds=branches.find(b=>b.id===t.destinationBranchId)?.name||'';
+      const dur=t.tripMinutes>59?`${Math.floor(t.tripMinutes/60)}h ${t.tripMinutes%60}m`:`${t.tripMinutes||0}m`;
+      rows.push([dr?.name||'',vh?.code||'',`${or} → ${ds}`,t.kmStart||0,t.kmEnd||0,t.kmTraveled||0,dur,+(t.cost||0).toFixed(2),+(t.liters||0).toFixed(2)]);
     });
-    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const ws=XLSX.utils.aoa_to_sheet(rows);
     ws['!cols']=[{wch:20},{wch:10},{wch:30},{wch:9},{wch:9},{wch:8},{wch:9},{wch:9},{wch:8}];
     XLSX.utils.book_append_sheet(wb,ws,'Hoy');
     XLSX.writeFile(wb,`Reporte_Diario_${todayISO}.xlsx`);
@@ -5859,7 +5802,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         </div>
         <div className="flex gap-2">
           <button onClick={exportToExcelDaily}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm font-bold shadow-lg">
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm font-bold">
             <FileSpreadsheet className="w-4 h-4" /> HOY
           </button>
           <button onClick={exportToExcel} disabled={exporting}
@@ -7423,7 +7366,7 @@ function FuelMgmtTab({ fuelRecords, saveFuelRecords, vehicles, trips, config, se
   // Análisis por camión para el mes seleccionado
   const analysis = vehicles.map(v => {
     const loaded = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + (Number(r.liters)||0), 0);
-    const consumed = trips.filter(t => t.vehicleId === v.id && t.startDate?.startsWith(filterMes)).reduce((s,t) => s + (Number(t.liters)||0), 0);
+    const consumed = trips.filter(t => t.vehicleId === v.id && t.startDate.startsWith(filterMes)).reduce((s,t) => s + (Number(t.liters)||0), 0);
     const cost = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + totalCost(r), 0);
     const diff = loaded - consumed;
     const diffPct = consumed > 0 ? (diff / consumed) * 100 : 0;
@@ -8011,12 +7954,12 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
   const [expanded, setExpanded] = useState(null);
 
   const available = useMemo(() => {
-    const months = new Set(trips.filter(t=>t.startDate).map(t => t.startDate.slice(0, 7)));
+    const months = new Set(trips.map(t => t.startDate.slice(0, 7)));
     return [...months].filter(m => !archivedMonths.find(a => a.month === m)).sort().reverse();
   }, [trips, archivedMonths]);
 
   const close = (m) => {
-    const mt = trips.filter(t => t.startDate?.startsWith(m));
+    const mt = trips.filter(t => t.startDate.startsWith(m));
     if (mt.length === 0) return alert('Sin viajes');
     if (!confirm(`¿Cerrar ${m}? ${mt.length} viajes archivados.`)) return;
     saveArchived([...archivedMonths, {
@@ -8070,7 +8013,7 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
 
     // Hoja detalle viajes
     const dt = [['Fecha','Unidad','Chofer','Origen','Destino','KM','Litros','Costo $','Entregas','Ruta']];
-    mt.sort((a,b)=>(a.startDate||'').localeCompare(b.startDate||'')).forEach(t => {
+    mt.sort((a,b)=>a.startDate.localeCompare(b.startDate)).forEach(t => {
       const v = vs.find(x=>x.id===t.vehicleId);
       const d = ds.find(x=>x.id===t.driverId);
       const orig = bs.find(x=>x.id===t.originBranchId)?.name || t.originBranchId;
@@ -8180,7 +8123,7 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
           {available.length === 0 ? <div className="text-sm text-stone-400 py-4">Sin meses por cerrar.</div> :
             <div className="space-y-2">
               {available.map(m => {
-                const c = trips.filter(t => t.startDate?.startsWith(m)).length;
+                const c = trips.filter(t => t.startDate.startsWith(m)).length;
                 const l = new Date(m+'-01').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
                 return (
                   <button key={m} onClick={() => close(m)} className="w-full text-left p-3 border-2 border-stone-200 rounded-lg hover:border-amber-500 bg-stone-50">
