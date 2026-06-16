@@ -3987,7 +3987,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
   // ── AUTO-CIERRE MENSUAL ─────────────────────────────────────────────
   useEffect(() => {
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const unarchived = [...new Set(trips.filter(t=>t.startDate).map(t => t.startDate.slice(0, 7)))]
+    const unarchived = [...new Set(trips.filter(t=>t.startDate).map(t => t.startDate?.slice(0, 7)))]
       .filter(m => m < currentMonth)
       .filter(m => !archivedMonths.find(a => a.month === m))
       .sort();
@@ -7507,7 +7507,7 @@ function FuelMgmtTab({ fuelRecords, saveFuelRecords, vehicles, trips, config, se
   // Análisis por camión para el mes seleccionado
   const analysis = vehicles.map(v => {
     const loaded = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + (Number(r.liters)||0), 0);
-    const consumed = trips.filter(t => t.vehicleId === v.id && t.startDate.startsWith(filterMes)).reduce((s,t) => s + (Number(t.liters)||0), 0);
+    const consumed = trips.filter(t => t.vehicleId === v.id && t.startDate?.startsWith(filterMes)).reduce((s,t) => s + (Number(t.liters)||0), 0);
     const cost = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + totalCost(r), 0);
     const diff = loaded - consumed;
     const diffPct = consumed > 0 ? (diff / consumed) * 100 : 0;
@@ -8095,12 +8095,12 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
   const [expanded, setExpanded] = useState(null);
 
   const available = useMemo(() => {
-    const months = new Set(trips.map(t => t.startDate.slice(0, 7)));
+    const months = new Set(trips.map(t => t.startDate?.slice(0, 7)));
     return [...months].filter(m => !archivedMonths.find(a => a.month === m)).sort().reverse();
   }, [trips, archivedMonths]);
 
   const close = (m) => {
-    const mt = trips.filter(t => t.startDate.startsWith(m));
+    const mt = trips.filter(t => t.startDate?.startsWith(m));
     if (mt.length === 0) return alert('Sin viajes');
     if (!confirm(`¿Cerrar ${m}? ${mt.length} viajes archivados.`)) return;
     saveArchived([...archivedMonths, {
@@ -8154,7 +8154,7 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
 
     // Hoja detalle viajes
     const dt = [['Fecha','Unidad','Chofer','Origen','Destino','KM','Litros','Costo $','Entregas','Ruta']];
-    mt.sort((a,b)=>a.startDate.localeCompare(b.startDate)).forEach(t => {
+    mt.sort((a,b)=>(a.startDate||'').localeCompare(b.startDate||'')).forEach(t => {
       const v = vs.find(x=>x.id===t.vehicleId);
       const d = ds.find(x=>x.id===t.driverId);
       const orig = bs.find(x=>x.id===t.originBranchId)?.name || t.originBranchId;
@@ -8264,7 +8264,7 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
           {available.length === 0 ? <div className="text-sm text-stone-400 py-4">Sin meses por cerrar.</div> :
             <div className="space-y-2">
               {available.map(m => {
-                const c = trips.filter(t => t.startDate.startsWith(m)).length;
+                const c = trips.filter(t => t.startDate?.startsWith(m)).length;
                 const l = new Date(m+'-01').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
                 return (
                   <button key={m} onClick={() => close(m)} className="w-full text-left p-3 border-2 border-stone-200 rounded-lg hover:border-amber-500 bg-stone-50">
