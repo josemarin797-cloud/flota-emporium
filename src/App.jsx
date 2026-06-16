@@ -865,6 +865,7 @@ export default function App() {
         saveMaintRecords={saveMaintRecords}
         saveIncidents={saveIncidents}
         saveFuelRecords={saveFuelRecords}
+        sbFetch={sbFetch}
         saveHandoffs={saveHandoffs}
         endShifts={endShifts}
         appointments={appointments}
@@ -1957,6 +1958,12 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const _esBomba = completed.destinationBranchId === 'surtir' ||
       (completed.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(completed.customDestName || ''));
     setStep(_esBomba ? 'surtir' : 'finish');
+    // Sync a Supabase después del cambio de pantalla (NetworkOnly en sw - no crashea)
+    const _t = completed;
+    if (_t.startDate && _t.endDate) fetch(`${SB_URL}/rest/v1/trips`, {
+      method:'POST', headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
+      body:JSON.stringify([{id:_t.id,driver_id:_t.driverId||null,vehicle_id:_t.vehicleId||null,origin_branch_id:_t.originBranchId||null,destination_branch_id:_t.destinationBranchId||null,custom_dest_name:_t.customDestName||null,km_start:_t.kmStart||0,km_end:_t.kmEnd||0,km_traveled:_t.kmTraveled||0,start_date:_t.startDate,start_time:_t.startTime||null,end_date:_t.endDate,end_time:_t.endTime||null,trip_minutes:_t.tripMinutes||0,time_at_branch_prev_minutes:_t.timeAtBranchPrevMinutes||0,time_at_destination_minutes:_t.timeAtDestinationMinutes||0,liters:_t.liters||0,fuel_price:_t.fuelPrice||0,cost:_t.cost||0,deliveries:_t.deliveries||0,trips_count:_t.tripsCount||1,route:_t.route||'LOCAL',fuel_loaded:_t.fuelLoaded||0,notes:_t.notes||null,arrival_notes:_t.arrivalNotes||null,created_at:_t.createdAt||Date.now()}])
+    }).catch(()=>{});
     // 🎙️ Voz al cerrar el viaje
         const mensajesCierre = [
           'Viaje completado.',
@@ -3971,15 +3978,39 @@ function DriverHistoryView({ trips, vehicles, branches }) {
 // ============================================================
 // COORDINADOR
 // ============================================================
-function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], incidents = [], fuelRecords = [], appointments = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents, saveFuelRecords, saveHandoffs, saveAppointments }) {
+function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], incidents = [], fuelRecords = [], appointments = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents, saveFuelRecords, saveHandoffs, saveAppointments, sbFetch }) {
   const [tab, setTab] = useState('dashboard');
+  const [remoteTrips, setRemoteTrips] = useState([]);
+
+  useEffect(() => {
+    if (!sbFetch) return;
+    sbFetch('trips?select=id,driver_id,vehicle_id,origin_branch_id,destination_branch_id,custom_dest_name,km_start,km_end,km_traveled,start_date,start_time,end_date,end_time,trip_minutes,time_at_branch_prev_minutes,time_at_destination_minutes,liters,fuel_price,cost,deliveries,trips_count,route,fuel_loaded,notes,arrival_notes,created_at&order=created_at.desc&limit=2000')
+      .then(rows => {
+        if (!Array.isArray(rows)) return;
+        const remote = rows.filter(t => t.start_date && t.end_date).map(t => ({
+          id:t.id, driverId:t.driver_id||'', vehicleId:t.vehicle_id||'',
+          originBranchId:t.origin_branch_id||'', destinationBranchId:t.destination_branch_id||'',
+          customDestName:t.custom_dest_name||'', kmStart:Number(t.km_start)||0,
+          kmEnd:Number(t.km_end)||0, kmTraveled:Number(t.km_traveled)||0,
+          startDate:t.start_date, startTime:t.start_time||'', endDate:t.end_date, endTime:t.end_time||'',
+          tripMinutes:Number(t.trip_minutes)||0, timeAtBranchPrevMinutes:Number(t.time_at_branch_prev_minutes)||0,
+          timeAtDestinationMinutes:Number(t.time_at_destination_minutes)||0,
+          liters:Number(t.liters)||0, fuelPrice:Number(t.fuel_price)||0, cost:Number(t.cost)||0,
+          deliveries:Number(t.deliveries)||0, tripsCount:Number(t.trips_count)||1, route:t.route||'LOCAL',
+          fuelLoaded:Number(t.fuel_loaded)||0, notes:t.notes||'', arrivalNotes:t.arrival_notes||'',
+          createdAt:Number(t.created_at)||0
+        }));
+        const localIds = new Set(trips.map(x => x.id));
+        setRemoteTrips(remote.filter(x => !localIds.has(x.id)));
+      }).catch(() => {});
+  }, []);
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [autoArchiveBanner, setAutoArchiveBanner] = useState(null);
 
   // ── AUTO-CIERRE MENSUAL ─────────────────────────────────────────────
   useEffect(() => {
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const unarchived = [...new Set(trips.map(t => t.startDate.slice(0, 7)))]
+    const unarchived = [...new Set(trips.filter(t=>t.startDate).map(t => t.startDate.slice(0, 7)))]
       .filter(m => m < currentMonth)
       .filter(m => !archivedMonths.find(a => a.month === m))
       .sort();
@@ -4005,7 +4036,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     setTimeout(() => setAutoArchiveBanner(null), 9000);
   }, []);
 
-  const monthTrips = useMemo(() => trips.filter(t => t.startDate.startsWith(selectedMonth)), [trips, selectedMonth]);
+  const monthTrips = useMemo(() => trips.filter(t => t.startDate?.startsWith(selectedMonth)), [trips, selectedMonth]);
   const monthPhotos = useMemo(() => photos.filter(p => p.date.startsWith(selectedMonth)), [photos, selectedMonth]);
 
   const tabs = [
@@ -4084,7 +4115,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
       <main className="max-w-7xl mx-auto px-4 py-5">
         {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} incidents={incidents} saveHandoffs={saveHandoffs} sbFetch={sbFetch} />}
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
-        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
+        {tab === 'trips' && <TripsTable trips={[...monthTrips,...remoteTrips.filter(t=>t.startDate?.startsWith(selectedMonth))]} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={[...trips,...remoteTrips]} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
         {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
@@ -7366,7 +7397,7 @@ function FuelMgmtTab({ fuelRecords, saveFuelRecords, vehicles, trips, config, se
   // Análisis por camión para el mes seleccionado
   const analysis = vehicles.map(v => {
     const loaded = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + (Number(r.liters)||0), 0);
-    const consumed = trips.filter(t => t.vehicleId === v.id && t.startDate.startsWith(filterMes)).reduce((s,t) => s + (Number(t.liters)||0), 0);
+    const consumed = trips.filter(t => t.vehicleId === v.id && t.startDate?.startsWith(filterMes)).reduce((s,t) => s + (Number(t.liters)||0), 0);
     const cost = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + totalCost(r), 0);
     const diff = loaded - consumed;
     const diffPct = consumed > 0 ? (diff / consumed) * 100 : 0;
@@ -7954,7 +7985,7 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
   const [expanded, setExpanded] = useState(null);
 
   const available = useMemo(() => {
-    const months = new Set(trips.map(t => t.startDate.slice(0, 7)));
+    const months = new Set(trips.filter(t=>t.startDate).map(t => t.startDate.slice(0, 7)));
     return [...months].filter(m => !archivedMonths.find(a => a.month === m)).sort().reverse();
   }, [trips, archivedMonths]);
 
