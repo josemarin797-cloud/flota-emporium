@@ -538,6 +538,34 @@ export default function App() {
         if (reads[2]) setBranches(reads[2]);
         if (reads[3]) setTrips(reads[3]);
         if (reads[4]) setActiveTrips(reads[4]);
+
+        // Cargar viajes de Supabase (solo fechas válidas, functional update)
+        try {
+          const sbT = await sbFetch('trips?select=id,driver_id,vehicle_id,origin_branch_id,destination_branch_id,custom_dest_name,km_start,km_end,km_traveled,start_date,start_time,end_date,end_time,trip_minutes,time_at_branch_prev_minutes,time_at_destination_minutes,liters,fuel_price,cost,deliveries,trips_count,route,fuel_loaded,notes,arrival_notes,created_at&order=created_at.desc&limit=2000');
+          if (Array.isArray(sbT) && sbT.length > 0) {
+            const remote = sbT.filter(t => t.start_date && t.end_date).map(t => ({
+              id:t.id, driverId:t.driver_id||'', vehicleId:t.vehicle_id||'',
+              originBranchId:t.origin_branch_id||'', destinationBranchId:t.destination_branch_id||'',
+              customDestName:t.custom_dest_name||'', kmStart:Number(t.km_start)||0,
+              kmEnd:Number(t.km_end)||0, kmTraveled:Number(t.km_traveled)||0,
+              startDate:t.start_date, startTime:t.start_time||'',
+              endDate:t.end_date, endTime:t.end_time||'',
+              tripMinutes:Number(t.trip_minutes)||0,
+              timeAtBranchPrevMinutes:Number(t.time_at_branch_prev_minutes)||0,
+              timeAtDestinationMinutes:Number(t.time_at_destination_minutes)||0,
+              liters:Number(t.liters)||0, fuelPrice:Number(t.fuel_price)||0,
+              cost:Number(t.cost)||0, deliveries:Number(t.deliveries)||0,
+              tripsCount:Number(t.trips_count)||1, route:t.route||'LOCAL',
+              fuelLoaded:Number(t.fuel_loaded)||0, notes:t.notes||'',
+              arrivalNotes:t.arrival_notes||'', createdAt:Number(t.created_at)||0
+            }));
+            setTrips(prev => {
+              const ids = new Set(prev.map(x => x.id));
+              const newOnes = remote.filter(x => !ids.has(x.id));
+              return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
+            });
+          }
+        } catch(e) {}
         if (reads[5]) setArchivedMonths(reads[5]);
         if (reads[6]) setConfig(savedCfg);
         if (reads[7]) setPhotos(reads[7]);
@@ -1908,6 +1936,28 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     saveTrips([...trips, completed]);
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
+
+    // Sync viaje a Supabase (aislado, no toca estado de React)
+    if (completed.startDate && completed.endDate) {
+      (async () => {
+        try {
+          await sbFetch('trips', { method:'POST', headers:{'Prefer':'resolution=merge-duplicates'}, body:JSON.stringify([{
+            id:completed.id, driver_id:completed.driverId||null, vehicle_id:completed.vehicleId||null,
+            origin_branch_id:completed.originBranchId||null, destination_branch_id:completed.destinationBranchId||null,
+            custom_dest_name:completed.customDestName||null,
+            km_start:completed.kmStart||0, km_end:completed.kmEnd||0, km_traveled:completed.kmTraveled||0,
+            start_date:completed.startDate, start_time:completed.startTime||null,
+            end_date:completed.endDate, end_time:completed.endTime||null,
+            trip_minutes:completed.tripMinutes||0, time_at_branch_prev_minutes:completed.timeAtBranchPrevMinutes||0,
+            time_at_destination_minutes:completed.timeAtDestinationMinutes||0,
+            liters:completed.liters||0, fuel_price:completed.fuelPrice||0, cost:completed.cost||0,
+            deliveries:completed.deliveries||0, trips_count:completed.tripsCount||1, route:completed.route||'LOCAL',
+            fuel_loaded:completed.fuelLoaded||0, notes:completed.notes||null, arrival_notes:completed.arrivalNotes||null,
+            created_at:completed.createdAt||Date.now()
+          }])});
+        } catch(e) {}
+      })();
+    }
     const newKm = Number(data.kmEnd);
     saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, ...(newKm > x.currentKm ? { currentKm: newKm } : {}), fuelLevel: newFuelLevel } : x));
 
@@ -3979,7 +4029,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
   // ── AUTO-CIERRE MENSUAL ─────────────────────────────────────────────
   useEffect(() => {
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const unarchived = [...new Set(trips.map(t => t.startDate.slice(0, 7)))]
+    const unarchived = [...new Set(trips.filter(t=>t.startDate).map(t => t.startDate.slice(0, 7)))]
       .filter(m => m < currentMonth)
       .filter(m => !archivedMonths.find(a => a.month === m))
       .sort();
@@ -3987,7 +4037,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     const newArchived = [...archivedMonths];
     const labels = [];
     unarchived.forEach(m => {
-      const mt = trips.filter(t => t.startDate.startsWith(m));
+      const mt = trips.filter(t => t.startDate?.startsWith(m));
       if (mt.length === 0) return;
       newArchived.push({
         month: m, closedAt: Date.now(), autoArchived: true, tripCount: mt.length,
@@ -4005,7 +4055,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     setTimeout(() => setAutoArchiveBanner(null), 9000);
   }, []);
 
-  const monthTrips = useMemo(() => trips.filter(t => t.startDate.startsWith(selectedMonth)), [trips, selectedMonth]);
+  const monthTrips = useMemo(() => trips.filter(t => t.startDate?.startsWith(selectedMonth)), [trips, selectedMonth]);
   const monthPhotos = useMemo(() => photos.filter(p => p.date.startsWith(selectedMonth)), [photos, selectedMonth]);
 
   const tabs = [
@@ -7367,7 +7417,7 @@ function FuelMgmtTab({ fuelRecords, saveFuelRecords, vehicles, trips, config, se
   // Análisis por camión para el mes seleccionado
   const analysis = vehicles.map(v => {
     const loaded = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + (Number(r.liters)||0), 0);
-    const consumed = trips.filter(t => t.vehicleId === v.id && t.startDate.startsWith(filterMes)).reduce((s,t) => s + (Number(t.liters)||0), 0);
+    const consumed = trips.filter(t => t.vehicleId === v.id && t.startDate?.startsWith(filterMes)).reduce((s,t) => s + (Number(t.liters)||0), 0);
     const cost = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + totalCost(r), 0);
     const diff = loaded - consumed;
     const diffPct = consumed > 0 ? (diff / consumed) * 100 : 0;
@@ -7955,12 +8005,12 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
   const [expanded, setExpanded] = useState(null);
 
   const available = useMemo(() => {
-    const months = new Set(trips.map(t => t.startDate.slice(0, 7)));
+    const months = new Set(trips.filter(t=>t.startDate).map(t => t.startDate.slice(0, 7)));
     return [...months].filter(m => !archivedMonths.find(a => a.month === m)).sort().reverse();
   }, [trips, archivedMonths]);
 
   const close = (m) => {
-    const mt = trips.filter(t => t.startDate.startsWith(m));
+    const mt = trips.filter(t => t.startDate?.startsWith(m));
     if (mt.length === 0) return alert('Sin viajes');
     if (!confirm(`¿Cerrar ${m}? ${mt.length} viajes archivados.`)) return;
     saveArchived([...archivedMonths, {
@@ -8014,7 +8064,7 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
 
     // Hoja detalle viajes
     const dt = [['Fecha','Unidad','Chofer','Origen','Destino','KM','Litros','Costo $','Entregas','Ruta']];
-    mt.sort((a,b)=>a.startDate.localeCompare(b.startDate)).forEach(t => {
+    mt.sort((a,b)=>(a.startDate||'').localeCompare(b.startDate||'')).forEach(t => {
       const v = vs.find(x=>x.id===t.vehicleId);
       const d = ds.find(x=>x.id===t.driverId);
       const orig = bs.find(x=>x.id===t.originBranchId)?.name || t.originBranchId;
@@ -8124,7 +8174,7 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
           {available.length === 0 ? <div className="text-sm text-stone-400 py-4">Sin meses por cerrar.</div> :
             <div className="space-y-2">
               {available.map(m => {
-                const c = trips.filter(t => t.startDate.startsWith(m)).length;
+                const c = trips.filter(t => t.startDate?.startsWith(m)).length;
                 const l = new Date(m+'-01').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
                 return (
                   <button key={m} onClick={() => close(m)} className="w-full text-left p-3 border-2 border-stone-200 rounded-lg hover:border-amber-500 bg-stone-50">
