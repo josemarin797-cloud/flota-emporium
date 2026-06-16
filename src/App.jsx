@@ -538,20 +538,6 @@ export default function App() {
         if (reads[2]) setBranches(reads[2]);
         if (reads[3]) setTrips(reads[3]);
         if (reads[4]) setActiveTrips(reads[4]);
-
-        // Cargar viajes de Supabase al iniciar — solo viajes con fechas válidas
-        try {
-          const sbT = await sbFetch('trips?select=id,driver_id,vehicle_id,origin_branch_id,destination_branch_id,custom_dest_name,km_start,km_end,km_traveled,start_date,start_time,end_date,end_time,trip_minutes,time_at_branch_prev_minutes,time_at_destination_minutes,liters,fuel_price,cost,deliveries,trips_count,route,fuel_loaded,notes,arrival_notes,created_at&order=created_at.desc&limit=2000');
-          if (Array.isArray(sbT) && sbT.length > 0) {
-            const remote = sbT
-              .filter(t => t.start_date && t.end_date)
-              .map(t => ({ id:t.id, driverId:t.driver_id||'', vehicleId:t.vehicle_id||'', originBranchId:t.origin_branch_id||'', destinationBranchId:t.destination_branch_id||'', customDestName:t.custom_dest_name||'', kmStart:Number(t.km_start)||0, kmEnd:Number(t.km_end)||0, kmTraveled:Number(t.km_traveled)||0, startDate:t.start_date, startTime:t.start_time||'', endDate:t.end_date, endTime:t.end_time||'', tripMinutes:Number(t.trip_minutes)||0, timeAtBranchPrevMinutes:Number(t.time_at_branch_prev_minutes)||0, timeAtDestinationMinutes:Number(t.time_at_destination_minutes)||0, liters:Number(t.liters)||0, fuelPrice:Number(t.fuel_price)||0, cost:Number(t.cost)||0, deliveries:Number(t.deliveries)||0, tripsCount:Number(t.trips_count)||1, route:t.route||'LOCAL', fuelLoaded:Number(t.fuel_loaded)||0, notes:t.notes||'', arrivalNotes:t.arrival_notes||'', createdAt:Number(t.created_at)||0 }));
-            const local = reads[3] || [];
-            const localIds = new Set(local.map(x => x.id));
-            const newOnes = remote.filter(x => !localIds.has(x.id));
-            if (newOnes.length > 0) setTrips([...local, ...newOnes]);
-          }
-        } catch(e) {}
         if (reads[5]) setArchivedMonths(reads[5]);
         if (reads[6]) setConfig(savedCfg);
         if (reads[7]) setPhotos(reads[7]);
@@ -1971,17 +1957,6 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const _esBomba = completed.destinationBranchId === 'surtir' ||
       (completed.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(completed.customDestName || ''));
     setStep(_esBomba ? 'surtir' : 'finish');
-
-    // Sync a Supabase cuando el navegador esté libre (no interrumpe el flujo de UI)
-    const _trip = completed;
-    (window.requestIdleCallback || setTimeout)(() => {
-      if (!_trip.startDate || !_trip.endDate) return;
-      sbFetch('trips', {
-        method: 'POST',
-        headers: { 'Prefer': 'resolution=merge-duplicates' },
-        body: JSON.stringify([{ id:_trip.id, driver_id:_trip.driverId||null, vehicle_id:_trip.vehicleId||null, origin_branch_id:_trip.originBranchId||null, destination_branch_id:_trip.destinationBranchId||null, custom_dest_name:_trip.customDestName||null, km_start:_trip.kmStart||0, km_end:_trip.kmEnd||0, km_traveled:_trip.kmTraveled||0, start_date:_trip.startDate, start_time:_trip.startTime||null, end_date:_trip.endDate, end_time:_trip.endTime||null, trip_minutes:_trip.tripMinutes||0, time_at_branch_prev_minutes:_trip.timeAtBranchPrevMinutes||0, time_at_destination_minutes:_trip.timeAtDestinationMinutes||0, liters:_trip.liters||0, fuel_price:_trip.fuelPrice||0, cost:_trip.cost||0, deliveries:_trip.deliveries||0, trips_count:_trip.tripsCount||1, route:_trip.route||'LOCAL', fuel_loaded:_trip.fuelLoaded||0, notes:_trip.notes||null, arrival_notes:_trip.arrivalNotes||null, created_at:_trip.createdAt||Date.now() }]),
-      }).catch(() => {});
-    });
     // 🎙️ Voz al cerrar el viaje
         const mensajesCierre = [
           'Viaje completado.',
@@ -3453,18 +3428,10 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     const wh2 = isFuelDest
       ? (vehicle?.maintenanceWebhook || config.discordWebhookMaintenance || config.discordWebhookGeneral)
       : (config.discordWebhookByVehicle?.[trip.vehicleId] || config.discordWebhookGeneral);
-    const waitMaxMin = (vehicle?.id === 'v1' || vehicle?.id === 'v2') ? 75 : 45;
-    const waitExceeded = !isFuelDest && minutes > waitMaxMin;
-    const waitTimeStr = minutes > 59 ? `${Math.floor(minutes/60)}h ${minutes%60}min` : `${minutes} min`;
     if (wh2) sendDiscordNotification(wh2, {
-      title: waitExceeded ? `⚠️ TIEMPO EXCEDIDO — Salida · ${vehicle?.code}` : `🚪 Salida de sucursal · ${vehicle?.code}`,
-      description: `⏱️ Tiempo en ${destination?.name}: ${waitTimeStr}`,
-      color: waitExceeded ? 0xe11d48 : isFuelDest ? 0xf59e0b : 0x8b5cf6,
-      fields: [
-        { name: '⏱ Tiempo', value: waitTimeStr, inline: true },
-        { name: '⚙️ Límite', value: waitMaxMin === 75 ? '1h 15min' : '45 min', inline: true },
-        { name: waitExceeded ? '🚨 Exceso' : '✅ Estado', value: waitExceeded ? `+${minutes - waitMaxMin} min` : 'Dentro del límite', inline: true },
-      ],
+      title: `🚪 Salida de sucursal · ${vehicle?.code}`,
+      description: `⏱️ Tiempo en ${destination?.name}: ${minutes > 59 ? Math.floor(minutes / 60) + 'h ' + minutes % 60 + 'min' : minutes + ' min'}`,
+      color: 0x8b5cf6,
       footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` }
     }).catch(() => {});
   };
@@ -4012,7 +3979,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
   // ── AUTO-CIERRE MENSUAL ─────────────────────────────────────────────
   useEffect(() => {
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const unarchived = [...new Set(trips.filter(t=>t.startDate).map(t => t.startDate?.slice(0, 7)))]
+    const unarchived = [...new Set(trips.map(t => t.startDate.slice(0, 7)))]
       .filter(m => m < currentMonth)
       .filter(m => !archivedMonths.find(a => a.month === m))
       .sort();
@@ -4020,7 +3987,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     const newArchived = [...archivedMonths];
     const labels = [];
     unarchived.forEach(m => {
-      const mt = trips.filter(t => t.startDate?.startsWith(m));
+      const mt = trips.filter(t => t.startDate.startsWith(m));
       if (mt.length === 0) return;
       newArchived.push({
         month: m, closedAt: Date.now(), autoArchived: true, tripCount: mt.length,
@@ -4038,7 +4005,7 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     setTimeout(() => setAutoArchiveBanner(null), 9000);
   }, []);
 
-  const monthTrips = useMemo(() => trips.filter(t => t.startDate?.startsWith(selectedMonth)), [trips, selectedMonth]);
+  const monthTrips = useMemo(() => trips.filter(t => t.startDate.startsWith(selectedMonth)), [trips, selectedMonth]);
   const monthPhotos = useMemo(() => photos.filter(p => p.date.startsWith(selectedMonth)), [photos, selectedMonth]);
 
   const tabs = [
@@ -4644,91 +4611,6 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
           </div>
         );
       })()}
-      <KPIsOperativos trips={trips} vehicles={vehicles} branches={branches} selectedMonth={selectedMonth} />
-    </div>
-  );
-}
-
-const WAIT_LIMITS = { 'v1': 75, 'v2': 75, 'v3': 45, 'v4': 45, 'v5': 45 };
-function KPIsOperativos({ trips, vehicles, branches, selectedMonth }) {
-  const fd = (m) => m == null ? '—' : m >= 60 ? `${Math.floor(m/60)}h ${m%60}m` : `${m}m`;
-  const vMetrics = vehicles.map(v => {
-    const vt = trips.filter(t => t.vehicleId === v.id && (t.kmTraveled > 0 || t.tripMinutes > 0));
-    const maxWait = WAIT_LIMITS[v.id] || 45;
-    const refKmL = 100 / (v.litersPer100km || 21);
-    const speedT = vt.filter(t => t.tripMinutes > 0 && t.kmTraveled > 0);
-    const avgSpeed = speedT.length > 0 ? speedT.reduce((s,t)=>s+(t.kmTraveled/(t.tripMinutes/60)),0)/speedT.length : 0;
-    const totalKm = vt.reduce((s,t)=>s+(t.kmTraveled||0),0);
-    const totalL = vt.reduce((s,t)=>s+(t.liters||0),0);
-    const kmPerL = totalL > 0 ? totalKm/totalL : 0;
-    const waitT = vt.filter(t => t.timeAtDestinationMinutes > 0);
-    const onTime = waitT.filter(t=>t.timeAtDestinationMinutes<=maxWait).length;
-    const branchEff = waitT.length > 0 ? Math.round(onTime/waitT.length*100) : null;
-    const avgWait = waitT.length > 0 ? Math.round(waitT.reduce((s,t)=>s+t.timeAtDestinationMinutes,0)/waitT.length) : null;
-    const totalMove = vt.reduce((s,t)=>s+(t.tripMinutes||0),0);
-    const totalIdle = vt.reduce((s,t)=>s+(t.timeAtDestinationMinutes||0),0);
-    const ratio = totalMove+totalIdle>0 ? Math.round(totalMove/(totalMove+totalIdle)*100) : 0;
-    return { v, vt, avgSpeed, kmPerL, refKmL, branchEff, avgWait, ratio, maxWait, waitT, onTime };
-  }).filter(m => m.vt.length > 0);
-  const branchMap = {};
-  trips.forEach(t => {
-    const bid = t.destinationBranchId;
-    if (t.timeAtDestinationMinutes > 0 && bid && bid !== 'surtir' && bid !== 'taller' && bid !== 'otro') {
-      if (!branchMap[bid]) branchMap[bid] = { total:0, count:0 };
-      branchMap[bid].total += t.timeAtDestinationMinutes; branchMap[bid].count++;
-    }
-  });
-  const branchRank = Object.entries(branchMap).map(([id,{total,count}])=>({id,avg:Math.round(total/count),count})).sort((a,b)=>b.avg-a.avg);
-  const maxB = branchRank[0]?.avg || 1;
-  if (vMetrics.length === 0) return <div className="mt-4 bg-stone-800 rounded-xl p-4 text-stone-500 text-sm text-center">Sin viajes este mes para calcular KPIs</div>;
-  const monthLabel = new Date(selectedMonth+'-15').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
-  return (
-    <div className="mt-4 space-y-4">
-      <div className="border-b border-stone-700 pb-2"><span className="text-emerald-400 font-bold text-xs uppercase tracking-wider">📊 KPIs Operativos · {monthLabel}</span></div>
-      <div className="bg-stone-800 rounded-xl overflow-hidden border border-stone-700">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead><tr className="bg-stone-900 text-stone-400 uppercase tracking-wider text-[10px]">
-              <th className="text-left px-3 py-2">Unidad</th>
-              <th className="text-right px-2 py-2">🚀 Vel.</th>
-              <th className="text-right px-2 py-2">⛽ Rend.</th>
-              <th className="text-right px-2 py-2">⏩ Mov.</th>
-              <th className="text-right px-2 py-2">🏪 Efic.</th>
-              <th className="text-right px-2 py-2">⏱ T.Espera</th>
-            </tr></thead>
-            <tbody>{vMetrics.map(({v,avgSpeed,kmPerL,refKmL,branchEff,avgWait,ratio,maxWait,waitT,onTime},i)=>{
-              const eC=branchEff===null?'text-stone-500':branchEff>=80?'text-emerald-400':branchEff>=60?'text-amber-400':'text-rose-400';
-              const sC=avgSpeed>=30?'text-emerald-400':avgSpeed>=15?'text-amber-400':'text-rose-400';
-              const rC=kmPerL>=refKmL*0.9?'text-emerald-400':kmPerL>=refKmL*0.7?'text-amber-400':'text-rose-400';
-              const mC=ratio>=65?'text-emerald-400':ratio>=50?'text-amber-400':'text-rose-400';
-              const wC=avgWait==null?'text-stone-500':avgWait>maxWait?'text-rose-400':'text-emerald-400';
-              return(<tr key={v.id} className={i%2===0?'bg-stone-800':'bg-stone-900'}>
-                <td className="px-3 py-2 font-bold text-stone-200"><span className="inline-block w-2 h-2 rounded-full mr-1" style={{background:v.color}}></span>{v.code}<span className="text-stone-600 font-normal text-[10px] ml-1">max {maxWait===75?'1h15':'45m'}</span></td>
-                <td className={`px-2 py-2 text-right font-bold ${sC}`}>{avgSpeed>0?`${avgSpeed.toFixed(1)}km/h`:'—'}</td>
-                <td className={`px-2 py-2 text-right font-bold ${rC}`}>{kmPerL>0?`${kmPerL.toFixed(1)}km/L`:'—'}</td>
-                <td className={`px-2 py-2 text-right font-bold ${mC}`}>{ratio>0?`${ratio}%`:'—'}</td>
-                <td className={`px-2 py-2 text-right font-bold ${eC}`}>{branchEff!==null?`${branchEff}%`:'—'}{branchEff!==null&&<span className="text-stone-600 text-[10px] ml-1">{onTime}/{waitT.length}</span>}</td>
-                <td className={`px-2 py-2 text-right font-bold ${wC}`}>{fd(avgWait)}{avgWait!=null&&avgWait>maxWait&&<span className="text-rose-400 ml-1">⚠️</span>}</td>
-              </tr>);
-            })}</tbody>
-          </table>
-        </div>
-      </div>
-      {branchRank.length > 0 && (
-        <div className="bg-stone-800 rounded-xl p-3 border border-stone-700">
-          <div className="text-stone-400 font-bold text-[10px] uppercase tracking-wider mb-3">🏪 Tiempo promedio por sucursal</div>
-          <div className="space-y-2">{branchRank.slice(0,6).map(({id,avg,count})=>{
-            const br=branches.find(b=>b.id===id); if(!br) return null;
-            const col=avg>=60?'#E24B4A':avg>=40?'#EF9F27':'#1D9E75';
-            return(<div key={id} className="flex items-center gap-2">
-              <div className="text-stone-300 text-xs w-28 flex-shrink-0 truncate">{br.name}</div>
-              <div className="flex-1 h-2 bg-stone-700 rounded-full overflow-hidden"><div className="h-full rounded-full" style={{width:`${Math.min(100,Math.round(avg/maxB*100))}%`,background:col}}/></div>
-              <div className="text-[11px] text-stone-400 w-20 text-right">{fd(avg)} · {count}v</div>
-              {avg>=60&&<span className="text-[10px] text-rose-400">⚠️</span>}
-            </div>);
-          })}</div>
-        </div>
-      )}
     </div>
   );
 }
@@ -4923,7 +4805,6 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
 // VIAJES TABLE
 // ============================================================
 function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [], maintRecords = [], fuelRecords = [] }) {
-
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
   // Refrescar cada minuto para actualizar los cronómetros "aún ahí"
@@ -5166,52 +5047,23 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
   };
 
   const exportToExcelDaily = async () => {
-    const todayStr = new Date().toLocaleDateString('es-VE', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
     const todayISO = new Date().toISOString().slice(0, 10);
     const todayTrips = trips.filter(t => t.startDate === todayISO || t.endDate === todayISO);
-    if (todayTrips.length === 0) {
-      alert('No hay viajes registrados hoy');
-      return;
-    }
-    if (!XLSX || !XLSX.utils) { alert('Excel no disponible'); return; }
+    if (!todayTrips.length) { alert('No hay viajes hoy'); return; }
+    if (!XLSX?.utils) { alert('Excel no disponible'); return; }
     const wb = XLSX.utils.book_new();
-    const ST = {
-      title: { font:{bold:true,sz:14,color:{rgb:'1D6A4A'}}, fill:{fgColor:{rgb:'E8F5E9'}} },
-      header: { font:{bold:true,sz:10,color:{rgb:'FFFFFF'}}, fill:{fgColor:{rgb:'1D6A4A'}}, alignment:{horizontal:'center'} },
-      even: { fill:{fgColor:{rgb:'F5FAF7'}} },
-    };
-    // Hoja resumen del día
-    const dd = [];
-    dd.push(['REPORTE DIARIO — TRANSPORTE EMPORIUM', '', '', '', '', '', '', '', '']);
-    dd.push([todayStr, '', '', '', '', '', '', '', '']);
-    dd.push(['']);
-    dd.push(['CHOFER', 'UNIDAD', 'RUTA', 'KM SALIDA', 'KM LLEGADA', 'KM REC.', 'DURACIÓN', '$ COSTO', 'LITROS']);
-    todayTrips.forEach((t, i) => {
-      const driver = drivers.find(d => d.id === t.driverId);
-      const vehicle = vehicles.find(v => v.id === t.vehicleId);
-      const origin = branches.find(b => b.id === t.originBranchId)?.name || t.originBranchId || '';
-      const dest = branches.find(b => b.id === t.destinationBranchId)?.name || t.destinationBranchId || '';
-      const dur = t.tripMinutes > 59 ? `${Math.floor(t.tripMinutes/60)}h ${t.tripMinutes%60}m` : `${t.tripMinutes||0}m`;
-      dd.push([
-        driver?.name || t.driverId, vehicle?.code || t.vehicleId,
-        `${origin} → ${dest}`,
-        t.kmStart||0, t.kmEnd||0, t.kmTraveled||0,
-        dur, Number((t.cost||0).toFixed(2)), Number((t.liters||0).toFixed(2))
-      ]);
+    const rows = [['CHOFER','UNIDAD','RUTA','KM SAL','KM LLE','KM REC','DURACIÓN','$ COSTO','LITROS']];
+    todayTrips.forEach(t => {
+      const dr = drivers.find(d=>d.id===t.driverId); const vh = vehicles.find(v=>v.id===t.vehicleId);
+      const or = branches.find(b=>b.id===t.originBranchId)?.name||t.originBranchId||'';
+      const ds = branches.find(b=>b.id===t.destinationBranchId)?.name||t.destinationBranchId||'';
+      const dur = t.tripMinutes>59?`${Math.floor(t.tripMinutes/60)}h ${t.tripMinutes%60}m`:`${t.tripMinutes||0}m`;
+      rows.push([dr?.name||'',vh?.code||'',`${or} → ${ds}`,t.kmStart||0,t.kmEnd||0,t.kmTraveled||0,dur,Number((t.cost||0).toFixed(2)),Number((t.liters||0).toFixed(2))]);
     });
-    dd.push(['']);
-    const totalKm = todayTrips.reduce((s,t)=>s+(t.kmTraveled||0),0);
-    const totalCost = todayTrips.reduce((s,t)=>s+(t.cost||0),0);
-    const totalL = todayTrips.reduce((s,t)=>s+(t.liters||0),0);
-    dd.push(['TOTALES DEL DÍA', '', `${todayTrips.length} viajes`, '', '', totalKm, '', Number(totalCost.toFixed(2)), Number(totalL.toFixed(2))]);
-    const ws = XLSX.utils.aoa_to_sheet(dd);
-    ws['!cols'] = [{wch:22},{wch:10},{wch:32},{wch:10},{wch:10},{wch:8},{wch:10},{wch:10},{wch:8}];
-    if (ws['A1']) ws['A1'].s = ST.title;
-    if (ws['A4']) ws['A4'].s = ST.header;
-    ['B4','C4','D4','E4','F4','G4','H4','I4'].forEach(c => { if(ws[c]) ws[c].s = ST.header; });
-    XLSX.utils.book_append_sheet(wb, ws, 'Reporte del día');
-    const fecha = new Date().toISOString().slice(0,10);
-    XLSX.writeFile(wb, `Reporte_Diario_${fecha}.xlsx`);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:20},{wch:10},{wch:30},{wch:9},{wch:9},{wch:8},{wch:9},{wch:9},{wch:8}];
+    XLSX.utils.book_append_sheet(wb,ws,'Hoy');
+    XLSX.writeFile(wb,`Reporte_Diario_${todayISO}.xlsx`);
   };
 
   const exportToExcel = async () => {
@@ -5951,7 +5803,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         </div>
         <div className="flex gap-2">
           <button onClick={exportToExcelDaily}
-            className="text-white px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm font-bold shadow-lg transition bg-blue-600 hover:bg-blue-700">
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm font-bold shadow-lg">
             <FileSpreadsheet className="w-4 h-4" /> HOY
           </button>
           <button onClick={exportToExcel} disabled={exporting}
@@ -7515,7 +7367,7 @@ function FuelMgmtTab({ fuelRecords, saveFuelRecords, vehicles, trips, config, se
   // Análisis por camión para el mes seleccionado
   const analysis = vehicles.map(v => {
     const loaded = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + (Number(r.liters)||0), 0);
-    const consumed = trips.filter(t => t.vehicleId === v.id && t.startDate?.startsWith(filterMes)).reduce((s,t) => s + (Number(t.liters)||0), 0);
+    const consumed = trips.filter(t => t.vehicleId === v.id && t.startDate.startsWith(filterMes)).reduce((s,t) => s + (Number(t.liters)||0), 0);
     const cost = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + totalCost(r), 0);
     const diff = loaded - consumed;
     const diffPct = consumed > 0 ? (diff / consumed) * 100 : 0;
@@ -8103,12 +7955,12 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
   const [expanded, setExpanded] = useState(null);
 
   const available = useMemo(() => {
-    const months = new Set(trips.map(t => t.startDate?.slice(0, 7)));
+    const months = new Set(trips.map(t => t.startDate.slice(0, 7)));
     return [...months].filter(m => !archivedMonths.find(a => a.month === m)).sort().reverse();
   }, [trips, archivedMonths]);
 
   const close = (m) => {
-    const mt = trips.filter(t => t.startDate?.startsWith(m));
+    const mt = trips.filter(t => t.startDate.startsWith(m));
     if (mt.length === 0) return alert('Sin viajes');
     if (!confirm(`¿Cerrar ${m}? ${mt.length} viajes archivados.`)) return;
     saveArchived([...archivedMonths, {
@@ -8162,7 +8014,7 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
 
     // Hoja detalle viajes
     const dt = [['Fecha','Unidad','Chofer','Origen','Destino','KM','Litros','Costo $','Entregas','Ruta']];
-    mt.sort((a,b)=>(a.startDate||'').localeCompare(b.startDate||'')).forEach(t => {
+    mt.sort((a,b)=>a.startDate.localeCompare(b.startDate)).forEach(t => {
       const v = vs.find(x=>x.id===t.vehicleId);
       const d = ds.find(x=>x.id===t.driverId);
       const orig = bs.find(x=>x.id===t.originBranchId)?.name || t.originBranchId;
@@ -8272,7 +8124,7 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
           {available.length === 0 ? <div className="text-sm text-stone-400 py-4">Sin meses por cerrar.</div> :
             <div className="space-y-2">
               {available.map(m => {
-                const c = trips.filter(t => t.startDate?.startsWith(m)).length;
+                const c = trips.filter(t => t.startDate.startsWith(m)).length;
                 const l = new Date(m+'-01').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
                 return (
                   <button key={m} onClick={() => close(m)} className="w-full text-left p-3 border-2 border-stone-200 rounded-lg hover:border-amber-500 bg-stone-50">
