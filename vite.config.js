@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', '*.png', '*.svg'],
       manifest: {
         name: 'Flota Emporium',
@@ -26,9 +26,10 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
-            // Supabase — NetworkOnly: nunca cachear, siempre ir directo a la red
             urlPattern: /^https:\/\/sieadibkcqnvbwlwlmds\.supabase\.co\/.*/i,
             handler: 'NetworkOnly',
           },
