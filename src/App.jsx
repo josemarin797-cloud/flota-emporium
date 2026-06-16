@@ -1938,27 +1938,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     saveTrips([...trips, completed]);
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
 
-    // Sync viaje a Supabase (aislado, no toca estado de React)
-    if (completed.startDate && completed.endDate) {
-      (async () => {
-        try {
-          await sbFetch('trips', { method:'POST', headers:{'Prefer':'resolution=merge-duplicates'}, body:JSON.stringify([{
-            id:completed.id, driver_id:completed.driverId||null, vehicle_id:completed.vehicleId||null,
-            origin_branch_id:completed.originBranchId||null, destination_branch_id:completed.destinationBranchId||null,
-            custom_dest_name:completed.customDestName||null,
-            km_start:completed.kmStart||0, km_end:completed.kmEnd||0, km_traveled:completed.kmTraveled||0,
-            start_date:completed.startDate, start_time:completed.startTime||null,
-            end_date:completed.endDate, end_time:completed.endTime||null,
-            trip_minutes:completed.tripMinutes||0, time_at_branch_prev_minutes:completed.timeAtBranchPrevMinutes||0,
-            time_at_destination_minutes:completed.timeAtDestinationMinutes||0,
-            liters:completed.liters||0, fuel_price:completed.fuelPrice||0, cost:completed.cost||0,
-            deliveries:completed.deliveries||0, trips_count:completed.tripsCount||1, route:completed.route||'LOCAL',
-            fuel_loaded:completed.fuelLoaded||0, notes:completed.notes||null, arrival_notes:completed.arrivalNotes||null,
-            created_at:completed.createdAt||Date.now()
-          }])});
-        } catch(e) {}
-      })();
-    }
+
     const newKm = Number(data.kmEnd);
     saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, ...(newKm > x.currentKm ? { currentKm: newKm } : {}), fuelLevel: newFuelLevel } : x));
 
