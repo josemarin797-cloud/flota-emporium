@@ -647,34 +647,7 @@ export default function App() {
   const saveVehicles = (d) => { setVehicles(d); persist(KEYS.VEHICLES, d); };
   const saveDrivers = (d) => { setDrivers(d); persist(KEYS.DRIVERS, d); };
   const saveBranches = (d) => { setBranches(d); persist(KEYS.BRANCHES, d); };
-  const saveTrips = (d) => {
-    setTrips(d);
-    persist(KEYS.TRIPS, d);
-    // Sync último viaje a Supabase (fire-and-forget, no bloquea nada)
-    const newTrip = d.length > 0 ? d[d.length - 1] : null;
-    if (newTrip?.startDate && newTrip?.endDate) {
-      sbFetch('trips', {
-        method: 'POST',
-        headers: { 'Prefer': 'resolution=merge-duplicates' },
-        body: JSON.stringify([{
-          id: newTrip.id, driver_id: newTrip.driverId||null, vehicle_id: newTrip.vehicleId||null,
-          origin_branch_id: newTrip.originBranchId||null, destination_branch_id: newTrip.destinationBranchId||null,
-          custom_dest_name: newTrip.customDestName||null,
-          km_start: newTrip.kmStart||0, km_end: newTrip.kmEnd||0, km_traveled: newTrip.kmTraveled||0,
-          start_date: newTrip.startDate, start_time: newTrip.startTime||null,
-          end_date: newTrip.endDate, end_time: newTrip.endTime||null,
-          trip_minutes: newTrip.tripMinutes||0,
-          time_at_branch_prev_minutes: newTrip.timeAtBranchPrevMinutes||0,
-          time_at_destination_minutes: newTrip.timeAtDestinationMinutes||0,
-          liters: newTrip.liters||0, fuel_price: newTrip.fuelPrice||0, cost: newTrip.cost||0,
-          deliveries: newTrip.deliveries||0, trips_count: newTrip.tripsCount||1,
-          route: newTrip.route||'LOCAL', fuel_loaded: newTrip.fuelLoaded||0,
-          notes: newTrip.notes||null, arrival_notes: newTrip.arrivalNotes||null,
-          created_at: newTrip.createdAt||Date.now(),
-        }]),
-      }).catch(() => {});
-    }
-  };
+  const saveTrips = (d) => { setTrips(d); persist(KEYS.TRIPS, d); };
   const saveActiveTrips = (d) => { setActiveTrips(d); persist(KEYS.ACTIVE_TRIPS, d); };
   const saveArchived = (d) => { setArchivedMonths(d); persist(KEYS.ARCHIVED_MONTHS, d); };
   const saveConfig = (d) => { setConfig(d); persist(KEYS.CONFIG, d); };
