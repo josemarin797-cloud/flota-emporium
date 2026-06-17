@@ -651,34 +651,6 @@ export default function App() {
   const saveActiveTrips = (d) => {
     setActiveTrips(d);
     persist(KEYS.ACTIVE_TRIPS, d);
-    // Sync a Supabase en background — setTimeout para no interferir con el flujo del chofer
-    setTimeout(() => {
-      try {
-        if (d.length === 0) {
-          sbFetch('active_trips', { method: 'DELETE' }).catch(() => {});
-        } else {
-          d.forEach(t => {
-            sbFetch('active_trips', {
-              method: 'POST',
-              headers: { 'Prefer': 'resolution=merge-duplicates' },
-              body: JSON.stringify({
-                id: t.id,
-                driver_id: t.driverId,
-                vehicle_id: t.vehicleId,
-                origin_branch_id: t.originBranchId,
-                destination_branch_id: t.destinationBranchId,
-                km_start: t.kmStart || 0,
-                start_time: t.startTime || '',
-                start_date: t.startDate || '',
-                fuel_loaded: t.fuelLoaded || 0,
-                custom_dest_name: t.customDestName || '',
-                custom_dest_type: t.customDestType || '',
-              }),
-            }).catch(() => {});
-          });
-        }
-      } catch(e) {}
-    }, 3000);
   };
   const saveArchived = (d) => { setArchivedMonths(d); persist(KEYS.ARCHIVED_MONTHS, d); };
   const saveConfig = (d) => { setConfig(d); persist(KEYS.CONFIG, d); };
@@ -789,6 +761,37 @@ export default function App() {
     const iv = setInterval(pollHandoffs, 15000);
     return () => clearInterval(iv);
   }, []);
+
+  // Sync de activeTrips a Supabase — corre en background cuando hay cambios
+  // Nunca bloquea la UI — es independiente del flujo startTrip/finishTrip
+  useEffect(() => {
+    if (view !== 'driver') return; // solo el chofer sube sus viajes
+    const sync = async () => {
+      try {
+        if (activeTrips.length === 0) return;
+        for (const t of activeTrips) {
+          await sbFetch('active_trips', {
+            method: 'POST',
+            headers: { 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify({
+              id: t.id,
+              driver_id: t.driverId || '',
+              vehicle_id: t.vehicleId || '',
+              origin_branch_id: t.originBranchId || '',
+              destination_branch_id: t.destinationBranchId || '',
+              km_start: t.kmStart || 0,
+              start_time: t.startTime || '',
+              start_date: t.startDate || '',
+              fuel_loaded: t.fuelLoaded || 0,
+              custom_dest_name: t.customDestName || '',
+              custom_dest_type: t.customDestType || '',
+            }),
+          });
+        }
+      } catch(e) {}
+    };
+    sync();
+  }, [activeTrips.length]);
 
   // Polling de active_trips — SOLO cuando el coordinador está en pantalla
   // Nunca corre en el celular del chofer para no interferir con su viaje
