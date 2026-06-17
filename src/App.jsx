@@ -2722,17 +2722,18 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
 }
 
 function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, initialKm, initialOriginBranchId }) {
+  const _preOrigin = null;
   const lastTrip = useMemo(() => [...trips].filter(t => t.vehicleId === vehicle.id).sort((a, b) => b.createdAt - a.createdAt)[0], [trips, vehicle]);
   const now = new Date();
   const [formOpenedAt] = useState(() => Date.now());
   const _salioBlomba = localStorage.getItem('emp:salio_bomba_' + vehicle.id) === '1';
   const _lastTripValidDest = (lastTrip?.destinationBranchId && lastTrip.destinationBranchId !== 'otro') ? lastTrip.destinationBranchId : null;
-  const defaultOrigin = initialOriginBranchId || (_salioBlomba ? 'surtir' : (_lastTripValidDest || (branches[0]?.id || '')));
+  const defaultOrigin = _preOrigin?.id || initialOriginBranchId || (_salioBlomba ? 'surtir' : (_lastTripValidDest || (branches[0]?.id || '')));
   // Si el último viaje fue a la bomba, pre-seleccionar 'surtir' como origen automáticamente
   const autoOrigin = defaultOrigin === 'surtir' ? 'surtir' : defaultOrigin === 'taller' ? 'taller' : ZONAS_MULTISECTOR.includes(defaultOrigin) ? defaultOrigin : (defaultOrigin || branches[0]?.id || '');
   const [form, setForm] = useState({
     originBranchId: autoOrigin,
-    destinationBranchId: '',
+    destinationBranchId: _preOrigin?.preDestId || '',
     kmStart: (() => {
       // Prioridad: 1) último viaje histórico (más reciente) si tiene kmEnd válido
       //            2) hoy trips, 3) checklist, 4) localStorage, 5) currentKm del vehículo
@@ -2757,7 +2758,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   const [customDestName, setCustomDestName] = useState('');
   const [customDestType, setCustomDestType] = useState('gestion'); // 'gestion' | 'mantenimiento'
   const [caracasDestName, setCaracasDestName] = useState(''); // lugar específico en Caracas (destino)
-  const [caracasOriginName, setCaracasOriginName] = useState(''); // lugar específico en Caracas (origen)
+  const [caracasOriginName, setCaracasOriginName] = useState(_preOrigin?.sector || ''); // lugar específico en Caracas (origen)
   const showTimeAtBranch = lastTrip && lastTrip.destinationBranchId === form.originBranchId;
 
   useEffect(() => {
@@ -2849,7 +2850,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-2 block uppercase tracking-wider font-mono">🎯 Destino</label>
           <div className="grid grid-cols-2 gap-2">
-            {branches.filter(b => b.id !== form.originBranchId).map(b => (
+            {branches.filter(b => b.id !== form.originBranchId || ZONAS_MULTISECTOR.includes(b.id)).map(b => (
               <button key={b.id} onClick={() => setForm({ ...form, destinationBranchId: b.id })}
                 className={`p-2.5 rounded-lg border-2 text-sm font-medium transition ${form.destinationBranchId === b.id ? 'border-amber-400 bg-amber-500/15 text-stone-900' : 'border-stone-200 text-emerald-700 hover:border-emerald-600 bg-stone-50'}`}>
                 {b.name}
@@ -3415,6 +3416,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
   const [departed, setDeparted] = useState(!!trip.timeAtDestinationMinutes);
   const [confirmedMinutes, setConfirmedMinutes] = useState(trip.timeAtDestinationMinutes || null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+
   const [isWaiting, setIsWaiting] = useState(!!localStorage.getItem('emp:isWaiting:'+trip.id));
   const [waitStart, setWaitStart] = useState(localStorage.getItem('emp:waitStart:'+trip.id) ? Number(localStorage.getItem('emp:waitStart:'+trip.id)) : null);
   const [waitDisplay, setWaitDisplay] = useState('0m 00s');
@@ -3622,6 +3624,8 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
               📤 Entregar unidad a otro chofer
             </button>
           )}
+
+
           <button onClick={() => onFinishJornada && onFinishJornada()} className="w-full mt-2 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 shadow-lg shadow-purple-700/30 flex items-center justify-center gap-2">
             🌙 Finalizar Jornada de hoy
           </button>
