@@ -651,33 +651,34 @@ export default function App() {
   const saveActiveTrips = (d) => {
     setActiveTrips(d);
     persist(KEYS.ACTIVE_TRIPS, d);
-    // Sync a Supabase — mismo patrón que handoffs
-    try {
-      if (d.length === 0) {
-        // No hay viajes activos — borrar toda la tabla
-        sbFetch('active_trips', { method: 'DELETE' }).catch(() => {});
-      } else {
-        d.forEach(t => {
-          sbFetch('active_trips', {
-            method: 'POST',
-            headers: { 'Prefer': 'resolution=merge-duplicates' },
-            body: JSON.stringify({
-              id: t.id,
-              driver_id: t.driverId,
-              vehicle_id: t.vehicleId,
-              origin_branch_id: t.originBranchId,
-              destination_branch_id: t.destinationBranchId,
-              km_start: t.kmStart || 0,
-              start_time: t.startTime || '',
-              start_date: t.startDate || '',
-              fuel_loaded: t.fuelLoaded || 0,
-              custom_dest_name: t.customDestName || '',
-              custom_dest_type: t.customDestType || '',
-            }),
-          }).catch(() => {});
-        });
-      }
-    } catch(e) {}
+    // Sync a Supabase en background — setTimeout para no interferir con el flujo del chofer
+    setTimeout(() => {
+      try {
+        if (d.length === 0) {
+          sbFetch('active_trips', { method: 'DELETE' }).catch(() => {});
+        } else {
+          d.forEach(t => {
+            sbFetch('active_trips', {
+              method: 'POST',
+              headers: { 'Prefer': 'resolution=merge-duplicates' },
+              body: JSON.stringify({
+                id: t.id,
+                driver_id: t.driverId,
+                vehicle_id: t.vehicleId,
+                origin_branch_id: t.originBranchId,
+                destination_branch_id: t.destinationBranchId,
+                km_start: t.kmStart || 0,
+                start_time: t.startTime || '',
+                start_date: t.startDate || '',
+                fuel_loaded: t.fuelLoaded || 0,
+                custom_dest_name: t.customDestName || '',
+                custom_dest_type: t.customDestType || '',
+              }),
+            }).catch(() => {});
+          });
+        }
+      } catch(e) {}
+    }, 3000);
   };
   const saveArchived = (d) => { setArchivedMonths(d); persist(KEYS.ARCHIVED_MONTHS, d); };
   const saveConfig = (d) => { setConfig(d); persist(KEYS.CONFIG, d); };
