@@ -5046,25 +5046,6 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
     }, 100);
   };
 
-  const exportToExcelDaily = async () => {
-    const todayISO = new Date().toISOString().slice(0, 10);
-    const todayTrips = trips.filter(t => t.startDate === todayISO || t.endDate === todayISO);
-    if (!todayTrips.length) { alert('No hay viajes hoy'); return; }
-    if (!XLSX?.utils) { alert('Excel no disponible'); return; }
-    const wb = XLSX.utils.book_new();
-    const rows = [['CHOFER','UNIDAD','RUTA','KM SAL','KM LLE','KM REC','DURACIÓN','$ COSTO','LITROS']];
-    todayTrips.forEach(t => {
-      const dr=drivers.find(d=>d.id===t.driverId), vh=vehicles.find(v=>v.id===t.vehicleId);
-      const or=branches.find(b=>b.id===t.originBranchId)?.name||'', ds=branches.find(b=>b.id===t.destinationBranchId)?.name||'';
-      const dur=t.tripMinutes>59?`${Math.floor(t.tripMinutes/60)}h ${t.tripMinutes%60}m`:`${t.tripMinutes||0}m`;
-      rows.push([dr?.name||'',vh?.code||'',`${or} → ${ds}`,t.kmStart||0,t.kmEnd||0,t.kmTraveled||0,dur,+(t.cost||0).toFixed(2),+(t.liters||0).toFixed(2)]);
-    });
-    const ws=XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols']=[{wch:20},{wch:10},{wch:30},{wch:9},{wch:9},{wch:8},{wch:9},{wch:9},{wch:8}];
-    XLSX.utils.book_append_sheet(wb,ws,'Hoy');
-    XLSX.writeFile(wb,`Reporte_Diario_${todayISO}.xlsx`);
-  };
-
   const exportToExcel = async () => {
     if (trips.length === 0) {
       setExportMsg({ type: 'error', msg: 'No hay viajes registrados para exportar este mes' });
@@ -5800,16 +5781,10 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
             className="w-full pl-9 pr-3 py-2 bg-white border border-stone-200 shadow-sm rounded-lg text-sm text-stone-900 outline-none focus:border-emerald-500 placeholder:text-stone-400" />
         </div>
-        <div className="flex gap-2">
-          <button onClick={exportToExcelDaily}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm font-bold">
-            <FileSpreadsheet className="w-4 h-4" /> HOY
-          </button>
-          <button onClick={exportToExcel} disabled={exporting}
-            className={`text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition ${exporting ? 'bg-stone-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-700/30'}`}>
-            <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'REPORTE MENSUAL'}
-          </button>
-        </div>
+        <button onClick={exportToExcel} disabled={exporting}
+          className={`text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition ${exporting ? 'bg-stone-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-700/30'}`}>
+          <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'REPORTE MENSUAL'}
+        </button>
       </div>
       <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
           <input type="date" value={deleteUntil} onChange={e => setDeleteUntil(e.target.value)}
