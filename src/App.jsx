@@ -648,7 +648,37 @@ export default function App() {
   const saveDrivers = (d) => { setDrivers(d); persist(KEYS.DRIVERS, d); };
   const saveBranches = (d) => { setBranches(d); persist(KEYS.BRANCHES, d); };
   const saveTrips = (d) => { setTrips(d); persist(KEYS.TRIPS, d); };
-  const saveActiveTrips = (d) => { setActiveTrips(d); persist(KEYS.ACTIVE_TRIPS, d); };
+  const saveActiveTrips = (d) => {
+    setActiveTrips(d);
+    persist(KEYS.ACTIVE_TRIPS, d);
+    // Sync a Supabase — mismo patrón que handoffs
+    try {
+      if (d.length === 0) {
+        // No hay viajes activos — borrar toda la tabla
+        sbFetch('active_trips', { method: 'DELETE' }).catch(() => {});
+      } else {
+        d.forEach(t => {
+          sbFetch('active_trips', {
+            method: 'POST',
+            headers: { 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify({
+              id: t.id,
+              driver_id: t.driverId,
+              vehicle_id: t.vehicleId,
+              origin_branch_id: t.originBranchId,
+              destination_branch_id: t.destinationBranchId,
+              km_start: t.kmStart || 0,
+              start_time: t.startTime || '',
+              start_date: t.startDate || '',
+              fuel_loaded: t.fuelLoaded || 0,
+              custom_dest_name: t.customDestName || '',
+              custom_dest_type: t.customDestType || '',
+            }),
+          }).catch(() => {});
+        });
+      }
+    } catch(e) {}
+  };
   const saveArchived = (d) => { setArchivedMonths(d); persist(KEYS.ARCHIVED_MONTHS, d); };
   const saveConfig = (d) => { setConfig(d); persist(KEYS.CONFIG, d); };
   const savePhotos = (d) => { setPhotos(d); persist(KEYS.PHOTOS, d); };
@@ -757,6 +787,36 @@ export default function App() {
     pollHandoffs();
     const iv = setInterval(pollHandoffs, 15000);
     return () => clearInterval(iv);
+  }, []);
+
+  // Polling de active_trips desde Supabase cada 10s
+  // El coordinador en la PC ve los viajes del chofer en tiempo real
+  useEffect(() => {
+    const pollActiveTrips = async () => {
+      try {
+        const data = await sbFetch('active_trips?select=*&order=start_date.desc&limit=20');
+        if (Array.isArray(data)) {
+          const mapped = data.map(r => ({
+            id: r.id,
+            driverId: r.driver_id || r.driverId || '',
+            vehicleId: r.vehicle_id || r.vehicleId || '',
+            originBranchId: r.origin_branch_id || r.originBranchId || '',
+            destinationBranchId: r.destination_branch_id || r.destinationBranchId || '',
+            kmStart: r.km_start || r.kmStart || 0,
+            startTime: r.start_time || r.startTime || '',
+            startDate: r.start_date || r.startDate || '',
+            fuelLoaded: r.fuel_loaded || r.fuelLoaded || 0,
+            customDestName: r.custom_dest_name || r.customDestName || '',
+            customDestType: r.custom_dest_type || r.customDestType || '',
+          }));
+          setActiveTrips(mapped);
+          persist(KEYS.ACTIVE_TRIPS, mapped);
+        }
+      } catch(e) {}
+    };
+    pollActiveTrips();
+    const iv2 = setInterval(pollActiveTrips, 10000);
+    return () => clearInterval(iv2);
   }, []);
 
   const handleLogin = (role, user) => {
