@@ -156,8 +156,13 @@ const INITIAL_BRANCHES = [
   { id: 'b3', name: 'Suc. Palma Real', fullName: 'Sucursal Palma Real', lat: 10.3520, lng: -66.6400 },
   { id: 'b4', name: 'Suc. Miranda', fullName: 'Sucursal Miranda', lat: 10.3700, lng: -66.6200 },
   { id: 'b5', name: 'Suc. La Parada', fullName: 'Sucursal La Parada', lat: 10.3850, lng: -66.6100 },
-  { id: 'b6', name: 'Caracas', fullName: 'Caracas (otros)', lat: 10.4806, lng: -66.9036 },
+  { id: 'b6', name: 'Caracas', fullName: 'Caracas (varios sectores)', lat: 10.4806, lng: -66.9036 },
+  { id: 'b7', name: 'Suc. Guatire', fullName: 'Sucursal Guatire', lat: 10.1726, lng: -66.5321 },
+  { id: 'b8', name: 'Araira', fullName: 'Araira (varios sectores)', lat: 10.2700, lng: -66.5800 },
+  { id: 'b9', name: 'Guatire', fullName: 'Guatire (varios sectores)', lat: 10.1650, lng: -66.5400 },
 ];
+
+const ZONAS_MULTISECTOR = ['b6', 'b8', 'b9']; // Caracas, Araira, Guatire (zonas con múltiples sectores)
 
 const PHOTO_CATEGORIES = [
   { id: 'transfer', label: 'Transferencia', icon: FileText, color: 'blue' },
@@ -2364,9 +2369,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
             // Pre-seleccionar último destino como origen automáticamente
             const myTrips = trips.filter(t => t.vehicleId === selectedVehicle?.id).sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
             const lastDest = myTrips[0]?.destinationBranchId;
-            if (lastDest === 'surtir') return 'surtir'; // último viaje fue a la bomba
+            // NO pre-seleccionar surtir desde lastDest — solo el flag salio_bomba activa eso
             if (lastDest === 'taller') return 'taller'; // último viaje fue al taller
-            if (lastDest && lastDest !== 'otro') return lastDest;
+            if (lastDest && lastDest !== 'otro' && lastDest !== 'surtir') return lastDest;
             return null;
           })()} />}
           {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
@@ -2701,11 +2706,11 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   const lastTrip = useMemo(() => [...trips].filter(t => t.vehicleId === vehicle.id).sort((a, b) => b.createdAt - a.createdAt)[0], [trips, vehicle]);
   const now = new Date();
   const [formOpenedAt] = useState(() => Date.now());
-  const _salioBlomba = localStorage.getItem('emp:salio_bomba_' + vehicle.id) === '1' || lastTrip?.destinationBranchId === 'surtir';
+  const _salioBlomba = localStorage.getItem('emp:salio_bomba_' + vehicle.id) === '1';
   const _lastTripValidDest = (lastTrip?.destinationBranchId && lastTrip.destinationBranchId !== 'otro') ? lastTrip.destinationBranchId : null;
   const defaultOrigin = initialOriginBranchId || (_salioBlomba ? 'surtir' : (_lastTripValidDest || (branches[0]?.id || '')));
   // Si el último viaje fue a la bomba, pre-seleccionar 'surtir' como origen automáticamente
-  const autoOrigin = defaultOrigin === 'surtir' ? 'surtir' : defaultOrigin === 'taller' ? 'taller' : (defaultOrigin || branches[0]?.id || '');
+  const autoOrigin = defaultOrigin === 'surtir' ? 'surtir' : defaultOrigin === 'taller' ? 'taller' : ZONAS_MULTISECTOR.includes(defaultOrigin) ? defaultOrigin : (defaultOrigin || branches[0]?.id || '');
   const [form, setForm] = useState({
     originBranchId: autoOrigin,
     destinationBranchId: '',
@@ -2732,6 +2737,8 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   const [tripPhotos, setTripPhotos] = useState([]);
   const [customDestName, setCustomDestName] = useState('');
   const [customDestType, setCustomDestType] = useState('gestion'); // 'gestion' | 'mantenimiento'
+  const [caracasDestName, setCaracasDestName] = useState(''); // lugar específico en Caracas (destino)
+  const [caracasOriginName, setCaracasOriginName] = useState(''); // lugar específico en Caracas (origen)
   const showTimeAtBranch = lastTrip && lastTrip.destinationBranchId === form.originBranchId;
 
   useEffect(() => {
@@ -2747,7 +2754,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
     return () => clearInterval(id);
   }, [lastTrip, showTimeAtBranch]);
 
-  const valid = form.originBranchId && form.destinationBranchId && (form.originBranchId === 'surtir' || form.originBranchId !== form.destinationBranchId) && Number(form.kmStart) > 0 && form.startTime && (form.destinationBranchId !== 'otro' || customDestName.trim().length > 0);
+  const valid = form.originBranchId && form.destinationBranchId && (form.originBranchId === 'surtir' || form.originBranchId !== form.destinationBranchId) && Number(form.kmStart) > 0 && form.startTime && (form.destinationBranchId !== 'otro' || customDestName.trim().length > 0) && (!ZONAS_MULTISECTOR.includes(form.destinationBranchId) || caracasDestName.trim().length > 0) && (!ZONAS_MULTISECTOR.includes(form.originBranchId) || caracasOriginName.trim().length > 0);
   const originBranch = branches.find(b => b.id === form.originBranchId);
 
   return (
@@ -2781,22 +2788,43 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
 
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-2 block uppercase tracking-wider font-mono">📍 Salida</label>
-          <div className="grid grid-cols-2 gap-2">
-            {branches.map(b => (
-              <button key={b.id} onClick={() => setForm({ ...form, originBranchId: b.id })}
-                className={`p-2.5 rounded-lg border-2 text-sm font-medium transition ${form.originBranchId === b.id ? 'border-emerald-400 bg-emerald-500/15 text-stone-900' : 'border-stone-200 text-emerald-700 hover:border-emerald-600 bg-stone-50'}`}>
-                {b.name}
+          {form.originBranchId === 'surtir' ? (
+            <div className="p-3 rounded-xl border-2 border-amber-400 bg-amber-100 text-amber-800 font-bold text-sm flex items-center gap-2">
+              ⛽ Surtir combustible <span className="text-xs font-normal text-amber-700">(pre-seleccionado)</span>
+            </div>
+          ) : form.originBranchId === 'taller' ? (
+            <div className="p-3 rounded-xl border-2 border-rose-400 bg-rose-100 text-rose-800 font-bold text-sm flex items-center gap-2">
+              🔧 Taller <span className="text-xs font-normal text-rose-700">(pre-seleccionado)</span>
+            </div>
+          ) : ZONAS_MULTISECTOR.includes(form.originBranchId) ? (
+            <div className="space-y-2">
+              <div className="p-3 rounded-xl border-2 border-orange-400 bg-orange-100 text-orange-800 font-bold text-sm">
+                🏙️ {branches.find(b => b.id === form.originBranchId)?.name} <span className="text-xs font-normal text-orange-700">(pre-seleccionado)</span>
+              </div>
+              <div className="bg-orange-50 border border-orange-300 rounded-xl p-3">
+                <label className="text-xs font-bold text-orange-700 uppercase tracking-wider block mb-1">📍 ¿Desde qué sector saliste?</label>
+                <input type="text" value={caracasOriginName} onChange={e => setCaracasOriginName(e.target.value)}
+                  placeholder="Ej: sector, urbanización, lugar específico..." className="dark-input w-full" autoFocus />
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {branches.map(b => (
+                <button key={b.id} onClick={() => setForm({ ...form, originBranchId: b.id })}
+                  className={`p-2.5 rounded-lg border-2 text-sm font-medium transition ${form.originBranchId === b.id ? 'border-emerald-400 bg-emerald-500/15 text-stone-900' : 'border-stone-200 text-emerald-700 hover:border-emerald-600 bg-stone-50'}`}>
+                  {b.name}
+                </button>
+              ))}
+              <button onClick={() => setForm({ ...form, originBranchId: 'taller' })}
+                className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'taller' ? 'border-rose-400 bg-rose-100 text-rose-800' : 'border-rose-200 text-rose-600 hover:border-rose-400 bg-rose-50'}`}>
+                🔧 Taller
               </button>
-            ))}
-            <button onClick={() => setForm({ ...form, originBranchId: 'taller' })}
-              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'taller' ? 'border-rose-400 bg-rose-100 text-rose-800' : 'border-rose-200 text-rose-600 hover:border-rose-400 bg-rose-50'}`}>
-              🔧 Taller
-            </button>
-            <button onClick={() => setForm({ ...form, originBranchId: 'surtir' })}
-              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
-              ⛽ Surtir combustible
-            </button>
-          </div>
+              <button onClick={() => setForm({ ...form, originBranchId: 'surtir' })}
+                className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
+                ⛽ Surtir combustible
+              </button>
+            </div>
+          )}
         </div>
 
         <div>
@@ -2835,17 +2863,20 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
               </div>
               <div>
                 <label className="text-xs font-bold text-purple-700 uppercase tracking-wider block mb-1">Tipo de salida</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => setCustomDestType('gestion')}
-                    className={`p-2 rounded-lg border-2 text-xs font-bold transition ${customDestType === 'gestion' ? 'border-blue-400 bg-blue-100 text-blue-800' : 'border-stone-200 text-stone-600 bg-white'}`}>
-                    📦 Gestión<div className="font-normal">proveedor, trámite...</div>
-                  </button>
-                  <button onClick={() => setCustomDestType('mantenimiento')}
-                    className={`p-2 rounded-lg border-2 text-xs font-bold transition ${customDestType === 'mantenimiento' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-stone-200 text-stone-600 bg-white'}`}>
-                    🔧 Mantenimiento<div className="font-normal">cauchera, mecánico...</div>
-                  </button>
+                <div className="p-2 rounded-lg border-2 border-blue-400 bg-blue-100 text-blue-800 text-xs font-bold">
+                  📦 Gestión <span className="font-normal">— proveedor, trámite, diligencia...</span>
                 </div>
               </div>
+            </div>
+          )}
+          {ZONAS_MULTISECTOR.includes(form.destinationBranchId) && (
+            <div className="mt-3 bg-orange-50 border border-orange-300 rounded-xl p-3">
+              <label className="text-xs font-bold text-orange-700 uppercase tracking-wider block mb-1">
+                📍 ¿A qué sector de {branches.find(b => b.id === form.destinationBranchId)?.name}?
+              </label>
+              <input type="text" value={caracasDestName} onChange={e => setCaracasDestName(e.target.value)}
+                placeholder="Ej: sector, urbanización, lugar específico..." className="dark-input w-full" autoFocus />
+              <p className="text-xs text-orange-600 mt-1">Escribe el sector o lugar específico al que te diriges.</p>
             </div>
           )}
         </div>
@@ -2903,7 +2934,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
         </div>
       <div className="grid grid-cols-2 gap-2">
         <button onClick={onBack} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200 hover:bg-stone-200">← Atrás</button>
-        <button onClick={() => onStart({...form, tripNotes, tripPhotos, customDestName: form.destinationBranchId === 'otro' ? customDestName.trim() : '', customDestType: form.destinationBranchId === 'otro' ? customDestType : ''})} disabled={!valid}
+        <button onClick={() => onStart({...form, tripNotes, tripPhotos, customDestName: form.destinationBranchId === 'otro' ? customDestName.trim() : ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? `${branches.find(b=>b.id===form.destinationBranchId)?.name} - ${caracasDestName.trim()}` : '', customDestType: form.destinationBranchId === 'otro' ? customDestType : '', caracasDestName: form.destinationBranchId === 'b6' ? caracasDestName.trim() : '', caracasOriginName: form.originBranchId === 'b6' ? caracasOriginName.trim() : ''})} disabled={!valid}
           className={`py-3 rounded-xl font-bold text-white transition shadow-lg flex items-center justify-center gap-2 ${valid ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-emerald-700/30 active:scale-[0.98]' : 'bg-stone-100 text-stone-300'}`}>
           <Play className="w-5 h-5" /> INICIAR
         </button>
