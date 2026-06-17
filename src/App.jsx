@@ -9,7 +9,7 @@ const LOGO_TRUCK = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAADhCAYAAA
 const KEYS = {
   VEHICLES: 'emp:v4:vehicles',
   DRIVERS: 'emp:v4:drivers',
-  BRANCHES: 'emp:v4:branches',
+  BRANCHES: 'emp:v5:branches',
   TRIPS: 'emp:v4:trips',
   ACTIVE_TRIPS: 'emp:v4:active_trips',
   ARCHIVED_MONTHS: 'emp:v4:archived_months',
