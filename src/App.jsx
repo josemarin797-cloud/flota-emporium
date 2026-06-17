@@ -2834,11 +2834,21 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
               <div className="p-3 rounded-xl border-2 border-orange-400 bg-orange-100 text-orange-800 font-bold text-sm">
                 🏙️ {branches.find(b => b.id === form.originBranchId)?.name} <span className="text-xs font-normal text-orange-700">(pre-seleccionado)</span>
               </div>
-              <div className="bg-orange-50 border border-orange-300 rounded-xl p-3">
-                <label className="text-xs font-bold text-orange-700 uppercase tracking-wider block mb-1">📍 ¿Desde qué sector saliste?</label>
-                <input type="text" value={caracasOriginName} onChange={e => setCaracasOriginName(e.target.value)}
-                  placeholder="Ej: sector, urbanización, lugar específico..." className="dark-input w-full" autoFocus />
-              </div>
+              {caracasOriginName && _preOrigin?.sector ? (
+                <div className="bg-orange-50 border-2 border-orange-400 rounded-xl p-3 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-orange-700 uppercase tracking-wider mb-0.5">📍 Sector de salida</div>
+                    <div className="font-bold text-orange-900">{caracasOriginName}</div>
+                  </div>
+                  <button onClick={() => setCaracasOriginName('')} className="text-xs text-orange-400 hover:text-orange-600">✏️ Cambiar</button>
+                </div>
+              ) : (
+                <div className="bg-orange-50 border border-orange-300 rounded-xl p-3">
+                  <label className="text-xs font-bold text-orange-700 uppercase tracking-wider block mb-1">📍 ¿Desde qué sector saliste?</label>
+                  <input type="text" value={caracasOriginName} onChange={e => setCaracasOriginName(e.target.value)}
+                    placeholder="Ej: sector, urbanización, lugar específico..." className="dark-input w-full" autoFocus />
+                </div>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
