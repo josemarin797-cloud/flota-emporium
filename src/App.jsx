@@ -790,9 +790,10 @@ export default function App() {
     return () => clearInterval(iv);
   }, []);
 
-  // Polling de active_trips desde Supabase cada 10s
-  // El coordinador en la PC ve los viajes del chofer en tiempo real
+  // Polling de active_trips — SOLO cuando el coordinador está en pantalla
+  // Nunca corre en el celular del chofer para no interferir con su viaje
   useEffect(() => {
+    if (view !== 'coordinator') return;
     const pollActiveTrips = async () => {
       try {
         const data = await sbFetch('active_trips?select=*&order=start_date.desc&limit=20');
@@ -818,7 +819,7 @@ export default function App() {
     pollActiveTrips();
     const iv2 = setInterval(pollActiveTrips, 10000);
     return () => clearInterval(iv2);
-  }, []);
+  }, [view]);
 
   const handleLogin = (role, user) => {
     setCurrentUser(user);
