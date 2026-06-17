@@ -2048,7 +2048,18 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setStep('select');
   };
   const [tripFormKey, setTripFormKey] = useState(0);
-  const newTrip = () => { setCurrentTrip(null); setTripFormKey(k => k + 1); setStep('start'); }; // mantiene camión seleccionado
+  const newTrip = (opts) => {
+    if (opts?.preOriginId) {
+      sessionStorage.setItem('emp:preOrigin', JSON.stringify({
+        id: opts.preOriginId,
+        sector: opts.preOriginSector || '',
+        preDestId: opts.preDestId || '',
+      }));
+    } else {
+      sessionStorage.removeItem('emp:preOrigin');
+    }
+    setCurrentTrip(null); setTripFormKey(k => k + 1); setStep('start');
+  }; // mantiene camión seleccionado
   const handleWaitEnd = (tripId, waitMin) => {
     if (!waitMin || waitMin <= 0) return;
     const updated = trips.map(t => t.id === tripId ? { ...t, waitMinutes: waitMin } : t);
@@ -2722,7 +2733,9 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
 }
 
 function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, initialKm, initialOriginBranchId }) {
-  const _preOrigin = null;
+  const _preOriginRaw = sessionStorage.getItem('emp:preOrigin');
+  const _preOrigin = _preOriginRaw ? (() => { try { return JSON.parse(_preOriginRaw); } catch(e) { return null; } })() : null;
+  if (_preOriginRaw) sessionStorage.removeItem('emp:preOrigin');
   const lastTrip = useMemo(() => [...trips].filter(t => t.vehicleId === vehicle.id).sort((a, b) => b.createdAt - a.createdAt)[0], [trips, vehicle]);
   const now = new Date();
   const [formOpenedAt] = useState(() => Date.now());
@@ -3416,6 +3429,10 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
   const [departed, setDeparted] = useState(!!trip.timeAtDestinationMinutes);
   const [confirmedMinutes, setConfirmedMinutes] = useState(trip.timeAtDestinationMinutes || null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showZonaDecision, setShowZonaDecision] = useState(false);
+  const isZonaDestino = ZONAS_MULTISECTOR.includes(trip.destinationBranchId);
+  const zonaName = branches.find(b => b.id === trip.destinationBranchId)?.name || '';
+  const sectorName = trip.caracasDestName || '';
 
   const [isWaiting, setIsWaiting] = useState(!!localStorage.getItem('emp:isWaiting:'+trip.id));
   const [waitStart, setWaitStart] = useState(localStorage.getItem('emp:waitStart:'+trip.id) ? Number(localStorage.getItem('emp:waitStart:'+trip.id)) : null);
@@ -3608,7 +3625,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
         <div>
           <div className="grid grid-cols-2 gap-2">
             <button onClick={onLogout} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200">Salir</button>
-            <button onClick={departed ? onNewTrip : undefined} disabled={!departed}
+            <button onClick={departed ? (isZonaDestino ? () => setShowZonaDecision(true) : onNewTrip) : undefined} disabled={!departed}
               className={`py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${departed ? 'text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-lg shadow-emerald-700/30' : 'text-stone-400 bg-stone-200 cursor-not-allowed'}`}>
               <Plus className="w-5 h-5" /> Nuevo Viaje
             </button>
@@ -3623,6 +3640,46 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
               className="w-full mt-2 py-3 rounded-xl font-bold text-amber-700 bg-amber-50 border-2 border-amber-200 hover:bg-amber-100 flex items-center justify-center gap-2 transition-all">
               📤 Entregar unidad a otro chofer
             </button>
+          )}
+
+          {showZonaDecision && (
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+                <div className="bg-orange-500 px-5 py-4 text-white text-center">
+                  <div className="text-2xl mb-1">📍</div>
+                  <div className="font-bold text-lg">{sectorName ? `${sectorName} · ${zonaName}` : zonaName}</div>
+                  <div className="text-sm opacity-90 mt-1">¿A dónde vas ahora?</div>
+                </div>
+                <div className="p-4 space-y-2">
+                  <button onClick={() => { setShowZonaDecision(false); onNewTrip({ preOriginId: trip.destinationBranchId, preOriginSector: sectorName, preDestId: trip.destinationBranchId }); }}
+                    className="w-full py-3 px-4 rounded-xl border-2 border-orange-200 bg-orange-50 text-orange-800 font-bold text-sm flex items-center gap-3 hover:bg-orange-100 active:bg-orange-200 transition">
+                    <span className="text-2xl">🏙️</span>
+                    <div className="text-left">
+                      <div>Otro sector en {zonaName}</div>
+                      <div className="text-xs font-normal text-orange-600 mt-0.5">Rimara, Quinta Crespo, La Candelaria...</div>
+                    </div>
+                  </button>
+                  <button onClick={() => { setShowZonaDecision(false); onNewTrip({ preOriginId: trip.destinationBranchId, preOriginSector: sectorName }); }}
+                    className="w-full py-3 px-4 rounded-xl border-2 border-emerald-200 bg-emerald-50 text-emerald-800 font-bold text-sm flex items-center gap-3 hover:bg-emerald-100 active:bg-emerald-200 transition">
+                    <span className="text-2xl">🏠</span>
+                    <div className="text-left">
+                      <div>Regreso / Sucursal</div>
+                      <div className="text-xs font-normal text-emerald-600 mt-0.5">CDE, Casarapa, Miranda, Guatire...</div>
+                    </div>
+                  </button>
+                  <button onClick={() => { setShowZonaDecision(false); onNewTrip({ preOriginId: trip.destinationBranchId, preOriginSector: sectorName, preDestId: 'otro' }); }}
+                    className="w-full py-3 px-4 rounded-xl border-2 border-purple-200 bg-purple-50 text-purple-800 font-bold text-sm flex items-center gap-3 hover:bg-purple-100 active:bg-purple-200 transition">
+                    <span className="text-2xl">📍</span>
+                    <div className="text-left">
+                      <div>Otro destino</div>
+                      <div className="text-xs font-normal text-purple-600 mt-0.5">Proveedor, gestión, trámite...</div>
+                    </div>
+                  </button>
+                  <button onClick={() => setShowZonaDecision(false)}
+                    className="w-full py-2 text-stone-400 text-sm hover:text-stone-600">Cancelar</button>
+                </div>
+              </div>
+            </div>
           )}
 
 
