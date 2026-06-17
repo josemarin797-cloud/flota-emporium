@@ -540,7 +540,13 @@ export default function App() {
           }));
         }
         if (reads[1]) setDrivers(reads[1]);
-        if (reads[2]) setBranches(reads[2]);
+        if (reads[2]) {
+          // Fusionar con INITIAL_BRANCHES para que nuevas sucursales siempre aparezcan
+          const saved = reads[2];
+          const merged = INITIAL_BRANCHES.map(ib => saved.find(b => b.id === ib.id) || ib);
+          setBranches(merged);
+          persist(KEYS.BRANCHES, merged);
+        }
         if (reads[3]) setTrips(reads[3]);
         if (reads[4]) setActiveTrips(reads[4]);
         if (reads[5]) setArchivedMonths(reads[5]);
