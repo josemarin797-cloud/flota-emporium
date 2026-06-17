@@ -183,7 +183,20 @@ const resolveDestName = (trip, branches) => {
   if (trip.destinationBranchId === 'surtir') return '⛽ Surtir combustible';
   if (trip.destinationBranchId === 'taller') return '🔧 Taller';
   if (trip.destinationBranchId === 'otro') return `📍 ${trip.customDestName || 'Otro'}`;
-  return branches?.find(b => b.id === trip.destinationBranchId)?.name || trip.destinationBranchId || '—';
+  const branchName = branches?.find(b => b.id === trip.destinationBranchId)?.name || trip.destinationBranchId || '—';
+  // Para zonas multisector mostrar el sector específico
+  if (trip.caracasDestName) return `${branchName} - ${trip.caracasDestName}`;
+  if (trip.customDestName && ZONAS_MULTISECTOR?.includes(trip.destinationBranchId)) return trip.customDestName;
+  return branchName;
+};
+
+const resolveOriginName = (trip, branches) => {
+  if (!trip) return '—';
+  if (trip.originBranchId === 'surtir') return '⛽ Surtir combustible';
+  if (trip.originBranchId === 'taller') return '🔧 Taller';
+  const branchName = branches?.find(b => b.id === trip.originBranchId)?.name || trip.originBranchId || '—';
+  if (trip.caracasOriginName) return `${branchName} - ${trip.caracasOriginName}`;
+  return branchName;
 };
 
 const DEFAULT_CONFIG = {
@@ -1844,7 +1857,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       : (config.discordWebhookByVehicle?.[selectedVehicle.id] || config.discordWebhookGeneral);
     sendDiscordNotification(webhookUrl, {
       title: `🚛 VIAJE INICIADO · ${selectedVehicle.code}`,
-      description: `**${currentDriver.name}** salió de **${origin?.name}** rumbo a **${destName}**`,
+      description: `**${currentDriver.name}** salió de **${resolveOriginName(data, branches)}** rumbo a **${destName}**`,
       color: 0x10b981,
       fields: [
         { name: '⏰ Hora', value: data.startTime, inline: true },
@@ -2760,7 +2773,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
     return () => clearInterval(id);
   }, [lastTrip, showTimeAtBranch]);
 
-  const valid = form.originBranchId && form.destinationBranchId && (form.originBranchId === 'surtir' || form.originBranchId !== form.destinationBranchId) && Number(form.kmStart) > 0 && form.startTime && (form.destinationBranchId !== 'otro' || customDestName.trim().length > 0) && (!ZONAS_MULTISECTOR.includes(form.destinationBranchId) || caracasDestName.trim().length > 0) && (!ZONAS_MULTISECTOR.includes(form.originBranchId) || caracasOriginName.trim().length > 0);
+  const valid = form.originBranchId && form.destinationBranchId && (form.originBranchId === 'surtir' || form.originBranchId !== form.destinationBranchId || ZONAS_MULTISECTOR.includes(form.originBranchId)) && Number(form.kmStart) > 0 && form.startTime && (form.destinationBranchId !== 'otro' || customDestName.trim().length > 0) && (!ZONAS_MULTISECTOR.includes(form.destinationBranchId) || caracasDestName.trim().length > 0) && (!ZONAS_MULTISECTOR.includes(form.originBranchId) || caracasOriginName.trim().length > 0);
   const originBranch = branches.find(b => b.id === form.originBranchId);
 
   return (
@@ -2940,7 +2953,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
         </div>
       <div className="grid grid-cols-2 gap-2">
         <button onClick={onBack} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200 hover:bg-stone-200">← Atrás</button>
-        <button onClick={() => onStart({...form, tripNotes, tripPhotos, customDestName: form.destinationBranchId === 'otro' ? customDestName.trim() : ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? `${branches.find(b=>b.id===form.destinationBranchId)?.name} - ${caracasDestName.trim()}` : '', customDestType: form.destinationBranchId === 'otro' ? customDestType : '', caracasDestName: form.destinationBranchId === 'b6' ? caracasDestName.trim() : '', caracasOriginName: form.originBranchId === 'b6' ? caracasOriginName.trim() : ''})} disabled={!valid}
+        <button onClick={() => onStart({...form, tripNotes, tripPhotos, customDestName: form.destinationBranchId === 'otro' ? customDestName.trim() : ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? `${branches.find(b=>b.id===form.destinationBranchId)?.name} - ${caracasDestName.trim()}` : '', customDestType: form.destinationBranchId === 'otro' ? customDestType : '', caracasDestName: ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', caracasOriginName: ZONAS_MULTISECTOR.includes(form.originBranchId) ? caracasOriginName.trim() : ''})} disabled={!valid}
           className={`py-3 rounded-xl font-bold text-white transition shadow-lg flex items-center justify-center gap-2 ${valid ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-emerald-700/30 active:scale-[0.98]' : 'bg-stone-100 text-stone-300'}`}>
           <Play className="w-5 h-5" /> INICIAR
         </button>
@@ -3465,9 +3478,10 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     const wh2 = isFuelDest
       ? (vehicle?.maintenanceWebhook || config.discordWebhookMaintenance || config.discordWebhookGeneral)
       : (config.discordWebhookByVehicle?.[trip.vehicleId] || config.discordWebhookGeneral);
+    const depOriginName = resolveOriginName({...trip, originBranchId: trip.destinationBranchId, caracasOriginName: trip.caracasDestName}, branches);
     if (wh2) sendDiscordNotification(wh2, {
-      title: `🚪 Salida de sucursal · ${vehicle?.code}`,
-      description: `⏱️ Tiempo en ${destination?.name}: ${minutes > 59 ? Math.floor(minutes / 60) + 'h ' + minutes % 60 + 'min' : minutes + ' min'}`,
+      title: `🚪 Salida de ${depOriginName} · ${vehicle?.code}`,
+      description: `⏱️ Tiempo en ${depOriginName}: ${minutes > 59 ? Math.floor(minutes / 60) + 'h ' + minutes % 60 + 'min' : minutes + ' min'}`,
       color: 0x8b5cf6,
       footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` }
     }).catch(() => {});
