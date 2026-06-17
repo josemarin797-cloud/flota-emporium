@@ -16,7 +16,16 @@ const KEYS = {
   CONFIG: 'emp:v4:config',
   PHOTOS: 'emp:v4:photos',
   GPS_TRACKS: 'emp:v4:gps_tracks',
+  HANDOFFS:   'emp:v4:handoffs',
+  SHIFT_SIGS: 'emp:v4:shift_signatures',
+  END_SHIFTS: 'emp:v4:end_shifts',
+  PENDING:    '__emp:pendingSync',
+  DISC_QUEUE: '__emp:discordQueue',
   CHECKLISTS: 'emp:v4:checklists',
+  MAINT_RECORDS: 'emp:v4:maint_records',
+  INCIDENTS: 'emp:v4:incidents',
+  FUEL_RECORDS: 'emp:v4:fuel_records',
+  APPOINTMENTS: 'emp:v4:appointments',
 };
 
 // ============================================================
@@ -125,19 +134,19 @@ const GLOBAL_PASSWORD = 'emporium'; // Contraseña general para entrar a la app
 const COORDINATOR_PHONE = '+584123932778';
 
 const INITIAL_VEHICLES = [
-  { id: 'v1', code: 'NPR 01', plate: 'A91BF8M', type: 'NPR', performance: 4.76, status: 'AL DIA', currentKm: 142107, lastMaintKm: 141364, maintFreq: 6000, lastGreaseKm: 141364, greaseFreq: 3000, observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#10b981' },
-  { id: 'v2', code: 'NPR 02', plate: 'A21AM9G', type: 'NPR', performance: 4.41, status: 'EN TALLER', currentKm: 48831, lastMaintKm: 48831, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: 'En taller, servicio bandas y tren delantero', litersPer100km: 21, color: '#f59e0b' },
-  { id: 'v3', code: 'FUSO 03', plate: 'A37AJ01', type: 'FUSO', performance: 5.0, status: 'AL DIA', currentKm: 168854, lastMaintKm: 168281, maintFreq: 6000, lastGreaseKm: 168281, greaseFreq: 3000, observations: 'cambio aceite y filtros', litersPer100km: 20, color: '#3b82f6' },
-  { id: 'v4', code: 'NPR 04', plate: 'A15AM5G', type: 'NPR', performance: 10.01, status: 'AL DIA', currentKm: 694812, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#a855f7' },
-  { id: 'v5', code: 'L300 05', plate: 'A15BP7M', type: 'L300', performance: 7.69, status: 'AL DIA', currentKm: 0, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 13, color: '#ec4899' },
+  { id: 'v1', code: 'NPR 01', plate: 'A91BF8M', type: 'NPR', performance: 4.76, status: 'AL DIA', currentKm: 142107, lastMaintKm: 141364, maintFreq: 6000, lastGreaseKm: 141364, greaseFreq: 3000, lastBrakeKm: 0, brakeFreq: 15000, lastCoolantKm: 0, coolantFreq: 12000, lastPrevKm: 0, prevFreq: 15000, lastBatteryDate: '', observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#10b981', maintenanceWebhook: 'https://discord.com/api/webhooks/1509242456087068822/ACGCYCjKC_uNhyQ-0d5whzwI4ClkFLcxSwL0zRWBvITr8N9VRJII9jkkTNmjhzIVEZUQ' },
+  { id: 'v2', code: 'NPR 02', plate: 'A21AM9G', type: 'NPR', performance: 4.41, status: 'AL DIA', currentKm: 48831, lastMaintKm: 48831, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, lastBrakeKm: 0, brakeFreq: 15000, lastCoolantKm: 0, coolantFreq: 12000, lastPrevKm: 0, prevFreq: 15000, lastBatteryDate: '', observations: '', litersPer100km: 21, color: '#f59e0b', maintenanceWebhook: 'https://discord.com/api/webhooks/1509242789555081411/Okm2gGABQFwI2CM7MMkqp9UWYbZCbQQelTeheLEk0dlmmTmJk-0aPi7D7yGZSqRZWV2l' },
+  { id: 'v3', code: 'FUSO 03', plate: 'A37AJ01', type: 'FUSO', performance: 5.0, status: 'AL DIA', currentKm: 168854, lastMaintKm: 168281, maintFreq: 6000, lastGreaseKm: 168281, greaseFreq: 3000, lastBrakeKm: 0, brakeFreq: 15000, lastCoolantKm: 0, coolantFreq: 12000, lastPrevKm: 0, prevFreq: 15000, lastBatteryDate: '', observations: 'cambio aceite y filtros', litersPer100km: 21, color: '#3b82f6', maintenanceWebhook: 'https://discord.com/api/webhooks/1509243065666240562/mEomwP3ubonAsNwdtMtd-35l1Psxhb2UtWCkn9kzLRp0O0cBB1hA0XEPpb-wcZURkLOM' },
+  { id: 'v4', code: 'NPR 04', plate: 'A15AM5G', type: 'NPR', performance: 10.01, status: 'AL DIA', currentKm: 694812, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, lastBrakeKm: 0, brakeFreq: 15000, lastCoolantKm: 0, coolantFreq: 12000, lastPrevKm: 0, prevFreq: 15000, lastBatteryDate: '', observations: '', litersPer100km: 21, color: '#a855f7', maintenanceWebhook: 'https://discord.com/api/webhooks/1509243206880067869/2DL1QmuxD1RE5vkRZGRYk_vT4wwMt0XT2LBHp_TcW-cxAgaqu_JzRSs1fryaIHniwDHX' },
+  { id: 'v5', code: 'L300 05', plate: 'A15BP7M', type: 'L300', performance: 7.69, status: 'AL DIA', currentKm: 145523, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, lastBrakeKm: 0, brakeFreq: 15000, lastCoolantKm: 0, coolantFreq: 12000, lastPrevKm: 0, prevFreq: 15000, lastBatteryDate: '', observations: '', litersPer100km: 13, color: '#ec4899', maintenanceWebhook: 'https://discord.com/api/webhooks/1509243394587758722/SvZTT2UCQI_SSOLI7AHP4c_wrxPRY2eJJN2Z6Om3Tr7PeqvD-JEcHuSnHVTtj9kv9E3L' },
 ];
 
 const INITIAL_DRIVERS = [
-  { id: 'd1', name: 'Daniel Subero', shortName: 'Daniel', phone: '+584242010147', license: '', pin: '1111', active: true },
-  { id: 'd2', name: 'Jackson Hernandez', shortName: 'Jackson H.', phone: '+584141961215', license: '', pin: '2222', active: true },
-  { id: 'd3', name: 'Willmer Fernandez', shortName: 'Willmer', phone: '+584141603681', license: '', pin: '3333', active: true },
-  { id: 'd4', name: 'Richard Hernandez', shortName: 'Richard H.', phone: '+584143246359', license: '', pin: '4444', active: true },
-  { id: 'd5', name: 'Darwin Serrano', shortName: 'Darwin', phone: '+584122095715', license: '', pin: '5555', active: true },
+  { id: 'd1', name: 'Daniel Subero', shortName: 'Daniel', phone: '+584242010147', license: '', pin: '1111', active: true, licenseExpiry: '', medicalExpiry: '' },
+  { id: 'd2', name: 'Jackson Hernandez', shortName: 'Jackson H.', phone: '+584141961215', license: '', pin: '2222', active: true, licenseExpiry: '', medicalExpiry: '' },
+  { id: 'd3', name: 'Willmer Fernandez', shortName: 'Willmer', phone: '+584141603681', license: '', pin: '3333', active: true, licenseExpiry: '', medicalExpiry: '' },
+  { id: 'd4', name: 'Richard Hernandez', shortName: 'Richard H.', phone: '+584143246359', license: '', pin: '4444', active: true, licenseExpiry: '', medicalExpiry: '' },
+  { id: 'd5', name: 'Darwin Serrano', shortName: 'Darwin', phone: '+584122095715', license: '', pin: '5555', active: true, licenseExpiry: '', medicalExpiry: '' },
 ];
 
 // Coordenadas aproximadas de las sucursales (Caracas/Miranda, Venezuela)
@@ -153,14 +162,31 @@ const INITIAL_BRANCHES = [
 const PHOTO_CATEGORIES = [
   { id: 'transfer', label: 'Transferencia', icon: FileText, color: 'blue' },
   { id: 'fuel', label: 'Combustible', icon: Fuel, color: 'amber' },
-  { id: 'incident', label: 'Daño/Incidente', icon: AlertTriangle, color: 'rose' },
   { id: 'maintenance', label: 'Mantenimiento', icon: Wrench, color: 'emerald' },
 ];
+
+// Obtener webhook de mantenimiento de un vehículo (guardado en el vehículo, no en config)
+const getMaintWebhook = (vehicleId, vehicles, config) => {
+  // Canal mantenimiento: primero webhook del camión (Flota→editar), luego global
+  const v = vehicles?.find(x => x.id === vehicleId);
+  return v?.maintenanceWebhook || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
+};
+
+// Resolver nombre legible de destino
+const resolveDestName = (trip, branches) => {
+  if (!trip) return '—';
+  if (trip.destinationBranchId === 'surtir') return '⛽ Surtir combustible';
+  if (trip.destinationBranchId === 'taller') return '🔧 Taller';
+  if (trip.destinationBranchId === 'otro') return `📍 ${trip.customDestName || 'Otro'}`;
+  return branches?.find(b => b.id === trip.destinationBranchId)?.name || trip.destinationBranchId || '—';
+};
 
 const DEFAULT_CONFIG = {
   fuelPrice: 0.5,
   discordWebhookGeneral: '',
+  discordWebhookMaintenance: '',
   discordWebhookByVehicle: {},
+  discordWebhookMaintByVehicle: {},
 };
 
 // ============================================================
@@ -325,6 +351,142 @@ function InstallAppButton() {
   );
 }
 
+// ============================================================
+// DASHBOARD TV — pantalla para oficina/sala de despacho
+// URL: ?tv=1  (sin login, se refresca cada 30 seg)
+// ============================================================
+function TVDashboard({ vehicles, activeTrips, trips, drivers, branches }) {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
+
+  const fmt = (d) => new Date(d).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+  const fmtDate = (d) => new Date(d).toLocaleDateString('es-VE', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const viajesHoy = trips.filter(t => {
+    const hoy = new Date(); const td = new Date(t.startTime);
+    return td.getDate() === hoy.getDate() && td.getMonth() === hoy.getMonth() && td.getFullYear() === hoy.getFullYear();
+  });
+
+  const statusColor = (s) => {
+    if (s === 'EN RUTA') return 'bg-emerald-500';
+    if (s === 'EN TALLER') return 'bg-amber-500';
+    return 'bg-stone-600';
+  };
+  const statusLabel = (s) => {
+    if (s === 'EN RUTA') return '🟢 EN RUTA';
+    if (s === 'EN TALLER') return '🔧 EN TALLER';
+    return '⚪ AL DÍA';
+  };
+
+  return (
+    <div className="min-h-screen bg-stone-950 text-white p-4 font-sans">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6 border-b border-stone-800 pb-4">
+        <div className="flex items-center gap-3">
+          <img src={LOGO_TRUCK} alt="" className="w-14 h-auto" />
+          <div>
+            <div className="text-2xl font-black tracking-tight">Transporte <span className="text-emerald-400">Emporium</span></div>
+            <div className="text-stone-400 text-sm capitalize">{fmtDate(now)}</div>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-4xl font-mono font-bold text-emerald-400">{now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}</div>
+          <div className="text-stone-500 text-xs mt-1">Actualización automática cada 30 seg</div>
+        </div>
+      </div>
+
+      {/* Resumen rápido */}
+      <div className="grid grid-cols-4 gap-3 mb-6">
+        {[
+          { label: 'Flota total', value: vehicles.length, icon: '🚛', color: 'bg-stone-800' },
+          { label: 'En ruta', value: vehicles.filter(v=>v.status==='EN RUTA').length, icon: '🟢', color: 'bg-emerald-900' },
+          { label: 'En taller', value: vehicles.filter(v=>v.status==='EN TALLER').length, icon: '🔧', color: 'bg-amber-900' },
+          { label: 'Viajes hoy', value: viajesHoy.length, icon: '📦', color: 'bg-blue-900' },
+        ].map(c => (
+          <div key={c.label} className={`${c.color} rounded-2xl p-4 text-center`}>
+            <div className="text-3xl mb-1">{c.icon}</div>
+            <div className="text-4xl font-black">{c.value}</div>
+            <div className="text-stone-300 text-sm mt-1">{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tarjetas de vehículos */}
+      <div className="grid grid-cols-5 gap-3 mb-6">
+        {vehicles.map(v => {
+          const tripActivo = activeTrips.find(t => t.vehicleId === v.id);
+          const chofer = tripActivo ? drivers.find(d => d.id === tripActivo.driverId) : null;
+          const destino = tripActivo ? (branches.find(b => b.id === tripActivo.destinationId)?.name || tripActivo.destination || '—') : null;
+          return (
+            <div key={v.id} className={`rounded-2xl p-4 border-2 ${v.status === 'EN RUTA' ? 'border-emerald-500 bg-emerald-950' : v.status === 'EN TALLER' ? 'border-amber-500 bg-amber-950' : 'border-stone-700 bg-stone-900'}`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-black text-lg">{v.code}</div>
+                <span className={`text-xs px-2 py-1 rounded-full font-bold ${statusColor(v.status)}`}>
+                  {v.status === 'EN RUTA' ? '● RUTA' : v.status === 'EN TALLER' ? '● TALLER' : '● LIBRE'}
+                </span>
+              </div>
+              <div className="text-stone-400 text-xs mb-2">{v.plate}</div>
+              {tripActivo ? (
+                <div className="text-xs space-y-1">
+                  <div className="text-emerald-300 font-bold">🚛 {chofer?.name || '—'}</div>
+                  <div className="text-stone-300">📍 → {destino}</div>
+                  <div className="text-stone-500">⏱ Sale: {fmt(tripActivo.startTime)}</div>
+                </div>
+              ) : v.status === 'EN TALLER' ? (
+                <div className="text-amber-300 text-xs font-bold">🔧 En mantenimiento</div>
+              ) : (
+                <div className="text-stone-500 text-xs">Disponible</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Últimos viajes del día */}
+      {viajesHoy.length > 0 && (
+        <div className="bg-stone-900 rounded-2xl p-4">
+          <div className="font-bold text-stone-300 mb-3 text-sm uppercase tracking-wider">📋 Viajes de hoy ({viajesHoy.length})</div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-stone-500 text-xs border-b border-stone-800">
+                  <th className="text-left pb-2">Camión</th><th className="text-left pb-2">Chofer</th>
+                  <th className="text-left pb-2">Destino</th><th className="text-left pb-2">Salida</th>
+                  <th className="text-left pb-2">Llegada</th><th className="text-left pb-2">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {viajesHoy.slice(-10).reverse().map(t => {
+                  const v2 = vehicles.find(v=>v.id===t.vehicleId);
+                  const ch = drivers.find(d=>d.id===t.driverId);
+                  const dest = branches.find(b=>b.id===t.destinationId)?.name || t.destination || '—';
+                  return (
+                    <tr key={t.id} className="border-b border-stone-800/50 hover:bg-stone-800/30">
+                      <td className="py-2 font-bold">{v2?.code||'—'}</td>
+                      <td className="py-2 text-stone-300">{ch?.name||'—'}</td>
+                      <td className="py-2 text-stone-300">{dest}</td>
+                      <td className="py-2 text-stone-400">{fmt(t.startTime)}</td>
+                      <td className="py-2 text-stone-400">{t.endTime ? fmt(t.endTime) : <span className="text-emerald-400">En curso</span>}</td>
+                      <td className="py-2"><span className={`text-xs px-2 py-0.5 rounded-full ${t.endTime ? 'bg-stone-700 text-stone-300' : 'bg-emerald-700 text-emerald-100'}`}>{t.endTime ? 'Completado' : 'En ruta'}</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="text-center text-stone-700 text-xs mt-4">
+        Transporte Emporium · Sistema de control de flota · flota-emporium.vercel.app?tv=1
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [view, setView] = useState('welcome');
   const [currentUser, setCurrentUser] = useState(null);
@@ -334,9 +496,18 @@ export default function App() {
   const [trips, setTrips] = useState([]);
   const [activeTrips, setActiveTrips] = useState([]);
   const [archivedMonths, setArchivedMonths] = useState([]);
+  const [handoffs, setHandoffs] = useState([]);
+  const [endShifts, setEndShifts] = useState([]);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [syncMsg, setSyncMsg] = useState(null);
   const [photos, setPhotos] = useState([]);
   const [gpsTracks, setGpsTracks] = useState([]);
   const [checklists, setChecklists] = useState([]);
+  const [maintRecords, setMaintRecords] = useState([]);
+  const [incidents, setIncidents] = useState([]);
+  const [fuelRecords, setFuelRecords] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
 
@@ -344,79 +515,177 @@ export default function App() {
     const load = async () => {
       try {
         const reads = await Promise.all([
-          window.storage.get(KEYS.VEHICLES).catch(() => null),
-          window.storage.get(KEYS.DRIVERS).catch(() => null),
-          window.storage.get(KEYS.BRANCHES).catch(() => null),
-          window.storage.get(KEYS.TRIPS).catch(() => null),
-          window.storage.get(KEYS.ACTIVE_TRIPS).catch(() => null),
-          window.storage.get(KEYS.ARCHIVED_MONTHS).catch(() => null),
-          window.storage.get(KEYS.CONFIG).catch(() => null),
-          window.storage.get(KEYS.PHOTOS).catch(() => null),
-          window.storage.get(KEYS.GPS_TRACKS).catch(() => null),
+          loadFromStorage(KEYS.VEHICLES),
+          loadFromStorage(KEYS.DRIVERS),
+          loadFromStorage(KEYS.BRANCHES),
+          loadFromStorage(KEYS.TRIPS),
+          loadFromStorage(KEYS.ACTIVE_TRIPS),
+          loadFromStorage(KEYS.ARCHIVED_MONTHS),
+          loadFromStorage(KEYS.CONFIG),
+          Promise.resolve(null),
+          Promise.resolve(null),
+          loadFromStorage(KEYS.HANDOFFS),
         ]);
-        if (reads[0]?.value) setVehicles(JSON.parse(reads[0].value));
-        if (reads[1]?.value) setDrivers(JSON.parse(reads[1].value));
-        if (reads[2]?.value) setBranches(JSON.parse(reads[2].value));
-        if (reads[3]?.value) setTrips(JSON.parse(reads[3].value));
-        if (reads[4]?.value) setActiveTrips(JSON.parse(reads[4].value));
-        if (reads[5]?.value) setArchivedMonths(JSON.parse(reads[5].value));
-        if (reads[6]?.value) setConfig(JSON.parse(reads[6].value));
-        if (reads[7]?.value) setPhotos(JSON.parse(reads[7].value));
-        if (reads[8]?.value) setGpsTracks(JSON.parse(reads[8].value));
+        const savedCfg = reads[6] ? { ...DEFAULT_CONFIG, ...reads[6] } : DEFAULT_CONFIG;
+        if (reads[0]) {
+          // Webhook del código (INITIAL_VEHICLES) tiene prioridad — nunca se borra
+          setVehicles(reads[0].map(v => {
+            const initial = INITIAL_VEHICLES.find(iv => iv.id === v.id);
+            return { ...v, maintenanceWebhook: initial?.maintenanceWebhook || v.maintenanceWebhook || '' };
+          }));
+        }
+        if (reads[1]) setDrivers(reads[1]);
+        if (reads[2]) setBranches(reads[2]);
+        if (reads[3]) setTrips(reads[3]);
+        if (reads[4]) setActiveTrips(reads[4]);
+        if (reads[5]) setArchivedMonths(reads[5]);
+        if (reads[6]) setConfig(savedCfg);
+        if (reads[7]) setPhotos(reads[7]);
+        if (reads[8]) setGpsTracks(reads[8]);
+        if (reads[9]) setHandoffs(reads[9]);
+        const esLocal = null;
+        if (esLocal?.value) setEndShifts(JSON.parse(esLocal.value));
         // Cargar checklists desde SUPABASE (sincronizados entre todos los dispositivos)
         const sbData = await loadSBChecklists();
         if (sbData !== null) {
           setChecklists(sbData);
         } else {
-          const local = await window.storage.get(KEYS.CHECKLISTS).catch(() => null);
+          const local = null;
           if (local?.value) setChecklists(JSON.parse(local.value));
         }
+        // Cargar registros de mantenimiento desde storage
+        const mrLocal = null;
+        if (mrLocal?.value) setMaintRecords(JSON.parse(mrLocal.value));
+        const incLocal = null;
+        if (incLocal?.value) setIncidents(JSON.parse(incLocal.value));
+        const frLocal = null;
+        if (frLocal?.value) setFuelRecords(JSON.parse(frLocal.value));
+        const apLocal = null;
+        if (apLocal?.value) setAppointments(JSON.parse(apLocal.value));
       } catch (e) {}
       setLoading(false);
     };
     load();
   }, []);
 
-  const persist = async (key, data) => { try { await window.storage.set(key, JSON.stringify(data)); } catch (e) {} };
+  // ── Offline-first storage ──────────────────────────────────────────
+  const persist = (key, data) => {
+    const serialized = JSON.stringify(data);
+    try { localStorage.setItem(key, serialized); } catch (e) {}
+  };
+
+  const loadFromStorage = (key) => {
+    try {
+      const local = localStorage.getItem(key);
+      return local ? JSON.parse(local) : null;
+    } catch (e) { return null; }
+  };
+
+  const syncPendingData = async () => {
+    // Sync datos al cloud storage
+    try {
+      const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+      if (pending.length) {
+        let synced = 0;
+        for (const key of [...pending]) {
+          const data = localStorage.getItem(key);
+          if (data) {
+            synced++;
+          }
+        }
+        if (synced > 0) {
+          const remaining = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+          localStorage.setItem(KEYS.PENDING, JSON.stringify(remaining.slice(synced)));
+        }
+      }
+    } catch (e) {}
+
+    // Subir fotos pendientes de IndexedDB
+    try {
+      const photoQueue = await idbGetAll();
+      for (const item of photoQueue) {
+        try {
+          if (item.type === 'discord') {
+            const blob = base64ToBlob(item.photoData);
+            const fd = new FormData();
+            fd.append('files[0]', blob, item.filename || 'photo.jpg');
+            if (item.embed) {
+              fd.append('payload_json', JSON.stringify({ embeds: [item.embed] }));
+            } else {
+              fd.append('payload_json', JSON.stringify({ content: item.content }));
+            }
+            const res = await fetch(item.webhookUrl, { method: 'POST', body: fd });
+            if (res.ok || res.status === 204) {
+              await idbDelete(item.id);
+            }
+          }
+        } catch(e) { break; } // Sin internet → parar
+      }
+    } catch(e) {}
+
+    // Enviar notificaciones Discord pendientes
+    try {
+      const queue = JSON.parse(localStorage.getItem(KEYS.DISC_QUEUE) || '[]');
+      if (!queue.length) return;
+      const failed = [];
+      for (const item of queue) {
+        try {
+          const res = await fetch(item.webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ embeds: [item.embed] }),
+          });
+          if (!res.ok) failed.push(item); // reintentar después
+        } catch (e) {
+          failed.push(item);
+          break; // sin internet, parar
+        }
+      }
+      localStorage.setItem(KEYS.DISC_QUEUE, JSON.stringify(failed));
+    } catch (e) {}
+  };
   const saveVehicles = (d) => { setVehicles(d); persist(KEYS.VEHICLES, d); };
   const saveDrivers = (d) => { setDrivers(d); persist(KEYS.DRIVERS, d); };
   const saveBranches = (d) => { setBranches(d); persist(KEYS.BRANCHES, d); };
   const saveTrips = (d) => { setTrips(d); persist(KEYS.TRIPS, d); };
-  const saveActiveTrips = (d) => {
-    setActiveTrips(d);
-    persist(KEYS.ACTIVE_TRIPS, d);
-    // Sync a Supabase solo cuando hay viajes activos nuevos — sin await, sin setState
-    if (d.length > 0) {
-      const last = d[d.length - 1];
-      const body = JSON.stringify({
-        id: last.id,
-        driver_id: last.driverId || '',
-        vehicle_id: last.vehicleId || '',
-        origin_branch_id: last.originBranchId || '',
-        destination_branch_id: last.destinationBranchId || '',
-        km_start: last.kmStart || 0,
-        start_time: last.startTime || '',
-        start_date: last.startDate || '',
-        fuel_loaded: last.fuelLoaded || 0,
-        custom_dest_name: last.customDestName || '',
-        custom_dest_type: last.customDestType || '',
-      });
-      fetch(SB_URL + '/rest/v1/active_trips', {
-        method: 'POST',
-        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
-        body,
-      }).catch(() => {});
-    } else {
-      fetch(SB_URL + '/rest/v1/active_trips', {
-        method: 'DELETE',
-        headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY },
-      }).catch(() => {});
-    }
-  };
+  const saveActiveTrips = (d) => { setActiveTrips(d); persist(KEYS.ACTIVE_TRIPS, d); };
   const saveArchived = (d) => { setArchivedMonths(d); persist(KEYS.ARCHIVED_MONTHS, d); };
   const saveConfig = (d) => { setConfig(d); persist(KEYS.CONFIG, d); };
   const savePhotos = (d) => { setPhotos(d); persist(KEYS.PHOTOS, d); };
-  const saveGpsTracks = (d) => { setGpsTracks(d); persist(KEYS.GPS_TRACKS, d); };
+  const saveGpsTracks = (d) => { setGpsTracks(d); try { localStorage.setItem(KEYS.GPS_TRACKS, JSON.stringify(d)); } catch(e) {} };
+  const saveHandoffs = async (d) => {
+    setHandoffs(d);
+    persist(KEYS.HANDOFFS, d);
+    // Sincronizar con Supabase — upsert de cada handoff
+    try {
+      for (const h of d) {
+        await sbFetch('handoffs', {
+          method: 'POST',
+          headers: { 'Prefer': 'resolution=merge-duplicates' },
+          body: JSON.stringify({
+            id: h.id,
+            vehicle_id: h.vehicleId,
+            vehicle_code: h.vehicleCode,
+            from_driver_id: h.fromDriverId,
+            from_driver_name: h.fromDriverName,
+            to_driver_id: h.toDriverId || '',
+            to_driver_name_expected: h.toDriverNameExpected || '',
+            km_at_handoff: h.kmAtHandoff || 0,
+            fuel_at_handoff: h.fuelAtHandoff || '',
+            notes: h.notes || '',
+            handoff_date: h.handoffDate || '',
+            handoff_time: h.handoffTime || '',
+            status: h.status || 'pending',
+          }),
+        });
+      }
+    } catch(e) {}
+  };
+  const saveEndShifts = (d) => { setEndShifts(d); persist(KEYS.END_SHIFTS, d); };
+  const saveMaintRecords = (d) => { setMaintRecords(d); persist(KEYS.MAINT_RECORDS, d); };
+  const saveIncidents = (d) => { setIncidents(d); persist(KEYS.INCIDENTS, d); };
+  const saveFuelRecords = (d) => { setFuelRecords(d); persist(KEYS.FUEL_RECORDS, d); };
+  const saveAppointments = (d) => { setAppointments(d); persist(KEYS.APPOINTMENTS, d); };
   // saveChecklists: guarda LOCAL siempre + Supabase si está disponible
   const saveChecklists = async (d) => {
     setChecklists(d);
@@ -428,6 +697,28 @@ export default function App() {
   };
 
   // Refrescar checklists desde Supabase cada 30 segundos (para el coordinador)
+  // ── Detección online/offline + sync ────────────────────────────────
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      setSyncMsg('🔄 Reconectado — sincronizando...');
+      syncPendingData().then(() => {
+        const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+        setPendingSyncCount(pending.length);
+        setSyncMsg(null);
+      });
+    };
+    const handleOffline = () => { setIsOnline(false); setSyncMsg(null); };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    const pending = JSON.parse(localStorage.getItem(KEYS.PENDING) || '[]');
+    setPendingSyncCount(pending.length);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   useEffect(() => {
     const poll = async () => {
       const fresh = await loadSBChecklists();
@@ -437,35 +728,36 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Polling active_trips desde Supabase — SOLO para el coordinador
+  // Polling de handoffs desde Supabase cada 15s para sincronizar entre dispositivos
   useEffect(() => {
-    if (view !== 'coordinator') return;
-    const pollActiveTrips = async () => {
+    const pollHandoffs = async () => {
       try {
-        const data = await sbFetch('active_trips?select=*&limit=20');
-        if (Array.isArray(data)) {
+        const data = await sbFetch('handoffs?select=*&order=created_at.desc&limit=100');
+        if (Array.isArray(data) && data.length > 0) {
           const mapped = data.map(r => ({
             id: r.id,
-            driverId: r.driver_id || '',
-            vehicleId: r.vehicle_id || '',
-            originBranchId: r.origin_branch_id || '',
-            destinationBranchId: r.destination_branch_id || '',
-            kmStart: r.km_start || 0,
-            startTime: r.start_time || '',
-            startDate: r.start_date || '',
-            fuelLoaded: r.fuel_loaded || 0,
-            customDestName: r.custom_dest_name || '',
-            customDestType: r.custom_dest_type || '',
+            vehicleId: r.vehicle_id || r.vehicleId,
+            vehicleCode: r.vehicle_code || r.vehicleCode,
+            fromDriverId: r.from_driver_id || r.fromDriverId,
+            fromDriverName: r.from_driver_name || r.fromDriverName,
+            toDriverId: r.to_driver_id || r.toDriverId || '',
+            toDriverNameExpected: r.to_driver_name_expected || r.toDriverNameExpected || '',
+            kmAtHandoff: r.km_at_handoff || r.kmAtHandoff || 0,
+            fuelAtHandoff: r.fuel_at_handoff || r.fuelAtHandoff || '',
+            notes: r.notes || '',
+            handoffDate: r.handoff_date || r.handoffDate || '',
+            handoffTime: r.handoff_time || r.handoffTime || '',
+            status: r.status || 'pending',
           }));
-          setActiveTrips(mapped);
-          persist(KEYS.ACTIVE_TRIPS, mapped);
+          setHandoffs(mapped);
+          persist(KEYS.HANDOFFS, mapped);
         }
       } catch(e) {}
     };
-    pollActiveTrips();
-    const iv2 = setInterval(pollActiveTrips, 10000);
-    return () => clearInterval(iv2);
-  }, [view]);
+    pollHandoffs();
+    const iv = setInterval(pollHandoffs, 15000);
+    return () => clearInterval(iv);
+  }, []);
 
   const handleLogin = (role, user) => {
     setCurrentUser(user);
@@ -491,6 +783,12 @@ export default function App() {
   };
   const handleWelcomeOk = () => setView('login');
 
+  // Modo Dashboard TV: ?tv=1 en la URL
+  if (new URLSearchParams(window.location.search).get('tv') === '1') {
+    if (loading) return <div className="min-h-screen bg-stone-950 flex items-center justify-center text-white text-xl font-bold animate-pulse">📺 Cargando Dashboard TV...</div>;
+    return <TVDashboard vehicles={vehicles} activeTrips={activeTrips} trips={trips} drivers={drivers} branches={branches} />;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-[#1a1d1a] to-[#252726] flex items-center justify-center">
@@ -506,11 +804,31 @@ export default function App() {
     );
   }
 
-  if (view === 'welcome') return <><WelcomeScreen onOk={handleWelcomeOk} /><InstallAppButton /></>;
+  const OfflineBanner = () => (
+    <>
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-[999] bg-amber-500 text-white text-center text-xs py-1.5 font-bold shadow-lg">
+          📡 Sin conexión — datos guardados localmente, se sincronizarán al reconectar
+        </div>
+      )}
+      {isOnline && syncMsg && (
+        <div className="fixed top-0 left-0 right-0 z-[999] bg-blue-600 text-white text-center text-xs py-1.5 font-bold shadow-lg animate-pulse">
+          {syncMsg}
+        </div>
+      )}
+      {isOnline && !syncMsg && pendingSyncCount > 0 && (
+        <div className="fixed top-0 left-0 right-0 z-[999] bg-emerald-600 text-white text-center text-xs py-1.5 font-bold shadow-lg">
+          ✅ Sincronizado — {pendingSyncCount === 0 ? 'todo al día' : `${pendingSyncCount} cambios pendientes`}
+        </div>
+      )}
+    </>
+  );
+
+  if (view === 'welcome') return <><OfflineBanner /><WelcomeScreen onOk={handleWelcomeOk} /><InstallAppButton /></>;
   if (view === 'login') return <><LoginScreen drivers={drivers} onLogin={handleLogin} /><InstallAppButton /></>;
 
   if (view === 'driver') {
-    return <>
+    return <><OfflineBanner />
       <DriverApp
         currentDriver={currentUser} onLogout={handleLogout}
         vehicles={vehicles} drivers={drivers} branches={branches}
@@ -519,22 +837,38 @@ export default function App() {
         savePhotos={savePhotos} saveGpsTracks={saveGpsTracks}
         checklists={checklists} saveChecklists={saveChecklists}
         config={config}
+        handoffs={handoffs} saveHandoffs={saveHandoffs}
+        incidents={incidents} saveIncidents={saveIncidents}
+        fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords}
+        endShifts={endShifts} saveEndShifts={saveEndShifts}
+        appointments={appointments} saveAppointments={saveAppointments}
       />
       <InstallAppButton />
     </>;
   }
 
   if (view === 'coordinator') {
-    return <>
+    return <><OfflineBanner />
       <CoordinatorApp
         onLogout={handleLogout}
         vehicles={vehicles} drivers={drivers} branches={branches}
         trips={trips} activeTrips={activeTrips} archivedMonths={archivedMonths} photos={photos} gpsTracks={gpsTracks}
         config={config}
         checklists={checklists}
+        handoffs={handoffs}
+        maintRecords={maintRecords}
+        incidents={incidents}
+        fuelRecords={fuelRecords}
         saveVehicles={saveVehicles} saveDrivers={saveDrivers} saveBranches={saveBranches}
         saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} saveGpsTracks={saveGpsTracks}
-        saveArchived={saveArchived} saveConfig={saveConfig} savePhotos={savePhotos}
+        saveArchived={saveArchived} saveConfig={saveConfig} savePhotos={savePhotos} saveChecklists={saveChecklists}
+        saveMaintRecords={saveMaintRecords}
+        saveIncidents={saveIncidents}
+        saveFuelRecords={saveFuelRecords}
+        saveHandoffs={saveHandoffs}
+        endShifts={endShifts}
+        appointments={appointments}
+        saveAppointments={saveAppointments}
       />
       <InstallAppButton />
     </>;
@@ -554,9 +888,76 @@ function formatDuration(min) {
 }
 
 // Discord webhook - devuelve resultado detallado
+
+// ============================================================
+// INDEXEDDB — Cola de fotos offline
+// ============================================================
+const openPhotoDB = () => new Promise((resolve, reject) => {
+  const req = indexedDB.open('flotaPhotosDB', 1);
+  req.onupgradeneeded = e => {
+    const db = e.target.result;
+    if (!db.objectStoreNames.contains('photoQueue'))
+      db.createObjectStore('photoQueue', { keyPath: 'id', autoIncrement: true });
+  };
+  req.onsuccess = e => resolve(e.target.result);
+  req.onerror = () => reject(req.error);
+});
+const idbAdd = async (data) => {
+  try {
+    const db = await openPhotoDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('photoQueue', 'readwrite');
+      const req = tx.objectStore('photoQueue').add(data);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  } catch(e) {}
+};
+const idbGetAll = async () => {
+  try {
+    const db = await openPhotoDB();
+    return new Promise(resolve => {
+      const tx = db.transaction('photoQueue', 'readonly');
+      const req = tx.objectStore('photoQueue').getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    });
+  } catch(e) { return []; }
+};
+const idbDelete = async (id) => {
+  try {
+    const db = await openPhotoDB();
+    const tx = db.transaction('photoQueue', 'readwrite');
+    tx.objectStore('photoQueue').delete(id);
+  } catch(e) {}
+};
+const fileToBase64 = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
+const base64ToBlob = (base64) => {
+  const arr = base64.split(','), mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while(n--) u8arr[n] = bstr.charCodeAt(n);
+  return new Blob([u8arr], { type: mime });
+};
+
 async function sendDiscordNotification(webhookUrl, embed) {
   if (!webhookUrl || !webhookUrl.trim()) return { ok: false, error: 'Sin webhook configurado' };
   if (!webhookUrl.includes('discord.com/api/webhooks/')) return { ok: false, error: 'URL inválida (no parece de Discord)' };
+  // Si no hay internet → guardar en cola para enviar al reconectar
+  if (!navigator.onLine) {
+    try {
+      const queue = JSON.parse(localStorage.getItem('__emp:discordQueue') || '[]');
+      queue.push({ id: Date.now(), webhookUrl, embed, queuedAt: new Date().toISOString() });
+      localStorage.setItem('__emp:discordQueue', JSON.stringify(queue));
+    } catch(e) {}
+    return { ok: false, error: 'Sin conexión — notificación guardada para enviar luego' };
+  }
   try {
     const response = await fetch(webhookUrl, {
       method: 'POST',
@@ -567,7 +968,13 @@ async function sendDiscordNotification(webhookUrl, embed) {
     const text = await response.text().catch(() => '');
     return { ok: false, error: `HTTP ${response.status}: ${text.slice(0, 100) || 'sin detalle'}` };
   } catch (e) {
-    return { ok: false, error: e.message || 'Error de red' };
+    // Error de red → guardar en cola para enviar al reconectar
+    try {
+      const queue = JSON.parse(localStorage.getItem('__emp:discordQueue') || '[]');
+      queue.push({ id: Date.now(), webhookUrl, embed, queuedAt: new Date().toISOString() });
+      localStorage.setItem('__emp:discordQueue', JSON.stringify(queue));
+    } catch(e2) {}
+    return { ok: false, error: e.message || 'Error de red — guardado para reenvío' };
   }
 }
 
@@ -584,8 +991,27 @@ function WelcomeScreen({ onOk }) {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricRegistered, setBiometricRegistered] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
+  const [lockout, setLockout] = useState(0); // segundos restantes de bloqueo
 
+  // Verificar si ya autenticó en los últimos 30 días
   useEffect(() => {
+    const saved = localStorage.getItem('emp:access:ts');
+    if (saved && Date.now() - Number(saved) <  8 * 60 * 60 * 1000) {
+      onOk(); // ya autenticado, saltar pantalla
+    }
+  }, []);
+
+  // Contador de bloqueo
+  useEffect(() => {
+    if (lockout <= 0) return;
+    const t = setInterval(() => setLockout(l => { if (l <= 1) { clearInterval(t); return 0; } return l - 1; }), 1000);
+    return () => clearInterval(t);
+  }, [lockout > 0]);
+
+  // Verificar bloqueo activo al cargar
+  useEffect(() => {
+    const lockUntil = Number(localStorage.getItem('emp:lockout:until') || 0);
+    if (lockUntil > Date.now()) setLockout(Math.ceil((lockUntil - Date.now()) / 1000));
     const check = async () => {
       if (window.PublicKeyCredential) {
         const ok = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
@@ -597,15 +1023,25 @@ function WelcomeScreen({ onOk }) {
   }, []);
 
   const tryEnter = () => {
+    if (lockout > 0) return;
     if (password.toLowerCase().trim() === GLOBAL_PASSWORD) {
-     // 🔊 SALUDO al ingresar contraseña general correctamente
-        const greeting = getGreetingByTime();
-        setTimeout(() => {
-          speakText(`${greeting}. Bienvenido al Sistema de Control de Flota Emporium.`);
-        }, 300);
+      localStorage.setItem('emp:access:ts', String(Date.now()));
+      localStorage.removeItem('emp:login:attempts');
+      const greeting = getGreetingByTime();
+      setTimeout(() => speakText(`${greeting}. Bienvenido al Sistema de Control de Flota Emporium.`), 300);
       onOk();
     } else {
-      setError('Contraseña incorrecta');
+      const attempts = Number(localStorage.getItem('emp:login:attempts') || 0) + 1;
+      localStorage.setItem('emp:login:attempts', String(attempts));
+      if (attempts >= 5) {
+        const until = Date.now() + 2 * 60 * 1000;
+        localStorage.setItem('emp:lockout:until', String(until));
+        localStorage.setItem('emp:login:attempts', '0');
+        setLockout(120);
+        setError('Demasiados intentos. Espera 2 minutos.');
+      } else {
+        setError(`Contraseña incorrecta (${attempts}/5 intentos)`);
+      }
       setPassword('');
     }
   };
@@ -630,10 +1066,11 @@ function WelcomeScreen({ onOk }) {
       const credIdStr = localStorage.getItem('emp:biometric:credId');
       const credIdBytes = Uint8Array.from(atob(credIdStr), c => c.charCodeAt(0));
       await navigator.credentials.get({ publicKey: { challenge, rpId: location.hostname, allowCredentials: [{ type: 'public-key', id: credIdBytes }], userVerification: 'required', timeout: 30000 } });
+      localStorage.setItem('emp:access:ts', String(Date.now()));
       const greeting = getGreetingByTime();
       setTimeout(() => speakText(greeting + '. Bienvenido al Sistema de Control de Flota Emporium.'), 300);
       onOk();
-    } catch (e) { setError('Huella no reconocida. Usa tu contrasena.'); }
+    } catch (e) { setError('Huella no reconocida. Usa tu contraseña.'); }
     setBiometricLoading(false);
   };
 
@@ -694,10 +1131,16 @@ function WelcomeScreen({ onOk }) {
             </div>
           )}
 
-          {biometricAvailable && biometricRegistered && <button onClick={loginBiometric} disabled={biometricLoading} className="w-full py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2 mb-2">{biometricLoading ? 'Verificando...' : 'Entrar con huella'}</button>}
+          {lockout > 0 && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-3 py-2 mb-3 text-center font-medium">
+              🔒 Bloqueado — espera {Math.floor(lockout/60)}:{String(lockout%60).padStart(2,'0')}
+            </div>
+          )}
+
+          {biometricAvailable && biometricRegistered && <button onClick={loginBiometric} disabled={biometricLoading || lockout > 0} className="w-full py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2 mb-2 disabled:opacity-50">{biometricLoading ? 'Verificando...' : 'Entrar con huella'}</button>}
           {biometricAvailable && !biometricRegistered && <button onClick={registerBiometric} disabled={biometricLoading} className="w-full py-2 rounded-xl font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 flex items-center justify-center gap-2 mb-2">{biometricLoading ? 'Registrando...' : 'Activar huella dactilar'}</button>}
-          <button onClick={tryEnter} disabled={!password}
-            className={`w-full py-3.5 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2 ${password ? 'bg-emerald-600 hover:bg-emerald-700 shadow-lg active:scale-[0.98]' : 'bg-stone-300'}`}>
+          <button onClick={tryEnter} disabled={!password || lockout > 0}
+            className={`w-full py-3.5 rounded-xl font-bold text-white transition-all flex items-center justify-center gap-2 ${password && lockout === 0 ? 'bg-emerald-600 hover:bg-emerald-700 shadow-lg active:scale-[0.98]' : 'bg-stone-300'}`}>
             Entrar <ChevronRight className="w-5 h-5" />
           </button>
         </div>
@@ -719,6 +1162,26 @@ function LoginScreen({ drivers, onLogin }) {
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [logoTaps, setLogoTaps] = useState(0);
+  const [showCoordHint, setShowCoordHint] = useState(false);
+  const tapTimerRef = useRef(null);
+
+  const handleLogoTap = () => {
+    const next = logoTaps + 1;
+    setLogoTaps(next);
+    clearTimeout(tapTimerRef.current);
+    if (next >= 3) {
+      setLogoTaps(0);
+      setSelectedRole('coordinator');
+      setStep('pin');
+    } else {
+      setShowCoordHint(true);
+      tapTimerRef.current = setTimeout(() => {
+        setLogoTaps(0);
+        setShowCoordHint(false);
+      }, 1500);
+    }
+  };
 
   const handlePinSubmit = () => {
     if (selectedRole === 'coordinator') {
@@ -782,10 +1245,18 @@ function LoginScreen({ drivers, onLogin }) {
       <div className="absolute bottom-0 left-0 w-96 h-96 rounded-full opacity-20 blur-3xl" style={{ background: '#f59e0b' }}></div>
 
       <div className="w-full max-w-md relative z-10">
-        {/* Logo y nombre */}
+        {/* Logo y nombre — 3 toques = acceso coordinador */}
         <div className="text-center mb-6">
-          <div className="bg-white rounded-3xl p-5 shadow-xl mb-4 inline-block">
+          <div className="bg-white rounded-3xl p-5 shadow-xl mb-4 inline-block cursor-pointer select-none relative"
+            onClick={handleLogoTap}>
             <img src={LOGO_TRUCK} alt="Transporte Emporium" className="w-44 h-auto mx-auto" />
+            {showCoordHint && (
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                {[1,2,3].map(i => (
+                  <div key={i} className={`w-2 h-2 rounded-full transition-all ${i <= logoTaps ? 'bg-emerald-600' : 'bg-stone-300'}`} />
+                ))}
+              </div>
+            )}
           </div>
           <h1 className="text-4xl font-black tracking-tight leading-none" style={{ letterSpacing: '-0.03em', color: '#047857' }}>
             Transporte
@@ -796,27 +1267,9 @@ function LoginScreen({ drivers, onLogin }) {
           <p className="text-stone-700 text-sm mt-2 font-semibold">¿Quién está usando la app?</p>
         </div>
 
-        {/* Tarjeta principal */}
+        {/* Tarjeta principal — solo choferes */}
         <div className="bg-white rounded-3xl p-5 shadow-2xl">
-          <div className="mb-5">
-            <h2 className="font-bold text-stone-700 mb-3 text-sm flex items-center gap-2">
-              <div className="w-1.5 h-5 bg-emerald-600 rounded-full"></div>
-              Coordinador
-            </h2>
-            <button onClick={() => { setSelectedRole('coordinator'); setStep('pin'); }}
-              className="w-full bg-gradient-to-br from-emerald-50 to-emerald-100 hover:from-emerald-100 hover:to-emerald-200 border-2 border-emerald-200 rounded-2xl p-4 flex items-center gap-3 transition-all hover:scale-[1.01] group">
-              <div className="bg-emerald-600 w-12 h-12 rounded-xl flex items-center justify-center shadow-lg">
-                <BarChart3 className="w-6 h-6 text-white" strokeWidth={2.5} />
-              </div>
-              <div className="text-left flex-1">
-                <div className="font-bold text-stone-900">José Marín</div>
-                <div className="text-xs text-stone-600">Coordinador de Transporte</div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-emerald-700 group-hover:translate-x-1 transition-all" />
-            </button>
-          </div>
-
-          <div className="border-t border-stone-200 pt-4">
+          <div>
             <h2 className="font-bold text-stone-700 mb-3 text-sm flex items-center gap-2">
               <div className="w-1.5 h-5 bg-amber-500 rounded-full"></div>
               Choferes
@@ -927,11 +1380,13 @@ function LeafletMap({ markers = [], polylines = [], height = '400px', center = [
         });
         L.marker([m.lat, m.lng], { icon }).addTo(map);
       } else if (m.type === 'vehicle') {
+        const speedColor = m.speed > 100 ? '#ef4444' : m.speed > 80 ? '#f59e0b' : m.color;
+        const speedBadge = m.speed > 0 ? `<div style="background:${speedColor};color:white;font-size:10px;padding:1px 5px;border-radius:10px;margin-top:2px;text-align:center;">${Math.round(m.speed)} km/h${m.speed > 80 ? ' ⚠️' : ''}</div>` : '';
         const icon = L.divIcon({
           className: 'custom-marker',
-          html: `<div style="background:${m.color}; color:white; padding:8px 12px; border-radius:50px; font-size:13px; font-weight:900; box-shadow:0 4px 16px ${m.color}80; border:2px solid white; animation:pulse-marker 2s infinite;">🚛 ${m.code}</div>`,
-          iconSize: [100, 36],
-          iconAnchor: [50, 18],
+          html: `<div style="background:${m.color}; color:white; padding:6px 10px; border-radius:50px; font-size:13px; font-weight:900; box-shadow:0 4px 16px ${m.color}80; border:2px solid ${m.speed > 80 ? '#ef4444' : 'white'}; animation:pulse-marker 2s infinite; text-align:center;">🚛 ${m.code}${speedBadge}</div>`,
+          iconSize: [110, m.speed > 0 ? 52 : 36],
+          iconAnchor: [55, m.speed > 0 ? 26 : 18],
         });
         const marker = L.marker([m.lat, m.lng], { icon }).addTo(map);
         if (m.popup) marker.bindPopup(m.popup);
@@ -982,15 +1437,240 @@ function LeafletMap({ markers = [], polylines = [], height = '400px', center = [
 // ============================================================
 // APP DEL CHOFER
 // ============================================================
-function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config }) {
+// ============================================================
+// TAB SURTIR — Registro de combustible por el chofer
+// ============================================================
+function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords, config }) {
+  const [selectedVehicleId, setSelectedVehicleId] = useState('');
+  const [liters, setLiters] = useState('');
+  const [tankLevel, setTankLevel] = useState('');
+  const [photo, setPhoto] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const pricePerLiter = config?.fuelPrice || 0.5;
+
+  const selectedV = vehicles.find(v => v.id === selectedVehicleId);
+  const isL300 = selectedV?.type === 'L300' || selectedV?.code?.includes('L300') || selectedV?.plate === 'A15BP7M';
+  const totalCost = (Number(liters)||0) * pricePerLiter;
+
+  // Última carga de este camión
+  const lastLoad = selectedVehicleId ? fuelRecords.filter(r => r.vehicleId === selectedVehicleId).sort((a,b) => b.createdAt - a.createdAt)[0] : null;
+  const kmSinceLastLoad = lastLoad && selectedV ? (selectedV.currentKm || 0) - (lastLoad.km || 0) : null;
+  const realConsumption = lastLoad && kmSinceLastLoad > 0 ? ((lastLoad.liters / kmSinceLastLoad) * 100).toFixed(1) : null;
+
+  const handleRegister = async (litrosVal) => {
+    if (!selectedVehicleId || !litrosVal) return;
+    setSaving(true);
+    const rec = {
+      id: `fr_${Date.now()}`,
+      vehicleId: selectedVehicleId,
+      vehicleCode: selectedV?.code || '',
+      vehiclePlate: selectedV?.plate || '',
+      driverId: currentDriver.id,
+      driverName: currentDriver.name,
+      date: new Date().toISOString().slice(0, 10),
+      time: new Date().toTimeString().slice(0, 5),
+      km: selectedV?.currentKm || 0,
+      liters: Number(litrosVal),
+      tankLevelBefore: tankLevel,
+      pricePerLiter,
+      createdAt: Date.now(),
+      notes: isL300 ? 'Bomba gasolinera' : 'Tanque Palma Real',
+    };
+    saveFuelRecords([rec, ...fuelRecords]);
+
+    // Discord → canal mantenimiento del camión
+    const wh = getMaintWebhook(selectedVehicleId, vehicles, config);
+    if (wh) {
+      await sendDiscordNotification(wh, {
+        title: `⛽ CARGA COMBUSTIBLE · ${selectedV?.code}`,
+        description: `**${currentDriver.name}** registró una carga de combustible`,
+        color: 0xf59e0b,
+        fields: [
+          { name: '⛽ Litros', value: `${litrosVal} L`, inline: true },
+          { name: '💵 Costo', value: `$${(Number(litrosVal)*pricePerLiter).toFixed(2)}`, inline: true },
+          { name: '📊 KM', value: (selectedV?.currentKm||0).toLocaleString(), inline: true },
+          { name: '🕐 Hora', value: rec.time, inline: true },
+          { name: '📅 Fecha', value: rec.date, inline: true },
+          { name: '⛽ Tipo', value: isL300 ? 'Bomba gasolinera' : 'Tanque Palma Real', inline: true },
+          ...(tankLevel ? [{ name: '🪣 Nivel antes de surtir', value: tankLevel, inline: true }] : []),
+          ...(kmSinceLastLoad > 0 ? [{ name: '🛣️ KM desde última carga', value: `${kmSinceLastLoad.toLocaleString()} km`, inline: true }] : []),
+          ...(realConsumption ? [{ name: '📈 Consumo real', value: `${realConsumption} L/100km`, inline: true }] : []),
+        ],
+        footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
+      });
+      // Foto si la hay
+      if (photo && wh) {
+        try {
+          const fd = new FormData();
+          fd.append('files[0]', photo);
+          fd.append('payload_json', JSON.stringify({ content: `📸 Ticket/Máquina · ${selectedV?.code} · ${rec.date}` }));
+          await fetch(wh, { method: 'POST', body: fd });
+        } catch(e) {}
+      }
+    }
+
+    setSaving(false);
+    setSaved(true);
+    setLiters('');
+    setTankLevel('');
+    setPhoto(null);
+    setTimeout(() => setSaved(false), 4000);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="bg-amber-500 w-10 h-10 rounded-xl flex items-center justify-center shadow">
+            <Fuel className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <div className="font-black text-stone-900">Registro de combustible</div>
+            <div className="text-xs text-stone-500">Registra cuánto surtiste hoy</div>
+          </div>
+        </div>
+
+        {saved && (
+          <div className="bg-emerald-50 border border-emerald-300 rounded-xl px-4 py-3 text-sm font-bold text-emerald-700 flex items-center gap-2 mb-4">
+            <CheckCircle className="w-4 h-4" /> ¡Carga registrada y enviada a Discord!
+          </div>
+        )}
+
+        {/* Seleccionar camión */}
+        <div className="mb-4">
+          <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">¿Qué camión surtiste?</label>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+            {vehicles.map(v => (
+              <button key={v.id} onClick={() => { setSelectedVehicleId(v.id); setLiters(''); }}
+                className={`p-3 rounded-xl border-2 text-xs font-bold transition ${selectedVehicleId===v.id ? 'border-amber-400 bg-amber-100 text-amber-900' : 'border-stone-200 text-stone-600 bg-white hover:border-amber-300'}`}>
+                <div className="font-black">{v.code}</div>
+                <div className="font-normal text-stone-400">{v.plate}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Última carga info */}
+        {selectedV && lastLoad && (
+          <div className="bg-white rounded-xl border border-stone-200 px-3 py-2 mb-4 text-xs text-stone-600">
+            <span className="font-bold">Última carga:</span> {lastLoad.date} · {lastLoad.liters}L · KM {(lastLoad.km||0).toLocaleString()}
+            {kmSinceLastLoad > 0 && <span className="ml-2 text-amber-700 font-bold">· {kmSinceLastLoad.toLocaleString()} km recorridos</span>}
+            {realConsumption && <span className="ml-2 text-emerald-700 font-bold">· {realConsumption} L/100km real</span>}
+          </div>
+        )}
+
+        {/* Nivel del tanque antes de surtir */}
+        {selectedVehicleId && (
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">¿Cuánto tenía antes de surtir?</label>
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { id: 'vacio',       emoji: '🔴', label: 'Vacío', desc: '~0L'  },
+                { id: 'cuarto',      emoji: '🟡', label: '1/4',   desc: '~25%' },
+                { id: 'mitad',       emoji: '🟠', label: '1/2',   desc: '~50%' },
+                { id: 'tres_cuartos',emoji: '🟢', label: '3/4',   desc: '~75%' },
+              ].map(opt => (
+                <button key={opt.id} onClick={() => setTankLevel(opt.label)}
+                  className={`flex flex-col items-center py-3 rounded-xl border-2 transition ${tankLevel===opt.label?'border-amber-400 bg-amber-100':'border-stone-200 bg-white hover:border-amber-300'}`}>
+                  <span className="text-xl">{opt.emoji}</span>
+                  <span className="text-xs font-black text-stone-900 mt-0.5">{opt.label}</span>
+                  <span className="text-[10px] text-stone-400">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Litros */}
+        {selectedVehicleId && (
+          <div className="space-y-3">
+            {isL300 ? (
+              <>
+                <button onClick={() => handleRegister(30)} disabled={saving}
+                  className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-black py-5 rounded-xl text-lg transition shadow-lg shadow-amber-500/30 flex items-center justify-center gap-2">
+                  {saving ? '⏳ Registrando...' : <><Fuel className="w-6 h-6" /> 30 litros — $15.00</>}
+                </button>
+                <div className="text-center text-xs text-stone-400">Carga fija · Bomba gasolinera</div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">Litros (dato de la máquina)</label>
+                  <input type="number" value={liters} onChange={e => setLiters(e.target.value)}
+                    placeholder="Ej: 85" className="w-full border-2 border-stone-200 rounded-xl px-4 py-4 text-3xl font-black text-center focus:border-amber-400 focus:outline-none" />
+                </div>
+                {liters > 0 && (
+                  <div className="text-center text-sm font-mono bg-white rounded-xl border border-stone-200 py-2">
+                    {liters} L × ${pricePerLiter.toFixed(2)} = <span className="font-black text-amber-700 text-base">${(Number(liters)*pricePerLiter).toFixed(2)}</span>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Foto */}
+            <div>
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">📸 Foto del ticket / máquina (opcional)</label>
+              <input type="file" accept="image/*" capture="environment" id="fuelPhoto"
+                onChange={e => setPhoto(e.target.files[0])} className="hidden" />
+              <label htmlFor="fuelPhoto"
+                className={`flex items-center justify-center gap-2 py-3 px-4 border-2 border-dashed rounded-xl cursor-pointer text-sm font-medium transition w-full ${photo ? 'border-emerald-400 bg-emerald-50 text-emerald-700' : 'border-stone-300 bg-white text-stone-500 hover:border-amber-400'}`}>
+                <Camera className="w-4 h-4" />
+                {photo ? `✅ ${photo.name || 'Foto lista'}` : 'Tomar foto del ticket'}
+              </label>
+            </div>
+
+            {/* Botón registrar (NPR/FUSO) */}
+            {!isL300 && (
+              <button onClick={() => handleRegister(liters)} disabled={!liters || saving}
+                className={`w-full font-black py-4 rounded-xl text-base transition flex items-center justify-center gap-2 ${liters && !saving ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/30' : 'bg-stone-100 text-stone-400'}`}>
+                {saving ? '⏳ Registrando...' : `⛽ Registrar ${liters ? liters+'L' : ''}`}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Historial reciente */}
+      {fuelRecords.filter(r => r.driverId === currentDriver.id).length > 0 && (
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 text-xs font-bold text-stone-600 uppercase tracking-wider">
+            Mis últimas cargas
+          </div>
+          <div className="divide-y divide-stone-100">
+            {fuelRecords.filter(r => r.driverId === currentDriver.id).slice(0,5).map(r => (
+              <div key={r.id} className="px-4 py-3 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-stone-900 text-sm">{r.vehicleCode} · {r.liters}L</div>
+                  <div className="text-xs text-stone-400 font-mono">{r.date} · KM {(r.km||0).toLocaleString()}</div>
+                </div>
+                <div className="font-bold text-amber-600 text-sm">${(r.liters * r.pricePerLiter).toFixed(2)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents, fuelRecords = [], saveFuelRecords, endShifts = [], saveEndShifts, appointments = [], saveAppointments }) {
   const [tab, setTab] = useState('trip');
+  const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [step, setStep] = useState('select');
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [currentTrip, setCurrentTrip] = useState(null);
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [currentPosition, setCurrentPosition] = useState(null);
   const watchIdRef = useRef(null);
+  const [showEntregarModal, setShowEntregarModal] = useState(false);
+  const [checklistKm, setChecklistKm] = useState(() => {
+    const saved = localStorage.getItem('emp:checklistKm_' + (selectedVehicle?.id || ''));
+    return saved ? Number(saved) : null;
+  });
+  const [showEndShiftForm, setShowEndShiftForm] = useState(false);
+  const [endShiftTripData, setEndShiftTripData] = useState(null);
 
+  // Al seleccionar vehículo, detectar si está EN TALLER
   const myTrips = useMemo(() => trips.filter(t => t.driverId === currentDriver.id), [trips, currentDriver]);
   const myActiveTrips = useMemo(() => activeTrips.filter(t => t.driverId === currentDriver.id), [activeTrips, currentDriver]);
   const myPhotos = useMemo(() => photos.filter(p => p.driverId === currentDriver.id), [photos, currentDriver]);
@@ -998,7 +1678,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   useEffect(() => {
     if (selectedVehicle) {
       const active = myActiveTrips.find(t => t.vehicleId === selectedVehicle.id);
-      if (active) { setCurrentTrip(active); setStep('active'); }
+      if (active && step === 'select') { setCurrentTrip(active); setStep('active'); }
     }
   }, [selectedVehicle, myActiveTrips]);
 
@@ -1036,27 +1716,40 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         const point = { lat: pos.coords.latitude, lng: pos.coords.longitude, t: Date.now(), speed: speedKmh, accuracy: pos.coords.accuracy };
         setCurrentPosition(point);
 
-        // Alerta por exceso de velocidad (más de 100 km/h)
-        // Solo notificar a Discord 1 vez cada 60 segundos para no spamear
-        if (speedKmh > 100 && Date.now() - lastSpeedAlertRef.current > 60000) {
+        // Alerta por exceso de velocidad
+        // Nivel 1: > 80 km/h → alerta amarilla cada 60 seg
+        // Nivel 2: > 100 km/h → alerta roja cada 60 seg
+        const speedLimit = 80;
+        const speedCritical = 100;
+        if (speedKmh > speedLimit && Date.now() - lastSpeedAlertRef.current > 60000) {
           lastSpeedAlertRef.current = Date.now();
           const v = vehicles.find(x => x.id === (selectedVehicle?.id || currentTrip?.vehicleId));
+          const isCritical = speedKmh > speedCritical;
           // 🔊 ALERTA DE VOZ al chofer
-          speakText('¡Atención! Estás superando el límite. Reduce la velocidad por tu seguridad.');
-          const webhookUrl = v ? config.discordWebhookByVehicle?.[v.id] : '';
+          if (isCritical) {
+            speakText('¡Peligro! Estás a más de cien kilómetros por hora. Reduce la velocidad inmediatamente.');
+          } else {
+            speakText('Atención. Estás superando el límite de velocidad. Reduce la velocidad.');
+          }
+          // 📲 Notificar Discord → canal MANTENIMIENTO del camión
+          const webhookUrl = v?.maintenanceWebhook || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
           if (webhookUrl) {
+            const origen = branches.find(b => b.id === currentTrip?.originBranchId);
+            const destino = branches.find(b => b.id === currentTrip?.destinationBranchId);
+            const ruta = origen && destino ? `${origen.name} → ${destino.name}` : 'En ruta';
             fetch(webhookUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 embeds: [{
-                  title: `🚨 EXCESO DE VELOCIDAD - ${v.code}`,
-                  description: `**${currentDriver.shortName}** está conduciendo a **${Math.round(speedKmh)} km/h** (límite 80).\n📍 Posición: ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`,
-                  color: 16711680, // Rojo
+                  title: `${isCritical ? '🚨🚨 VELOCIDAD CRÍTICA' : '⚠️ EXCESO DE VELOCIDAD'} — ${v?.code || ''}`,
+                  description: `**${currentDriver?.name}** va a **${Math.round(speedKmh)} km/h**\n⛽ Límite: ${speedLimit} km/h\n🗺️ ${ruta}\n📍 ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}`,
+                  color: isCritical ? 16711680 : 16776960,
                   timestamp: new Date().toISOString(),
+                  footer: { text: `Transporte Emporium · ${new Date().toLocaleTimeString('es-VE')}` }
                 }],
               }),
-            }).catch(e => console.warn('Discord alert error:', e));
+            }).catch(() => {});
           }
         }
 
@@ -1083,6 +1776,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   useEffect(() => () => stopGpsTracking(), []);
 
   const startTrip = async (data) => {
+    setChecklistKm(null); // limpiar para que el siguiente viaje use kmEnd del anterior
     const realNow = new Date();
     data = { ...data, startDate: realNow.toISOString().slice(0,10), startTime: realNow.toTimeString().slice(0,5) };
     // Calcular tiempo en sucursal de destino del viaje anterior
@@ -1102,9 +1796,12 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       originBranchId: data.originBranchId, destinationBranchId: data.destinationBranchId,
       kmStart: Number(data.kmStart), startTime: data.startTime, startDate: data.startDate,
       fuelLoaded: Number(data.fuelLoaded) || 0,
+      customDestName: data.customDestName || '',
+      customDestType: data.customDestType || '',
     };
     saveActiveTrips([...activeTrips, trip]);
     setCurrentTrip(trip);
+    localStorage.removeItem('emp:salio_bomba_' + trip.vehicleId);
     setStep('active');
 
     // Iniciar GPS
@@ -1128,16 +1825,19 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         setTimeout(() => speakText(`¡Buen viaje ${nombreCorto}! ${mensajeRandom}`), 600);
 
     // Notificación Discord
-    const origin = branches.find(b => b.id === data.originBranchId);
-    const dest = branches.find(b => b.id === data.destinationBranchId);
-    const webhookUrl = config.discordWebhookByVehicle?.[selectedVehicle.id] || config.discordWebhookGeneral;
+    const origin = branches.find(b => b.id === data.originBranchId) || (data.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : data.originBranchId === 'surtir' ? { id: 'surtir', name: '⛽ Surtir combustible' } : null);
+    const destName = resolveDestName(data, branches);
+    // Discord: viajes → canal viajes, otro-mant → canal mantenimiento
+    const webhookUrl = data.destinationBranchId === 'otro' && data.customDestType === 'mantenimiento'
+      ? (getMaintWebhook(selectedVehicle?.id, vehicles, config))
+      : (config.discordWebhookByVehicle?.[selectedVehicle.id] || config.discordWebhookGeneral);
     sendDiscordNotification(webhookUrl, {
       title: `🚛 VIAJE INICIADO · ${selectedVehicle.code}`,
-      description: `**${currentDriver.name}** salió de **${origin?.name}** rumbo a **${dest?.name}**`,
+      description: `**${currentDriver.name}** salió de **${origin?.name}** rumbo a **${destName}**`,
       color: 0x10b981,
       fields: [
         { name: '⏰ Hora', value: data.startTime, inline: true },
-        { name: '📊 KM', value: data.kmStart.toLocaleString(), inline: true },
+        { name: '📍 KM Salida', value: data.kmStart.toLocaleString(), inline: true },
         { name: '⛽ Surtido', value: data.fuelLoaded ? `${data.fuelLoaded} L` : 'Sin carga', inline: true },
 ...(data.tripNotes ? [{ name: '📝 Notas', value: data.tripNotes, inline: false }] : []),
       ],
@@ -1145,21 +1845,43 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     });
     if (data.tripPhotos?.length > 0 && webhookUrl) {
       for (const photo of data.tripPhotos) {
-        const fd = new FormData();
-        fd.append('files[0]', photo);
-        fd.append('payload_json', JSON.stringify({ content: `📸 Documento · ${selectedVehicle?.code} · ${currentDriver?.shortName || currentDriver?.name}` }));
-        await fetch(webhookUrl, { method: 'POST', body: fd }).catch(() => {});
+        const content = `📸 Documento · ${selectedVehicle?.code} · ${currentDriver?.shortName || currentDriver?.name}`;
+        if (!navigator.onLine) {
+          // Sin internet → guardar en IndexedDB para subir después
+          try {
+            const base64 = await fileToBase64(photo);
+            await idbAdd({ type: 'discord', webhookUrl, content, photoData: base64, filename: photo.name || 'photo.jpg', queuedAt: new Date().toISOString() });
+          } catch(e) {}
+        } else {
+          try {
+            const fd = new FormData();
+            fd.append('files[0]', photo);
+            fd.append('payload_json', JSON.stringify({ content }));
+            const res = await fetch(webhookUrl, { method: 'POST', body: fd });
+            if (!res.ok) {
+              // Fallo de red → guardar en cola
+              const base64 = await fileToBase64(photo);
+              await idbAdd({ type: 'discord', webhookUrl, content, photoData: base64, filename: photo.name || 'photo.jpg', queuedAt: new Date().toISOString() });
+            }
+          } catch(e) {
+            try {
+              const base64 = await fileToBase64(photo);
+              await idbAdd({ type: 'discord', webhookUrl, content, photoData: base64, filename: photo.name || 'photo.jpg', queuedAt: new Date().toISOString() });
+            } catch(e2) {}
+          }
+        }
       }
     }
   };
 
-  const finishTrip = (data) => {
+  const finishTrip = async (data) => {
     const realNow = new Date();
     data = { ...data, endDate: realNow.toISOString().slice(0,10), endTime: realNow.toTimeString().slice(0,5) };
     const v = vehicles.find(x => x.id === currentTrip.vehicleId);
     const kmTraveled = Math.max(0, Number(data.kmEnd) - currentTrip.kmStart);
     const liters = (kmTraveled * (v.litersPer100km || 21)) / 100;
     const cost = liters * config.fuelPrice;
+    const newFuelLevel = Math.max(0, Math.round(((v.fuelLevel || 0) - liters) * 100) / 100);
     const startMs = parseDateTime(currentTrip.startDate, currentTrip.startTime);
     const endMs = parseDateTime(data.endDate, data.endTime);
     const tripMinutes = Math.max(0, Math.round((endMs - startMs) / 60000));
@@ -1172,25 +1894,69 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const completed = {
       id: `t_${Date.now()}`, driverId: currentTrip.driverId, vehicleId: currentTrip.vehicleId,
       originBranchId: currentTrip.originBranchId, destinationBranchId: currentTrip.destinationBranchId,
+      customDestName: currentTrip.customDestName || '',
+      customDestType: currentTrip.customDestType || '',
       kmStart: currentTrip.kmStart, kmEnd: Number(data.kmEnd), kmTraveled,
       startDate: currentTrip.startDate, startTime: currentTrip.startTime,
       endDate: data.endDate, endTime: data.endTime, tripMinutes, timeAtBranchPrevMinutes: timeAtBranch,
       liters: Number(liters.toFixed(2)), fuelPrice: config.fuelPrice, cost: Number(cost.toFixed(2)),
       deliveries: Number(data.deliveries) || 0, tripsCount: Number(data.tripsCount) || 1,
       route: data.route || 'LOCAL', fuelLoaded: currentTrip.fuelLoaded || 0, notes: data.notes || '',
+      arrivalNotes: data.arrivalNotes || '',
       createdAt: Date.now(),
     };
 
     saveTrips([...trips, completed]);
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
-    if (Number(data.kmEnd) > v.currentKm) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, currentKm: Number(data.kmEnd) } : x));
+    const newKm = Number(data.kmEnd);
+    saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, ...(newKm > x.currentKm ? { currentKm: newKm } : {}), fuelLevel: newFuelLevel } : x));
+
+    // Verificar alertas de mantenimiento al actualizar KM
+    const SERV_DEF = [
+      { label: 'Aceite + Filtros', icon: '🛢️', lastKey: 'lastMaintKm',   freqKey: 'maintFreq',   def: 6000,  warn: 500  },
+      { label: 'Engrase',          icon: '⚙️', lastKey: 'lastGreaseKm',  freqKey: 'greaseFreq',  def: 3000,  warn: 500  },
+      { label: 'Frenos',           icon: '🛑', lastKey: 'lastBrakeKm',   freqKey: 'brakeFreq',   def: 15000, warn: 1000 },
+      { label: 'Refrigerante',     icon: '💧', lastKey: 'lastCoolantKm', freqKey: 'coolantFreq', def: 12000, warn: 1000 },
+      { label: 'Mant. Preventivo', icon: '🔧', lastKey: 'lastPrevKm',    freqKey: 'prevFreq',    def: 15000, warn: 1000 },
+    ];
+    const webhookMant = v?.maintenanceWebhook || config?.discordWebhookMaintenance;
+    if (webhookMant && newKm > 0) {
+      SERV_DEF.forEach(async s => {
+        const last = v[s.lastKey] || 0;
+        const freq = v[s.freqKey] || s.def;
+        const rem = last + freq - newKm;
+        const wasOk = last + freq - v.currentKm >= s.warn;
+        const nowAlert = rem < s.warn;
+        if (wasOk && nowAlert) {
+          try {
+            await sendDiscordNotification(webhookMant, {
+              title: `${s.icon} ALERTA MANTENIMIENTO · ${v.code}`,
+              description: rem < 0
+                ? `**${s.label}** está **VENCIDO** en ${v.code}`
+                : `**${s.label}** se vence pronto en ${v.code}`,
+              color: rem < 0 ? 0xef4444 : 0xf59e0b,
+              fields: [
+                { name: '🚛 Unidad', value: `${v.code} · ${v.plate}`, inline: true },
+                { name: '📍 KM Actual', value: newKm.toLocaleString(), inline: true },
+                { name: rem < 0 ? '⚠️ KM Pasado' : '⏰ KM Restantes', value: Math.abs(rem).toLocaleString(), inline: true },
+                { name: '🔧 Próximo servicio a', value: (last + freq).toLocaleString() + ' km', inline: true },
+              ],
+              footer: { text: `Transporte Emporium · ${new Date().toLocaleDateString('es-VE')}` },
+            });
+          } catch(e) {}
+        }
+      });
+    }
 
     // Asociar GPS track con el viaje completado
     saveGpsTracks(gpsTracks.map(g => g.tripId === currentTrip.id ? { ...g, tripId: completed.id, completed: true } : g));
 
     stopGpsTracking();
     setCurrentTrip(completed);
-    setStep('finish');
+    // Si el destino es bomba/surtir → mostrar pantalla de carga antes de la morada
+    const _esBomba = completed.destinationBranchId === 'surtir' ||
+      (completed.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(completed.customDestName || ''));
+    setStep(_esBomba ? 'surtir' : 'finish');
     // 🎙️ Voz al cerrar el viaje
         const mensajesCierre = [
           'Viaje completado.',
@@ -1207,24 +1973,44 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     playBeep();
 
     // Notificación Discord
-    const origin = branches.find(b => b.id === currentTrip.originBranchId);
-    const dest = branches.find(b => b.id === currentTrip.destinationBranchId);
-    const webhookUrl = config.discordWebhookByVehicle?.[v.id] || config.discordWebhookGeneral;
+    const origin = branches.find(b => b.id === currentTrip.originBranchId) || (currentTrip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : currentTrip.originBranchId === 'surtir' ? { id: 'surtir', name: '⛽ Surtir combustible' } : null);
+    const destName = resolveDestName(currentTrip, branches);
+    const webhookUrl = currentTrip.destinationBranchId === 'otro' && currentTrip.customDestType === 'mantenimiento'
+      ? (getMaintWebhook(v?.id, vehicles, config))
+      : (config.discordWebhookByVehicle?.[v?.id] || config.discordWebhookGeneral);
     sendDiscordNotification(webhookUrl, {
       title: `✅ VIAJE COMPLETADO · ${v.code}`,
-      description: `**${currentDriver.name}** llegó a **${dest?.name}** desde **${origin?.name}**`,
+      description: `**${currentDriver.name}** llegó a **${destName}** desde **${origin?.name}**`,
       color: 0x059669,
       fields: [
+        { name: '📍 KM Salida', value: currentTrip.kmStart.toLocaleString(), inline: true },
+        { name: '📍 KM Llegada', value: Number(data.kmEnd).toLocaleString(), inline: true },
         { name: '🛣️ KM Recorridos', value: `${kmTraveled} km`, inline: true },
         { name: '⏱️ Duración', value: formatDuration(tripMinutes), inline: true },
-        { name: '⛽ Combustible', value: `${liters.toFixed(2)} L`, inline: true },
+        { name: '⛽ Consumo viaje', value: `${liters.toFixed(2)} L`, inline: true },
+        { name: '🪣 Combustible restante', value: `${newFuelLevel.toFixed(1)} L`, inline: true },
         { name: '💵 Costo', value: `$${cost.toFixed(2)}`, inline: true },
         { name: '📦 Entregas', value: `${data.deliveries || 0}`, inline: true },
         { name: '🕐 Hora llegada', value: data.endTime, inline: true },
+        ...(data.arrivalNotes ? [{ name: '📝 Trabajo realizado', value: data.arrivalNotes, inline: false }] : []),
       ],
-      
       footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
     });
+    // Subir fotos de llegada (Otro destino) al mismo canal Discord
+    if (data.arrivalPhotos?.length > 0 && webhookUrl) {
+      for (const photo of data.arrivalPhotos) {
+        const content = `📸 Evidencia llegada · ${v?.code} · ${currentDriver?.shortName || currentDriver?.name} · ${currentTrip.customDestName || ''}`;
+        if (!navigator.onLine) {
+          try { const base64 = await fileToBase64(photo); await idbAdd({ type: 'discord', webhookUrl, content, photoData: base64, filename: photo.name || 'photo.jpg', queuedAt: new Date().toISOString() }); } catch(e) {}
+        } else {
+          try {
+            const fd = new FormData(); fd.append('files[0]', photo); fd.append('payload_json', JSON.stringify({ content }));
+            const res = await fetch(webhookUrl, { method: 'POST', body: fd });
+            if (!res.ok) { try { const base64 = await fileToBase64(photo); await idbAdd({ type: 'discord', webhookUrl, content, photoData: base64, filename: photo.name || 'photo.jpg', queuedAt: new Date().toISOString() }); } catch(e) {} }
+          } catch(e) { try { const base64 = await fileToBase64(photo); await idbAdd({ type: 'discord', webhookUrl, content, photoData: base64, filename: photo.name || 'photo.jpg', queuedAt: new Date().toISOString() }); } catch(e2) {} }
+        }
+      }
+    }
   };
 
   const cancelActiveTrip = () => {
@@ -1237,37 +2023,147 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setCurrentTrip(null);
     setStep('select');
   };
-  const newTrip = () => { setCurrentTrip(null); setStep('select'); };
+  const [tripFormKey, setTripFormKey] = useState(0);
+  const newTrip = () => { setCurrentTrip(null); setTripFormKey(k => k + 1); setStep('start'); }; // mantiene camión seleccionado
+  const handleWaitEnd = (tripId, waitMin) => {
+    if (!waitMin || waitMin <= 0) return;
+    const updated = trips.map(t => t.id === tripId ? { ...t, waitMinutes: waitMin } : t);
+    saveTrips(updated);
+  };
+  const handleEntregarUnidad = async (formData) => {
+    const vId = selectedVehicle?.id || currentTrip?.vehicleId;
+    const vCode = selectedVehicle?.code || vehicles.find(v => v.id === vId)?.code || '';
+    const now = new Date();
+    const handoffTime = now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+    const handoffDate = now.toISOString().slice(0, 10);
+    // Ubicación actual = destino del viaje en curso (donde está el vehículo ahora)
+    const locationBranchId = currentTrip?.destinationBranchId || null;
+    const handoff = {
+      id: `handoff_${Date.now()}`,
+      vehicleId: vId, vehicleCode: vCode,
+      fromDriverId: currentDriver.id,
+      fromDriverName: currentDriver.shortName || currentDriver.name,
+      toDriverId: formData.toDriver?.id || '',
+      toDriverNameExpected: formData.toDriver?.shortName || formData.toDriver?.name || '',
+      kmAtHandoff: formData.km,
+      fuelAtHandoff: formData.fuel,
+      notes: formData.notes,
+      handoffDate, handoffTime,
+      locationBranchId,
+      status: 'pending',
+    };
+    const filtered = (handoffs || []).filter(h => !(h.vehicleId === vId && h.status === 'pending'));
+    saveHandoffs && saveHandoffs([...filtered, handoff]);
+
+    // Notificación Discord a canal mantenimiento
+    const webhookUrl = getMaintWebhook(vId, vehicles, config);
+    if (webhookUrl) {
+      try {
+        const locationBranchName = (() => { const b = branches.find(x => x.id === locationBranchId); return b?.name || '—'; })();
+        await sendDiscordNotification(webhookUrl, {
+          title: `📤 ENTREGA DE UNIDAD · ${vCode}`,
+          description: `**${currentDriver.shortName || currentDriver.name}** entregó la unidad a **${formData.toDriver?.shortName || formData.toDriver?.name || '—'}**`,
+          color: 0xf59e0b,
+          fields: [
+            { name: '🔢 KM al entregar', value: String(formData.km), inline: true },
+            { name: '⛽ Combustible', value: formData.fuel, inline: true },
+            { name: '🕐 Hora', value: handoffTime, inline: true },
+            { name: '📍 Lugar de entrega', value: locationBranchName, inline: true },
+            { name: '👤 Recibe', value: formData.toDriver?.name || '—', inline: true },
+            { name: '📝 Observaciones', value: formData.notes || 'sin novedad', inline: false },
+          ],
+          footer: { text: `Transporte Emporium · ${now.toLocaleDateString('es-VE')}` },
+        });
+        if (formData.photos && formData.photos.length > 0) {
+          for (const photo of formData.photos) {
+            try {
+              const fd = new FormData();
+              fd.append('files[0]', photo);
+              fd.append('payload_json', JSON.stringify({ content: `📷 Foto entrega · ${vCode} · ${currentDriver.shortName || currentDriver.name}` }));
+              await fetch(webhookUrl, { method: 'POST', body: fd });
+            } catch(e) {}
+          }
+        }
+      } catch(e) {}
+    }
+
+    setShowEntregarModal(false);
+    setCurrentTrip(null);
+    setSelectedVehicle(null);
+    setStep('select');
+  };
  // 🌙 Finalizar Jornada del día — calcula stats + voz + Discord
   const finalizarJornada = async () => {
     const hoy = new Date().toISOString().slice(0, 10);
     const viajesHoy = trips.filter(t => t.driverId === currentDriver.id && t.startDate === hoy);
-    if (viajesHoy.length === 0) {
-      speakText('No tienes viajes registrados hoy.');
-      return;
-    }
-    const totalKm = viajesHoy.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
-    const totalLitros = viajesHoy.reduce((s, t) => s + (Number(t.fuelLoaded) || 0), 0);
-    const totalCosto = viajesHoy.reduce((s, t) => s + (Number(t.cost) || 0), 0);
-    const totalEntregas = viajesHoy.reduce((s, t) => s + (Number(t.deliveries) || 0), 0);
-    const tiempoMin = viajesHoy.reduce((s, t) => s + (Number(t.tripMinutes) || 0), 0);
-    const horas = Math.floor(tiempoMin / 60);
-    const mins = tiempoMin % 60;
-    const tiempoTxt = horas > 0 ? horas + 'h ' + mins + 'min' : mins + ' min';
-    const rutasCount = {};
-    viajesHoy.forEach(t => { const r = t.route || 'LOCAL'; rutasCount[r] = (rutasCount[r] || 0) + 1; });
-    const rutasTxt = Object.entries(rutasCount).map(([r, c]) => r + ' (' + c + ')').join(', ');
     const vehCount = {};
     viajesHoy.forEach(t => { vehCount[t.vehicleId] = (vehCount[t.vehicleId] || 0) + 1; });
-    const vehPrincipalId = Object.entries(vehCount).sort((a, b) => b[1] - a[1])[0][0];
-    const vehPrincipal = vehicles.find(v => v.id === vehPrincipalId);
+    const vehPrincipalId = viajesHoy.length > 0 ? Object.entries(vehCount).sort((a,b)=>b[1]-a[1])[0][0] : null;
+    const vehPrincipal = vehPrincipalId ? vehicles.find(v => v.id === vehPrincipalId) : selectedVehicle;
+    // KM del último viaje del día para pre-llenar el campo
+    const ultimoViaje = viajesHoy.length > 0 ? [...viajesHoy].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0] : null;
+    const kmUltimoViaje = ultimoViaje?.kmEnd || vehPrincipal?.currentKm || '';
+    setEndShiftTripData({ viajesHoy, vehPrincipal, hoy, kmUltimoViaje });
+    setShowEndShiftForm(true);
+  };
+
+  const handleEndShiftConfirm = async ({ kmFinal, foto, fotoChofer, items, novedades, combustibleRestante, hayAlerta, cauchoNota, danosNota }) => {
+    const { viajesHoy, vehPrincipal, hoy } = endShiftTripData;
+    const totalKm = viajesHoy.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
+    const totalLitros = viajesHoy.reduce((s,t)=>s+(Number(t.fuelLoaded)||0),0);
+    const totalCosto = viajesHoy.reduce((s,t)=>s+(Number(t.cost)||0),0);
     const nombre = currentDriver?.shortName || currentDriver?.name || 'chofer';
-    const fraseVoz = '¡Excelente jornada ' + nombre + '! Hoy recorriste ' + totalKm + ' kilómetros en ' + viajesHoy.length + ' viajes. Recuerda estacionar el vehículo en lugar seguro. Hasta mañana.';
-    setTimeout(() => speakText(fraseVoz), 400);
-    const wh=config.discordWebhookGeneral;
-    if(wh)sendDiscordNotification(wh,{title:'🌙 '+nombre+' '+hoy,description:'✅ '+viajesHoy.length+' viajes 📍 '+totalKm+' km 💰 $'+totalCosto.toFixed(2),color:0x7c3aed}).catch(()=>{});
-    
-   alert('🌙 ¡Excelente jornada ' + nombre + '!\n\n✅ Viajes: ' + viajesHoy.length + '\n📍 Km: ' + totalKm + '\n⛽ Litros: ' + totalLitros + '\n💰 Gasto: $' + totalCosto.toFixed(2) + '\n⏱️ Tiempo: ' + tiempoTxt + '\n🛣️ Rutas: ' + rutasTxt + '\n\nDescansa, hasta mañana.');
+    const hora = new Date().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
+
+    // Guardar registro de cierre
+    const record = {
+      id: Date.now().toString(), driverId: currentDriver.id, driverName: currentDriver.name,
+      vehicleId: vehPrincipal?.id, vehicleCode: vehPrincipal?.code, vehiclePlate: vehPrincipal?.plate,
+      date: hoy, time: hora, timestamp: Date.now(),
+      kmFinal: Number(kmFinal), foto, fotoChofer, items, novedades, combustibleRestante, hayAlerta, cauchoNota, danosNota,
+      totalViajes: viajesHoy.length, totalKm, totalLitros, totalCosto,
+    };
+    saveEndShifts && saveEndShifts([record, ...(endShifts||[])]);
+
+    // Actualizar KM y estado del camión → "GUARDADO"
+    if (vehPrincipal && kmFinal) {
+      saveVehicles(vehicles.map(v => v.id === vehPrincipal.id ? {
+        ...v, currentKm: Number(kmFinal),
+        lastParkedKm: Number(kmFinal), lastParkedDate: hoy, lastParkedTime: hora,
+        status: v.status === 'EN TALLER' ? 'EN TALLER' : 'AL DIA',
+      } : v));
+    }
+
+    // Discord → canal mantenimiento del camión
+    const wh = getMaintWebhook(vehPrincipal?.id, vehicles, config) || config.discordWebhookGeneral;
+    if (wh) {
+      const kmDiff = vehPrincipal ? Number(kmFinal) - (vehPrincipal.currentKm||0) : 0;
+      sendDiscordNotification(wh, {
+        title: `🌙 Cierre de jornada — ${nombre}${hayAlerta?' 🚨':''}`,
+        description: `📅 ${hoy} ${hora}\n🚛 ${vehPrincipal?.code||'—'} · KM final: **${Number(kmFinal).toLocaleString()}**\n⛽ Combustible: **${combustibleRestante||'—'}**\n🔵 Cauchos: ${items?.cauchos==='bien'?'✅ Bien':items?.cauchos==='revisar'?'⚠️ Revisar':'🔴 Mal estado'}${cauchoNota?' — '+cauchoNota:''}\n🔍 Daños: ${items?.danos==='ninguno'?'✅ Ninguno':items?.danos==='menor'?'⚠️ Menor':'🔴 Grave'}${danosNota?' — '+danosNota:''}\n✅ ${viajesHoy.length} viajes · ${totalKm} km · $${totalCosto.toFixed(2)}\n${novedades ? '📝 '+novedades : '✅ Sin novedades'}`,
+        color: hayAlerta ? 0xef4444 : novedades ? 0xf59e0b : 0x10b981,
+      }).catch(()=>{});
+      // Fotos → enviar directo + cola como respaldo
+      const sendPhotoDiscord = async (photoData, filename, caption) => {
+        if (!photoData || !wh) return;
+        try {
+          const blob = base64ToBlob(photoData);
+          const fd = new FormData();
+          fd.append('files[0]', blob, filename);
+          fd.append('payload_json', JSON.stringify({ content: caption }));
+          const res = await fetch(wh, { method: 'POST', body: fd });
+          if (!res.ok) throw new Error('failed');
+        } catch(e) {
+          try { await idbAdd({ type: 'discord', webhookUrl: wh, content: caption, photoData, filename, embed: null, queuedAt: new Date().toISOString() }); } catch(e2) {}
+        }
+      };
+      await sendPhotoDiscord(foto, 'cierre-jornada.jpg', `📸 ${vehPrincipal?.code||''} guardado — ${hora} · ⛽ ${combustibleRestante||'—'}`);
+      await sendPhotoDiscord(fotoChofer, 'chofer-cierre.jpg', `🧑 ${nombre} · Selfie cierre jornada`);
+    }
+
+    speakText(`¡Excelente jornada ${nombre}! KM registrado: ${Number(kmFinal).toLocaleString()}. Hasta mañana.`);
+    setShowEndShiftForm(false);
+    setEndShiftTripData(null);
     setCurrentTrip(null);
     setStep('select');
   };
@@ -1293,14 +2189,13 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     // Enviar notificación a Discord según categoría
     let webhookUrl = '';
-    let channelName = '';
     if (photo.category === 'maintenance' || photo.category === 'fuel') {
-      webhookUrl = config.discordWebhookMaintenance;
-      channelName = '#info-servicio-Mantenimiento';
+      const vId = vehicleForPhoto?.id;
+      webhookUrl = getMaintWebhook(vId, vehicles, config);
     } else {
-      // Transferencia o Daño/Incidente → canal general
-      webhookUrl = config.discordWebhookGeneral;
-      channelName = '#grupo-transporte-en-general';
+      // Transferencia o Daño/Incidente → canal mantenimiento del camión
+      const vId = vehicleForPhoto?.id;
+      webhookUrl = getMaintWebhook(vId, vehicles, config) || config.discordWebhookGeneral;
     }
     if (!webhookUrl) return;
 
@@ -1319,6 +2214,53 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     });
   };
   const deletePhoto = (id) => { if (confirm('¿Eliminar?')) savePhotos(photos.filter(p => p.id !== id)); };
+
+  const handleIncidentSubmit = async (data) => {
+    const vehicle = selectedVehicle ? vehicles.find(v => v.id === selectedVehicle) : currentTrip ? vehicles.find(v => v.id === currentTrip.vehicleId) : null;
+    const incident = {
+      id: `inc_${Date.now()}`,
+      driverId: currentDriver.id, driverName: currentDriver.name,
+      vehicleId: vehicle?.id || '', vehicleCode: vehicle?.code || '—',
+      tripId: currentTrip?.id || null,
+      type: data.type, severity: data.severity,
+      description: data.description, location: data.location,
+      km: data.km || vehicle?.currentKm || 0,
+      date: new Date().toISOString().slice(0, 10),
+      time: new Date().toTimeString().slice(0, 5),
+      createdAt: Date.now(), status: 'Reportado',
+    };
+    saveIncidents([incident, ...incidents]);
+    const wh = getMaintWebhook(vehicle?.id, vehicles, config);
+    if (wh) {
+      const sevColor = { Leve: 0xf59e0b, Moderado: 0xef4444, Grave: 0x7f1d1d }[data.severity] || 0xef4444;
+      await sendDiscordNotification(wh, {
+        title: `🚨 INCIDENTE · ${vehicle?.code || '—'} · ${data.severity.toUpperCase()}`,
+        description: `**${currentDriver.name}** reportó un incidente`,
+        color: sevColor,
+        fields: [
+          { name: '⚠️ Tipo', value: data.type, inline: true },
+          { name: '🔴 Severidad', value: data.severity, inline: true },
+          { name: '📍 Lugar', value: data.location || '—', inline: true },
+          { name: '📊 KM', value: String(incident.km), inline: true },
+          { name: '🕐 Hora', value: incident.time, inline: true },
+          { name: '📅 Fecha', value: incident.date, inline: true },
+          { name: '📝 Descripción', value: data.description, inline: false },
+        ],
+        footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
+      });
+      if (data.photos?.length > 0) {
+        for (const photo of data.photos) {
+          try {
+            const fd = new FormData();
+            fd.append('files[0]', photo);
+            fd.append('payload_json', JSON.stringify({ content: `📸 Evidencia · ${vehicle?.code} · ${data.severity}` }));
+            await fetch(wh, { method: 'POST', body: fd });
+          } catch(e) {}
+        }
+      }
+    }
+    setShowIncidentForm(false);
+  };
 
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900">
@@ -1347,22 +2289,107 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         </div>
       </header>
 
+      {/* Modal Incidente */}
+      {showIncidentForm && (
+        <IncidentReportForm
+          vehicles={vehicles} currentTrip={currentTrip} selectedVehicle={selectedVehicle}
+          driver={currentDriver}
+          onSubmit={handleIncidentSubmit}
+          onCancel={() => setShowIncidentForm(false)}
+        />
+      )}
+
       <div className="bg-white border-b border-stone-200 sticky top-[60px] z-20 shadow-sm">
         <div className="max-w-lg mx-auto flex">
           <DriverTabBtn active={tab === 'trip'} onClick={() => setTab('trip')} icon={Navigation} label="Viaje" />
           <DriverTabBtn active={tab === 'photos'} onClick={() => setTab('photos')} icon={Camera} label="Fotos" />
           <DriverTabBtn active={tab === 'history'} onClick={() => setTab('history')} icon={History} label="Historial" />
           <DriverTabBtn active={tab === 'contacts'} onClick={() => setTab('contacts')} icon={Phone} label="Contactos" />
+          <DriverTabBtn active={tab === 'surtir'} onClick={() => setTab('surtir')} icon={Fuel} label="Surtir" customClass={tab === 'surtir' ? 'text-amber-600 border-b-2 border-amber-500' : ''} />
+          <button onClick={() => setShowIncidentForm(true)}
+            className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 bg-rose-600 hover:bg-rose-700 text-white transition">
+            <AlertTriangle className="w-5 h-5" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">Incidente</span>
+          </button>
         </div>
       </div>
 
       <main className="max-w-lg mx-auto p-4 pb-24">
+        {tab === 'surtir' && <DriverSurtirTab vehicles={vehicles} currentDriver={currentDriver} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
         {tab === 'trip' && <>
-          {step === 'select' && <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} onContinue={() => setStep('checklist')} />}
-          {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={() => setStep('start')} onBack={() => setStep('select')} config={config} />}
-          {step === 'start' && <StartTripForm driver={currentDriver} vehicle={selectedVehicle} branches={branches} trips={myTrips} onBack={() => setStep('checklist')} onStart={startTrip} />}
-          {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} />}
-          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} />}
+          {step === 'select' && <>
+            <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} activeTrips={activeTrips} onContinue={(accion, motivo, km) => {
+              if (accion === 'taller') {
+                // ya no se usa desde selección
+              } else if (selectedVehicle?.status === 'EN TALLER') {
+                setStep('retirar');
+              } else if (selectedVehicle?.status === 'RETIRO AUTORIZADO') {
+                setStep('retirar');
+              } else {
+                setStep('checklist');
+              }
+            }} handoffs={handoffs} saveHandoffs={saveHandoffs} currentDriver={currentDriver} branches={branches} config={config} setChecklistKm={setChecklistKm} setStep={(s) => {
+              // Aviso de voz si el vehículo tiene cita próxima
+              if (s === 'checklist' && selectedVehicle) {
+                const today = new Date().toISOString().slice(0,10);
+                const ap = (appointments||[]).filter(a => a.vehicleId === selectedVehicle.id && a.fecha >= today).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
+                if (ap) {
+                  const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000);
+                  const msg = days === 0 ? `Atención: este vehículo tiene cita de taller hoy para ${ap.tipo}.` : days === 1 ? `Atención: este vehículo tiene cita de taller mañana para ${ap.tipo}.` : `Atención: este vehículo tiene cita de taller en ${days} días para ${ap.tipo}.`;
+                  try { speakText(msg); } catch(e) {}
+                }
+              }
+              setStep(s);
+            }} appointments={appointments} onContinueWithVoice={(vehicleId) => {
+              const today = new Date().toISOString().slice(0,10);
+              const ap = (appointments||[]).filter(a => a.vehicleId === vehicleId && a.fecha >= today).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0];
+              if (ap) {
+                const key = `emp:cita_anunciada_${vehicleId}_${today}`;
+                if (!localStorage.getItem(key)) {
+                  const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000);
+                  const taller = ap.taller ? ` en ${ap.taller}` : '';
+                  const msg = days === 0 ? `Atención: este vehículo tiene cita de taller hoy para ${ap.tipo}${taller}.` : days === 1 ? `Atención: este vehículo tiene cita de taller mañana para ${ap.tipo}${taller}.` : `Atención: este vehículo tiene cita de taller en ${days} días para ${ap.tipo}${taller}.`;
+                  setTimeout(() => { try { speakText(msg); localStorage.setItem(key, '1'); } catch(e){} }, 3500);
+                }
+              }
+            }} onEntregarUnidad={() => setShowEntregarModal(true)} />
+          </>}
+          {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
+          {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
+          {step === 'checklist' && selectedVehicle && <ChecklistScreen vehicle={selectedVehicle} driver={currentDriver} checklists={checklists} saveChecklists={saveChecklists} onProceed={(km) => { if(km) { setChecklistKm(Number(km)); localStorage.setItem('emp:checklistKm_' + selectedVehicle?.id, String(Number(km))); } setStep('start'); }} onBack={() => setStep('select')} config={config} endShifts={endShifts} />}
+          {step === 'start' && <StartTripForm key={tripFormKey} driver={currentDriver} vehicle={vehicles.find(v => v.id === selectedVehicle?.id) || selectedVehicle} branches={branches} trips={trips} onBack={() => setStep('checklist')} onStart={startTrip} initialKm={checklistKm} initialOriginBranchId={(() => {
+            const ch = (handoffs||[]).find(h => h.vehicleId === selectedVehicle?.id && h.status === 'confirmed' && h.toDriverId === currentDriver.id);
+            if (ch?.locationBranchId) return ch.locationBranchId;
+            if (localStorage.getItem('emp:salio_bomba_' + selectedVehicle?.id) === '1') return 'surtir';
+            // Pre-seleccionar último destino como origen automáticamente
+            const myTrips = trips.filter(t => t.vehicleId === selectedVehicle?.id).sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+            const lastDest = myTrips[0]?.destinationBranchId;
+            if (lastDest === 'surtir') return 'surtir'; // último viaje fue a la bomba
+            if (lastDest === 'taller') return 'taller'; // último viaje fue al taller
+            if (lastDest && lastDest !== 'otro') return lastDest;
+            return null;
+          })()} />}
+          {step === 'active' && currentTrip && <ActiveTripView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} onFinish={finishTrip} onCancel={cancelActiveTrip} onAddPhoto={addPhoto} gpsEnabled={gpsEnabled} currentPosition={currentPosition} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
+          {step === 'surtir' && currentTrip && <SurtirCombustibleForm
+            trip={currentTrip}
+            vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)}
+            driver={currentDriver}
+            fuelRecords={fuelRecords}
+            saveFuelRecords={saveFuelRecords}
+            config={config}
+            vehicles={vehicles}
+            saveVehicles={saveVehicles}
+            onDone={() => {
+              // Guardar flag para que el próximo formulario sepa que salimos de la bomba
+              const vid = currentTrip?.vehicleId;
+              if (vid) localStorage.setItem('emp:salio_bomba_' + vid, '1');
+              setCurrentTrip(t => ({ ...t, isBombaTrip: undefined }));
+              setStep('finish');
+            }}
+          />}
+          {step === 'finish' && currentTrip && <TripCompleteView trip={currentTrip} driver={currentDriver} vehicle={vehicles.find(v => v.id === currentTrip.vehicleId)} branches={branches} config={config} onNewTrip={newTrip} onFinishJornada={finalizarJornada} onLogout={onLogout} onMarkDeparted={markDepartedDestination} onEntregarUnidad={() => setShowEntregarModal(true)} onWaitEnd={handleWaitEnd} allVehicles={vehicles} saveVehicles={saveVehicles} appointments={appointments} saveAppointments={saveAppointments} onGoToSelect={() => { setCurrentTrip(null); setSelectedVehicle(null); setStep('select'); }} />}
+          {showEndShiftForm && endShiftTripData && <EndShiftForm driver={currentDriver} vehicle={endShiftTripData.vehPrincipal} trips={endShiftTripData.viajesHoy} kmInicial={endShiftTripData.kmUltimoViaje} onConfirm={handleEndShiftConfirm} onBack={() => setShowEndShiftForm(false)} />}
+          {showEntregarModal && <EntregarUnidadModal vehicle={selectedVehicle || vehicles.find(v => v.id === currentTrip?.vehicleId)} driver={currentDriver} drivers={drivers} trips={trips} onSubmit={handleEntregarUnidad} onClose={() => setShowEntregarModal(false)} />}
         </>}
         {tab === 'photos' && <PhotosView photos={myPhotos} vehicles={vehicles} drivers={drivers} onAdd={addPhoto} onDelete={deletePhoto} canAdd={true} />}
         {tab === 'history' && <DriverHistoryView trips={myTrips} vehicles={vehicles} branches={branches} />}
@@ -1447,10 +2474,83 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
   );
 }
 
-function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue }) {
+function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep, appointments = [], onContinueWithVoice, onEntregarUnidad }) {
+  // Cargar active_trips frescos desde Supabase para bloqueo en tiempo real
+  const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
+ React.useEffect(() => {
+    const fetchTrips = () => sbFetch('active_trips?select=*').then(data => {
+      if (Array.isArray(data)) setLiveActiveTrips(data.map(r => ({ ...r, vehicleId: r.vehicleId || r.vehicle_id, driverId: r.driverId || r.driver_id })));
+    }).catch(() => {});
+    fetchTrips();
+    const iv = setInterval(fetchTrips, 8000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const pendingHandoff = selectedVehicle
+    ? (handoffs || []).find(h => h.vehicleId === selectedVehicle.id && h.status === 'pending' && h.fromDriverId !== currentDriver?.id)
+    : null;
+  const confirmHandoff = async (receptionNotes) => {
+    if (!saveHandoffs) return;
+    const now = new Date();
+    const confirmedAt = now.toISOString();
+    const driverName = currentDriver?.shortName || currentDriver?.name || '';
+    const locationBranch = branches.find(b => b.id === pendingHandoff.locationBranchId);
+    const locationName = locationBranch?.name || pendingHandoff.locationBranchId || '—';
+    const updated = (handoffs || []).map(h =>
+      h.id === pendingHandoff.id
+        ? { ...h, status: 'confirmed', toDriverId: currentDriver?.id, toDriverName: driverName, confirmedAt, receptionNotes }
+        : h
+    );
+    saveHandoffs(updated);
+
+    // Pre-llenar KM y origen en StartTripForm via setChecklistKm
+    if (setChecklistKm) setChecklistKm(Number(pendingHandoff.kmAtHandoff) || null);
+
+    // Notificar Discord — recepción confirmada
+    const vId = pendingHandoff.vehicleId;
+    const v = vehicles.find(x => x.id === vId);
+    const webhookUrl = v?.maintenanceWebhook || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    if (webhookUrl) {
+      try {
+        await sendDiscordNotification(webhookUrl, {
+          title: `✅ RECEPCIÓN DE UNIDAD · ${v?.code || vId}`,
+          description: `**${driverName}** recibió la unidad de **${pendingHandoff.fromDriverName || '—'}**`,
+          color: 0x10b981,
+          fields: [
+            { name: '🔢 KM al recibir', value: String(pendingHandoff.kmAtHandoff || 0), inline: true },
+            { name: '⛽ Combustible', value: String(pendingHandoff.fuelAtHandoff || '—'), inline: true },
+            { name: '📍 Ubicación', value: locationName, inline: true },
+            { name: '🕐 Hora', value: now.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' }), inline: true },
+            { name: '📝 Recepción', value: receptionNotes || 'sin novedad', inline: false },
+          ],
+          footer: { text: `Transporte Emporium · ${now.toLocaleDateString('es-VE')}` },
+        });
+      } catch(e) { console.error('Discord error:', e); }
+    } else {
+      console.warn('No webhook found para vehiculo', vId, v);
+    }
+  };
+
+  // Verificar si un vehículo está en espera de traspaso
+  const getVehiclePending = (vehicleId) =>
+    (handoffs || []).find(h => h.vehicleId === vehicleId && h.status === 'pending');
+
+  // Verificar si un vehículo tiene viaje activo de OTRO chofer (usando datos frescos de Supabase)
+  // También bloquea si hay handoff confirmado a otro chofer (ya recibió pero aún no inició viaje)
+  const getActiveByOther = (vehicleId) => {
+    const fromTrip = liveActiveTrips.find(t => t.vehicleId === vehicleId && t.driverId !== currentDriver?.id);
+    if (fromTrip) return fromTrip;
+    const confirmedHandoff = (handoffs || []).find(h =>
+      h.vehicleId === vehicleId &&
+      h.status === 'confirmed' &&
+      h.toDriverId !== currentDriver?.id
+    );
+    if (confirmedHandoff) return { vehicleId, driverName: confirmedHandoff.toDriverName || confirmedHandoff.toDriverNameExpected || 'otro chofer' };
+    return null;
+  };
+
   return (
     <div className="space-y-4">
-      {/* Paso 1 indicador */}
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
         <div className="bg-emerald-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">1</div>
         <div>
@@ -1461,33 +2561,68 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
 
       <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
         <div className="space-y-2">
-          {vehicles.map(v => {
+          {[...vehicles].sort((a, b) => a.id.localeCompare(b.id)).map(v => {
             const enTaller = v.status === 'EN TALLER';
+            const retirarAutorizado = v.status === 'RETIRO AUTORIZADO';
             const isSelected = selectedVehicle?.id === v.id;
+            const pendingForV = getVehiclePending(v.id);
+            const activeByOther = getActiveByOther(v.id);
+
+            // Está en espera para OTRO chofer
+            const waitingForOther = pendingForV && pendingForV.toDriverId && pendingForV.toDriverId !== currentDriver?.id;
+            // Está en espera para MÍ
+            const waitingForMe = pendingForV && pendingForV.toDriverId === currentDriver?.id;
+            // Está en espera sin destinatario específico
+            const waitingGeneral = pendingForV && !pendingForV.toDriverId;
+            // Tiene viaje activo de otro chofer
+            const occupiedByOther = !!activeByOther && !waitingForOther && !waitingForMe;
+
+            const isBlocked = waitingForOther || occupiedByOther || enTaller;
+
             return (
               <button key={v.id} onClick={() => {
-                if (enTaller) {
-                  if (!confirm(`${v.code} está marcado como EN TALLER.\n\n${v.observations || ''}\n\n¿Estás seguro de usarlo?`)) return;
-                }
+                if (isBlocked) return;
                 setSelectedVehicle(v);
               }}
-                className={`w-full p-3 rounded-xl border-2 flex items-center justify-between transition-all ${isSelected ? 'border-emerald-600 bg-emerald-50 shadow-md' : enTaller ? 'border-rose-200 bg-rose-50/30 hover:border-rose-300' : 'border-stone-200 hover:border-stone-300 bg-white'}`}>
+                className={`w-full p-3 rounded-xl border-2 flex items-center justify-between transition-all ${
+                  enTaller ? 'border-rose-400 bg-rose-50 opacity-70 cursor-not-allowed' :
+                  occupiedByOther ? 'border-red-300 bg-red-50 opacity-70 cursor-not-allowed' :
+                  waitingForOther ? 'border-orange-200 bg-orange-50/50 opacity-60 cursor-not-allowed' :
+                  retirarAutorizado ? 'border-emerald-400 bg-emerald-50 shadow-md animate-pulse' :
+                  waitingForMe ? 'border-emerald-400 bg-emerald-50 shadow-md animate-pulse' :
+                  isSelected ? 'border-emerald-600 bg-emerald-50 shadow-md' :
+                  'border-stone-200 hover:border-stone-300 bg-white'
+                }`}>
                 <div className="flex items-center gap-3 text-left">
                   <div className="w-12 h-12 rounded-lg flex items-center justify-center relative" style={{ backgroundColor: v.color + '20', border: `2px solid ${v.color}` }}>
                     <Truck className="w-6 h-6" style={{ color: v.color }} />
                     {enTaller && <div className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center"><Wrench className="w-2.5 h-2.5 text-white" /></div>}
+                    {(waitingForMe || waitingGeneral) && <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center text-white text-[8px] font-bold">!</div>}
+                    {occupiedByOther && <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white text-[8px] font-bold">🔒</div>}
                   </div>
                   <div>
-                    <div className="font-bold text-stone-900 text-base flex items-center gap-2">
+                    <div className="font-bold text-stone-900 text-base flex items-center gap-2 flex-wrap">
                       {v.code}
                       {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EN TALLER</span>}
+                      {retirarAutorizado && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">🔧 Listo para retirar</span>}
+                      {waitingForMe && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">⏳ Para ti</span>}
+                      {waitingForOther && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera por {pendingForV.toDriverNameExpected}</span>}
+                      {waitingGeneral && <span className="bg-amber-100 text-amber-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera</span>}
+                      {occupiedByOther && <span className="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔒 Ocupado · {activeByOther.driverName || 'otro chofer'}</span>}
+                      {(() => { const ap = appointments.filter(a => a.vehicleId === v.id && a.fecha >= new Date().toISOString().slice(0,10)).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0]; return ap ? <span className="bg-indigo-100 text-indigo-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🔧 Cita: {ap.fecha} · {ap.tipo}</span> : null; })()}
                     </div>
                     <div className="text-xs text-stone-500">{v.plate} · {v.performance} km/L</div>
+                    {waitingForOther && <div className="text-[10px] text-orange-600 font-medium">Reservado para {pendingForV.toDriverNameExpected}</div>}
+                    {occupiedByOther && <div className="text-[10px] text-red-600 font-medium">En viaje con {activeByOther.driverName || 'otro chofer'}</div>}
+                    {(() => { const ap = appointments.filter(a => a.vehicleId === v.id && a.fecha >= new Date().toISOString().slice(0,10)).sort((a,b)=>a.fecha.localeCompare(b.fecha))[0]; if (!ap) return null; const days = Math.ceil((new Date(ap.fecha)-new Date())/86400000); return <div className="text-[10px] text-indigo-600 font-medium">📅 Cita {days===0?'hoy':days===1?'mañana':`en ${days} días`}: {ap.taller||ap.tipo}</div>; })()}
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] text-stone-500 uppercase tracking-wider">KM Actual</div>
                   <div className="text-sm font-bold text-stone-700">{v.currentKm.toLocaleString()}</div>
+                  {v.lastParkedDate === new Date().toISOString().slice(0,10) && (
+                    <div className="text-[9px] text-indigo-500 font-bold mt-0.5">🌙 Cerrado hoy</div>
+                  )}
                 </div>
               </button>
             );
@@ -1495,29 +2630,108 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
         </div>
       </div>
 
-      <button onClick={onContinue} disabled={!selectedVehicle}
-        className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400'}`}>
+      {pendingHandoff && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xl">📋</span>
+            <div>
+              <div className="font-bold text-amber-900 text-sm">RECEPCIÓN DE UNIDAD</div>
+              <div className="text-xs text-amber-700">Entregado por: <b>{pendingHandoff.fromDriverName}</b> · {pendingHandoff.handoffTime}</div>
+              {pendingHandoff.locationBranchId && (() => { const lb = branches.find(b => b.id === pendingHandoff.locationBranchId); return lb ? <div className="text-xs text-emerald-700 font-semibold mt-0.5">📍 Ubicación: {lb.name}</div> : null; })()}
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            <div className="bg-white rounded-lg p-2 border border-amber-200">
+              <div className="text-xs text-stone-500">KM al entregar</div>
+              <div className="font-bold text-stone-900">{(pendingHandoff.kmAtHandoff || 0).toLocaleString()}</div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-amber-200">
+              <div className="text-xs text-stone-500">Combustible</div>
+              <div className="font-bold text-stone-900">{pendingHandoff.fuelAtHandoff || 0} L</div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-amber-200">
+              <div className="text-xs text-stone-500">Origen viaje</div>
+              <div className="font-bold text-stone-900 text-xs">{(() => { const lb = branches.find(b => b.id === pendingHandoff.locationBranchId); return lb?.name || '—'; })()}</div>
+            </div>
+          </div>
+          {pendingHandoff.notes && (
+            <div className="bg-white rounded-lg p-2 border border-amber-200 text-sm">
+              <div className="text-xs text-stone-500">Observaciones</div>
+              <div className="text-stone-800">{pendingHandoff.notes}</div>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => confirmHandoff('sin novedad')}
+              className="py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 text-sm flex items-center justify-center gap-1">
+              ✅ Recibí conforme
+            </button>
+            <button onClick={() => {
+              const obs = prompt('¿Qué observación tienes?');
+              if (obs !== null) confirmHandoff(obs || 'con observación');
+            }}
+              className="py-2.5 rounded-xl font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 text-sm flex items-center justify-center gap-1 border border-amber-300">
+              ⚠️ Con observación
+            </button>
+          </div>
+        </div>
+      )}
+      {selectedVehicle && onEntregarUnidad && (
+        <button onClick={onEntregarUnidad}
+          className="w-full bg-white border border-stone-200 rounded-2xl px-4 py-3 flex items-center gap-3 hover:border-stone-300 hover:bg-stone-50 transition-all active:scale-[0.98]">
+          <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center flex-shrink-0">
+            <ArrowRight className="w-5 h-5 text-stone-500 rotate-90" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-sm font-bold text-stone-800">Entregar {selectedVehicle.code} a otro chofer</p>
+            <p className="text-xs text-stone-400">Traspaso sin necesidad de hacer un viaje</p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-stone-400 flex-shrink-0" />
+        </button>
+      )}
+      <button onClick={() => { if (onContinueWithVoice && selectedVehicle) onContinueWithVoice(selectedVehicle.id); onContinue(); }} disabled={!selectedVehicle || !!pendingHandoff}
+        className={`w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 ${selectedVehicle && !pendingHandoff ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-[0.98]' : 'bg-stone-200 text-stone-400'}`}>
         Continuar <ArrowRight className="w-5 h-5" />
       </button>
+      {pendingHandoff && <p className="text-center text-xs text-amber-600 font-semibold">⚠️ Confirma la recepción para continuar</p>}
     </div>
   );
 }
 
-function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart }) {
+function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, initialKm, initialOriginBranchId }) {
   const lastTrip = useMemo(() => [...trips].filter(t => t.vehicleId === vehicle.id).sort((a, b) => b.createdAt - a.createdAt)[0], [trips, vehicle]);
   const now = new Date();
   const [formOpenedAt] = useState(() => Date.now());
+  const _salioBlomba = localStorage.getItem('emp:salio_bomba_' + vehicle.id) === '1' || lastTrip?.destinationBranchId === 'surtir';
+  const _lastTripValidDest = (lastTrip?.destinationBranchId && lastTrip.destinationBranchId !== 'otro') ? lastTrip.destinationBranchId : null;
+  const defaultOrigin = initialOriginBranchId || (_salioBlomba ? 'surtir' : (_lastTripValidDest || (branches[0]?.id || '')));
+  // Si el último viaje fue a la bomba, pre-seleccionar 'surtir' como origen automáticamente
+  const autoOrigin = defaultOrigin === 'surtir' ? 'surtir' : defaultOrigin === 'taller' ? 'taller' : (defaultOrigin || branches[0]?.id || '');
   const [form, setForm] = useState({
-    originBranchId: lastTrip ? lastTrip.destinationBranchId : (branches[0]?.id || ''),
+    originBranchId: autoOrigin,
     destinationBranchId: '',
-    kmStart: lastTrip ? lastTrip.kmEnd : vehicle.currentKm,
+    kmStart: (() => {
+      // Prioridad: 1) último viaje histórico (más reciente) si tiene kmEnd válido
+      //            2) hoy trips, 3) checklist, 4) localStorage, 5) currentKm del vehículo
+      const allVehicleTrips = [...trips].filter(t => t.vehicleId === vehicle.id && t.kmEnd > 0)
+        .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      if (allVehicleTrips.length > 0) return allVehicleTrips[0].kmEnd;
+      if (initialKm && Number(initialKm) > 0) return Number(initialKm);
+      // Leer checklistKm del localStorage directamente (evita problemas de estado stale)
+      const savedKm = localStorage.getItem('emp:checklistKm_' + vehicle.id);
+      if (savedKm && Number(savedKm) > 0) return Number(savedKm);
+      return Number(vehicle.currentKm) || 0;
+    })(),
     startDate: now.toISOString().slice(0, 10), startTime: now.toTimeString().slice(0, 5),
     fuelLoaded: 0,
   });
+
+
   const [timeAtBranch, setTimeAtBranch] = useState('');
   const [showFuel, setShowFuel] = useState(false);
   const [tripNotes, setTripNotes] = useState('');
   const [tripPhotos, setTripPhotos] = useState([]);
+  const [customDestName, setCustomDestName] = useState('');
+  const [customDestType, setCustomDestType] = useState('gestion'); // 'gestion' | 'mantenimiento'
   const showTimeAtBranch = lastTrip && lastTrip.destinationBranchId === form.originBranchId;
 
   useEffect(() => {
@@ -1533,7 +2747,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart }) {
     return () => clearInterval(id);
   }, [lastTrip, showTimeAtBranch]);
 
-  const valid = form.originBranchId && form.destinationBranchId && form.originBranchId !== form.destinationBranchId && form.kmStart > 0 && form.startTime;
+  const valid = form.originBranchId && form.destinationBranchId && (form.originBranchId === 'surtir' || form.originBranchId !== form.destinationBranchId) && Number(form.kmStart) > 0 && form.startTime && (form.destinationBranchId !== 'otro' || customDestName.trim().length > 0);
   const originBranch = branches.find(b => b.id === form.originBranchId);
 
   return (
@@ -1574,6 +2788,14 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart }) {
                 {b.name}
               </button>
             ))}
+            <button onClick={() => setForm({ ...form, originBranchId: 'taller' })}
+              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'taller' ? 'border-rose-400 bg-rose-100 text-rose-800' : 'border-rose-200 text-rose-600 hover:border-rose-400 bg-rose-50'}`}>
+              🔧 Taller
+            </button>
+            <button onClick={() => setForm({ ...form, originBranchId: 'surtir' })}
+              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.originBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
+              ⛽ Surtir combustible
+            </button>
           </div>
         </div>
 
@@ -1582,11 +2804,50 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart }) {
           <div className="grid grid-cols-2 gap-2">
             {branches.filter(b => b.id !== form.originBranchId).map(b => (
               <button key={b.id} onClick={() => setForm({ ...form, destinationBranchId: b.id })}
-                className={`p-2.5 rounded-lg border-2 text-sm font-medium transition ${form.destinationBranchId === b.id ? 'border-amber-400 bg-amber-500/15 text-amber-200' : 'border-stone-200 text-emerald-700 hover:border-emerald-600 bg-stone-50'}`}>
+                className={`p-2.5 rounded-lg border-2 text-sm font-medium transition ${form.destinationBranchId === b.id ? 'border-amber-400 bg-amber-500/15 text-stone-900' : 'border-stone-200 text-emerald-700 hover:border-emerald-600 bg-stone-50'}`}>
                 {b.name}
               </button>
             ))}
+            {form.originBranchId !== 'taller' && (
+              <button onClick={() => setForm({ ...form, destinationBranchId: 'taller' })}
+                className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.destinationBranchId === 'taller' ? 'border-rose-400 bg-rose-100 text-rose-800' : 'border-rose-200 text-rose-600 hover:border-rose-400 bg-rose-50'}`}>
+                🔧 Taller
+              </button>
+            )}
+            {form.originBranchId !== 'surtir' && (
+              <button onClick={() => setForm({ ...form, destinationBranchId: 'surtir' })}
+                className={`p-2.5 rounded-lg border-2 text-sm font-bold transition ${form.destinationBranchId === 'surtir' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-amber-200 text-amber-600 hover:border-amber-400 bg-amber-50'}`}>
+                ⛽ Surtir combustible
+              </button>
+            )}
+            <button onClick={() => setForm({ ...form, destinationBranchId: 'otro' })}
+              className={`p-2.5 rounded-lg border-2 text-sm font-bold transition col-span-2 ${form.destinationBranchId === 'otro' ? 'border-purple-400 bg-purple-100 text-purple-800' : 'border-purple-200 text-purple-600 hover:border-purple-400 bg-purple-50'}`}>
+              📍 Otro destino
+            </button>
           </div>
+
+          {form.destinationBranchId === 'otro' && (
+            <div className="mt-3 space-y-3 bg-purple-50 border border-purple-200 rounded-xl p-3">
+              <div>
+                <label className="text-xs font-bold text-purple-700 uppercase tracking-wider block mb-1">Nombre del lugar</label>
+                <input type="text" value={customDestName} onChange={e => setCustomDestName(e.target.value)}
+                  placeholder="Nombre del lugar..." className="dark-input w-full" />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-purple-700 uppercase tracking-wider block mb-1">Tipo de salida</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => setCustomDestType('gestion')}
+                    className={`p-2 rounded-lg border-2 text-xs font-bold transition ${customDestType === 'gestion' ? 'border-blue-400 bg-blue-100 text-blue-800' : 'border-stone-200 text-stone-600 bg-white'}`}>
+                    📦 Gestión<div className="font-normal">proveedor, trámite...</div>
+                  </button>
+                  <button onClick={() => setCustomDestType('mantenimiento')}
+                    className={`p-2 rounded-lg border-2 text-xs font-bold transition ${customDestType === 'mantenimiento' ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-stone-200 text-stone-600 bg-white'}`}>
+                    🔧 Mantenimiento<div className="font-normal">cauchera, mecánico...</div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -1629,20 +2890,20 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart }) {
       </div>
 
 <div className="space-y-3 mb-3">
-          <div className="bg-stone-900/60 rounded-xl p-3 border border-stone-700/50">
-            <label className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2 block">📝 Notas del viaje</label>
-            <textarea value={tripNotes} onChange={e => setTripNotes(e.target.value)} placeholder="Observaciones, instrucciones especiales..." className="w-full bg-transparent text-stone-200 text-sm resize-none outline-none placeholder:text-stone-600" rows={2} />
+          <div className="bg-white rounded-xl p-3 border border-stone-200">
+            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 block">📝 Notas del viaje</label>
+            <textarea value={tripNotes} onChange={e => setTripNotes(e.target.value)} placeholder="Observaciones, instrucciones especiales..." className="w-full bg-transparent text-stone-800 text-sm resize-none outline-none placeholder:text-stone-400" rows={2} />
           </div>
-          <div className="bg-stone-900/60 rounded-xl p-3 border border-stone-700/50">
-            <label className="text-xs font-bold text-stone-400 uppercase tracking-wider mb-2 block">📸 Fotos de documentos</label>
+          <div className="bg-white rounded-xl p-3 border border-stone-200">
+            <label className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2 block">📸 Fotos de documentos</label>
             <input type="file" accept="image/*" capture="environment" multiple onChange={e => setTripPhotos([...tripPhotos, ...Array.from(e.target.files)])} className="hidden" id="photoInput" />
-            <label htmlFor="photoInput" className="flex items-center gap-2 py-2 px-3 bg-stone-700/50 hover:bg-stone-700 rounded-lg cursor-pointer text-stone-300 text-sm font-medium w-full justify-center">📎 Agregar fotos</label>
+            <label htmlFor="photoInput" className="flex items-center gap-2 py-2 px-3 bg-stone-100 hover:bg-stone-200 rounded-lg cursor-pointer text-stone-600 text-sm font-medium w-full justify-center">📎 Agregar fotos</label>
             {tripPhotos.length > 0 && <div className="flex gap-2 mt-2 flex-wrap">{tripPhotos.map((f,i) => <div key={i} className="relative"><img src={URL.createObjectURL(f)} className="w-16 h-16 object-cover rounded-lg" /><button onClick={() => setTripPhotos(tripPhotos.filter((_,j)=>j!==i))} className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 text-white text-xs flex items-center justify-center">×</button></div>)}</div>}
           </div>
         </div>
       <div className="grid grid-cols-2 gap-2">
         <button onClick={onBack} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200 hover:bg-stone-200">← Atrás</button>
-        <button onClick={() => onStart({...form, tripNotes, tripPhotos})} disabled={!valid}
+        <button onClick={() => onStart({...form, tripNotes, tripPhotos, customDestName: form.destinationBranchId === 'otro' ? customDestName.trim() : '', customDestType: form.destinationBranchId === 'otro' ? customDestType : ''})} disabled={!valid}
           className={`py-3 rounded-xl font-bold text-white transition shadow-lg flex items-center justify-center gap-2 ${valid ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-emerald-700/30 active:scale-[0.98]' : 'bg-stone-100 text-stone-300'}`}>
           <Play className="w-5 h-5" /> INICIAR
         </button>
@@ -1652,7 +2913,169 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart }) {
   );
 }
 
-function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, onAddPhoto, gpsEnabled, currentPosition }) {
+
+// ============================================================
+// SURTIR COMBUSTIBLE — pantalla separada post-registro de viaje
+// ============================================================
+function SurtirCombustibleForm({ trip, vehicle, driver, fuelRecords = [], saveFuelRecords, config, vehicles, saveVehicles, onDone }) {
+  const isL300 = vehicle?.type === 'L300' || vehicle?.code?.includes('L300') || vehicle?.plate === 'A15BP7M';
+  const pricePerLiter = config?.fuelPrice || 0.5;
+  const [fuelLiters, setFuelLiters] = useState(isL300 ? '30' : '');
+  const [tankLevel, setTankLevel] = useState('');
+  const [fuelPhoto, setFuelPhoto] = useState(null);
+  const [nombreBomba, setNombreBomba] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const totalCost = isL300 ? 15 : (Number(fuelLiters) * pricePerLiter);
+  const valid = isL300 ? true : (Number(fuelLiters) > 0);
+
+  const handleGuardar = async () => {
+    setSaving(true);
+    const now = new Date();
+    const rec = {
+      id: `fr_${Date.now()}`,
+      vehicleId: vehicle?.id || '', vehicleCode: vehicle?.code || '', vehiclePlate: vehicle?.plate || '',
+      driverId: driver?.id || '', driverName: driver?.name || '',
+      date: now.toISOString().slice(0, 10), time: now.toTimeString().slice(0, 5),
+      km: trip?.kmEnd || vehicle?.currentKm || 0,
+      liters: isL300 ? 30 : Number(fuelLiters),
+      pricePerLiter: isL300 ? 0.5 : pricePerLiter,
+      tankLevelBefore: tankLevel,
+      createdAt: Date.now(),
+      notes: nombreBomba ? nombreBomba : (isL300 ? 'Bomba gasolinera' : 'Gasoil · Tanque'),
+      cost: totalCost,
+    };
+    saveFuelRecords([rec, ...fuelRecords]);
+
+    // Actualizar nivel de combustible del vehículo
+    if (saveVehicles && vehicles) {
+      saveVehicles(vehicles.map(v => v.id === rec.vehicleId
+        ? { ...v, fuelLevel: Math.round(((v.fuelLevel || 0) + rec.liters) * 100) / 100 }
+        : v));
+    }
+
+    // Discord mantenimiento
+    const wh = vehicle?.maintenanceWebhook || config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+    if (wh) {
+      const lastLoad = fuelRecords.filter(r => r.vehicleId === vehicle?.id).sort((a,b) => b.createdAt - a.createdAt)[0];
+      const kmSince = lastLoad ? ((vehicle?.currentKm || 0) - (lastLoad.km || 0)) : null;
+      const embed = {
+        title: `⛽ CARGA COMBUSTIBLE · ${vehicle?.code}`,
+        description: `**${driver?.name}** surtió **${vehicle?.code}** (${vehicle?.plate})`,
+        color: 0xf59e0b,
+        fields: [
+          { name: isL300 ? '⛽ Gasolina' : '🛢️ Gasoil', value: `${rec.liters} L`, inline: true },
+          { name: '💵 Costo', value: `$${totalCost.toFixed(2)}`, inline: true },
+          { name: '📍 KM', value: (vehicle?.currentKm || 0).toLocaleString(), inline: true },
+          ...(tankLevel ? [{ name: '🪣 Nivel antes', value: tankLevel, inline: true }] : []),
+          ...(nombreBomba ? [{ name: '⛽ Bomba', value: nombreBomba, inline: true }] : []),
+          ...(kmSince > 0 ? [{ name: '🛣️ KM desde última carga', value: `${kmSince.toLocaleString()} km`, inline: true }] : []),
+          { name: '📅 Fecha', value: now.toLocaleString('es-VE'), inline: true },
+        ],
+        footer: { text: 'Transporte Emporium' },
+      };
+      try {
+        if (fuelPhoto) {
+          const blob = base64ToBlob(fuelPhoto);
+          const fd = new FormData();
+          fd.append('files[0]', blob, 'ticket_combustible.jpg');
+          fd.append('payload_json', JSON.stringify({ embeds: [embed] }));
+          await fetch(wh, { method: 'POST', body: fd });
+        } else {
+          await sendDiscordNotification(wh, embed);
+        }
+      } catch(e) { await sendDiscordNotification(wh, embed).catch(()=>{}); }
+    }
+    setSaving(false);
+    onDone();
+  };
+
+  return (
+    <div className="space-y-4 pb-6">
+      <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+            <Fuel className="w-5 h-5 text-amber-600" />
+          </div>
+          <div>
+            <div className="font-black text-amber-900 text-base">Registro de carga</div>
+            <div className="text-xs text-amber-600">{vehicle?.code} · {isL300 ? 'Gasolina' : 'Gasoil'}</div>
+          </div>
+        </div>
+
+        {/* Nombre de la bomba */}
+        <div>
+          <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">⛽ ¿En qué bomba surtiste? <span className="text-stone-400 font-normal">(opcional)</span></label>
+          <input type="text" value={nombreBomba} onChange={e => setNombreBomba(e.target.value)}
+            placeholder="Ej: Bomba La Colmena, Pdvsa Casarapa..."
+            className="w-full border-2 border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-amber-400" />
+        </div>
+
+        {/* Nivel antes de surtir */}
+        <div>
+          <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">¿Cuánto tenía antes de surtir?</label>
+          <div className="grid grid-cols-4 gap-2">
+            {[{id:'vacio',emoji:'🔴',label:'Vacío',desc:'~0L'},{id:'cuarto',emoji:'🟡',label:'1/4',desc:'~25%'},{id:'mitad',emoji:'🟠',label:'1/2',desc:'~50%'},{id:'tres_cuartos',emoji:'🟢',label:'3/4',desc:'~75%'}].map(opt => (
+              <button key={opt.id} onClick={() => setTankLevel(opt.label)}
+                className={`flex flex-col items-center py-2.5 rounded-xl border-2 transition ${tankLevel===opt.label?'border-amber-400 bg-amber-100':'border-stone-200 bg-white'}`}>
+                <span className="text-lg">{opt.emoji}</span>
+                <span className="text-xs font-black">{opt.label}</span>
+                <span className="text-[10px] text-stone-400">{opt.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Litros */}
+        {isL300 ? (
+          <div className="bg-amber-100 rounded-xl p-4 text-center">
+            <div className="font-black text-amber-800 text-xl">⛽ 30 litros — $15.00</div>
+            <div className="text-xs text-amber-600 mt-1">Carga fija · Bomba gasolinera</div>
+          </div>
+        ) : (
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">🛢️ Litros cargados *</label>
+            <input type="number" value={fuelLiters} onChange={e => setFuelLiters(e.target.value)}
+              placeholder="Ej: 85" className="w-full border-2 border-stone-200 rounded-xl px-4 py-3 text-2xl font-black text-center focus:border-amber-400 focus:outline-none" />
+            {Number(fuelLiters) > 0 && (
+              <div className="text-center text-sm mt-1.5 font-mono text-amber-700">
+                {fuelLiters}L × ${pricePerLiter.toFixed(2)} = <b>${totalCost.toFixed(2)}</b>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Foto ticket */}
+        <div>
+          <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">📸 Foto del ticket (opcional)</label>
+          {fuelPhoto ? (
+            <div className="relative w-full rounded-xl overflow-hidden border border-stone-200">
+              <img src={fuelPhoto} alt="Ticket" className="w-full h-36 object-cover" />
+              <button onClick={() => setFuelPhoto(null)}
+                className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center shadow">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <label className="w-full h-20 rounded-xl border-2 border-dashed border-stone-300 flex flex-col items-center justify-center cursor-pointer hover:border-amber-400 hover:bg-amber-50 transition">
+              <Camera className="w-5 h-5 text-stone-400" />
+              <span className="text-xs text-stone-400 mt-1">Tomar foto del ticket</span>
+              <input type="file" accept="image/*" capture="environment" className="sr-only"
+                onChange={e => { const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=ev=>setFuelPhoto(ev.target.result); r.readAsDataURL(f); }} />
+            </label>
+          )}
+        </div>
+      </div>
+
+      <button onClick={handleGuardar} disabled={!valid || saving}
+        className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition ${valid && !saving ? 'bg-amber-500 hover:bg-amber-600' : 'bg-stone-200 text-stone-400'}`}>
+        {saving ? 'Guardando...' : '✅ Registrar carga → continuar'}
+      </button>
+    </div>
+  );
+}
+
+function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, onAddPhoto, gpsEnabled, currentPosition, fuelRecords = [], saveFuelRecords, config }) {
   const [elapsed, setElapsed] = useState('');
   const [showFinishForm, setShowFinishForm] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
@@ -1671,11 +3094,11 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
     return () => clearInterval(id);
   }, [trip]);
 
-  const origin = branches.find(b => b.id === trip.originBranchId);
-  const destination = branches.find(b => b.id === trip.destinationBranchId);
+  const origin = branches.find(b => b.id === trip.originBranchId) || (trip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : trip.originBranchId === 'surtir' ? { id: 'surtir', name: '⛽ Bomba' } : null);
+  const destination = { id: trip.destinationBranchId, name: resolveDestName(trip, branches) };
 
   if (showCamera) return <PhotoCapture onCapture={(p) => { onAddPhoto(p); setShowCamera(false); }} onCancel={() => setShowCamera(false)} />;
-  if (showFinishForm) return <FinishTripForm trip={trip} vehicle={vehicle} origin={origin} destination={destination} onFinish={onFinish} onBack={() => setShowFinishForm(false)} />;
+  if (showFinishForm) return <FinishTripForm trip={trip} vehicle={vehicle} origin={origin} destination={destination} onFinish={onFinish} onBack={() => setShowFinishForm(false)} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} driver={driver} config={config} />;
 
   // Mostrar mapa con sucursales y posición actual
   const mapMarkers = [
@@ -1825,21 +3248,40 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
   );
 }
 
-function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }) {
+function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack, fuelRecords = [], saveFuelRecords, driver, config }) {
   const now = new Date();
+  const isSurtir = trip.destinationBranchId === 'surtir' ||
+    (trip.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(trip.customDestName || ''));
+  const isOtro = trip.destinationBranchId === 'otro' && !isSurtir;
+  const isL300 = vehicle?.type === 'L300' || vehicle?.code?.includes('L300') || vehicle?.plate === 'A15BP7M';
+  const pricePerLiter = config?.fuelPrice || 0.5;
   const [form, setForm] = useState({
     kmEnd: trip.kmStart, endDate: now.toISOString().slice(0, 10), endTime: now.toTimeString().slice(0, 5),
-    deliveries: 0, tripsCount: 1, route: 'LOCAL', notes: '',
+    deliveries: 0, tripsCount: 1, route: 'LOCAL', notes: '', arrivalNotes: '',
   });
+  const [arrivalPhotos, setArrivalPhotos] = useState([]);
+  // Campos de combustible (solo cuando isSurtir)
+  const [fuelLiters, setFuelLiters] = useState(isL300 ? '30' : '');
+  const [tankLevel, setTankLevel] = useState('');
+  const [fuelPhoto, setFuelPhoto] = useState(null);
   const kmTraveled = Math.max(0, Number(form.kmEnd) - trip.kmStart);
   const liters = (kmTraveled * (vehicle.litersPer100km || 21)) / 100;
-  const valid = Number(form.kmEnd) >= trip.kmStart && form.endTime;
+  const valid = Number(form.kmEnd) >= trip.kmStart && form.endTime &&
+    (!isOtro || (form.arrivalNotes.trim().length > 0 && arrivalPhotos.length > 0)) &&
+    true; // combustible se registra en pantalla separada
+
+  const handleFinish = async () => {
+    // Combustible se registra en SurtirCombustibleForm (paso separado)
+    onFinish({ ...form, arrivalPhotos });
+  };
+
+  const destLabel = isOtro ? `📍 ${trip.customDestName}` : destination?.name;
 
   return (
     <div className="space-y-4">
       <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
         <div className="text-xs text-rose-700 font-mono uppercase tracking-wider">Llegando a</div>
-        <div className="font-bold text-rose-900 mt-0.5">{destination?.name}</div>
+        <div className="font-bold text-rose-900 mt-0.5">{destLabel}</div>
         <div className="text-xs text-stone-500 mt-0.5 font-mono">desde {origin?.name}</div>
       </div>
 
@@ -1870,9 +3312,43 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }
         </DarkField>
       </div>
 
+
+      {/* SECCIÓN OTRO DESTINO */}
+      {isOtro && (
+        <div className="bg-purple-50 border-2 border-purple-300 rounded-2xl p-5 space-y-4">
+          <div className="font-bold text-purple-800 flex items-center gap-2">
+            <Camera className="w-4 h-4" /> Registro de llegada — {trip.customDestName}
+          </div>
+          <p className="text-xs text-purple-600">Requerido: indica qué se hizo y sube al menos una foto.</p>
+          <div>
+            <label className="text-xs font-bold text-purple-700 uppercase tracking-wider block mb-1.5">¿Qué se hizo? *</label>
+            <textarea value={form.arrivalNotes} onChange={e => setForm({...form, arrivalNotes: e.target.value})} rows={3}
+              placeholder="Ej: cambio de cauchos delanteros, compra de repuestos..." className="dark-input text-sm w-full" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-purple-700 uppercase tracking-wider block mb-2">📸 Fotos de evidencia *</label>
+            <input type="file" accept="image/*" capture="environment" multiple onChange={e => setArrivalPhotos([...arrivalPhotos, ...Array.from(e.target.files)])} className="hidden" id="arrivalPhotoInput" />
+            <label htmlFor="arrivalPhotoInput" className="flex items-center gap-2 py-2.5 px-3 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-lg cursor-pointer text-purple-700 text-sm font-bold w-full justify-center">
+              <Camera className="w-4 h-4" /> Agregar fotos
+            </label>
+            {arrivalPhotos.length > 0 && (
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {arrivalPhotos.map((f,i) => (
+                  <div key={i} className="relative">
+                    <img src={URL.createObjectURL(f)} className="w-20 h-20 object-cover rounded-lg border-2 border-purple-300" />
+                    <button onClick={() => setArrivalPhotos(arrivalPhotos.filter((_,j)=>j!==i))} className="absolute -top-1 -right-1 bg-red-500 rounded-full w-5 h-5 text-white text-xs flex items-center justify-center font-bold">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {arrivalPhotos.length === 0 && <p className="text-xs text-rose-500 mt-1 font-medium">⚠️ Obligatorio al menos 1 foto</p>}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-2">
         <button onClick={onBack} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200">← Atrás</button>
-        <button onClick={() => onFinish(form)} disabled={!valid}
+        <button onClick={handleFinish} disabled={!valid}
           className={`py-3 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 ${valid ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 shadow-emerald-700/30' : 'bg-stone-100 text-stone-300'}`}>
           <CheckCircle2 className="w-5 h-5" /> GUARDAR
         </button>
@@ -1882,13 +3358,46 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack }
   );
 }
 
-function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, onLogout, onMarkDeparted, onFinishJornada }) {
-  const origin = branches.find(b => b.id === trip.originBranchId);
-  const destination = branches.find(b => b.id === trip.destinationBranchId);
+function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, onLogout, onMarkDeparted, onFinishJornada, onEntregarUnidad, onWaitEnd, allVehicles, saveVehicles, appointments = [], saveAppointments, onGoToSelect }) {
+  const origin = branches.find(b => b.id === trip.originBranchId) || (trip.originBranchId === 'taller' ? { id: 'taller', name: '🔧 Taller' } : null);
+  const destination = { id: trip.destinationBranchId, name: resolveDestName(trip, branches) };
   const [timeAtDest, setTimeAtDest] = useState('');
   const [departed, setDeparted] = useState(!!trip.timeAtDestinationMinutes);
   const [confirmedMinutes, setConfirmedMinutes] = useState(trip.timeAtDestinationMinutes || null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [isWaiting, setIsWaiting] = useState(!!localStorage.getItem('emp:isWaiting:'+trip.id));
+  const [waitStart, setWaitStart] = useState(localStorage.getItem('emp:waitStart:'+trip.id) ? Number(localStorage.getItem('emp:waitStart:'+trip.id)) : null);
+  const [waitDisplay, setWaitDisplay] = useState('0m 00s');
+
+  useEffect(() => {
+    if (!isWaiting || !waitStart) return;
+    const update = () => {
+      const sec = Math.max(0, Math.floor((Date.now() - waitStart) / 1000));
+      const h = Math.floor(sec / 3600); const m = Math.floor((sec % 3600) / 60); const s = sec % 60;
+      setWaitDisplay(h > 0 ? `${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s` : `${m}m ${String(s).padStart(2,'0')}s`);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [isWaiting, waitStart]);
+
+  const startWaiting = () => {
+    // Guardar tiempo en destino hasta este momento
+    const arrivedMs = parseDateTime(trip.endDate, trip.endTime);
+    const minutesAtDest = Math.max(0, Math.round((Date.now() - arrivedMs) / 60000));
+    setConfirmedMinutes(minutesAtDest);
+    onMarkDeparted(trip.id); // guarda T.Destino hasta ahora
+    setDeparted(true);       // detiene el timer morado
+    setIsWaiting(true); localStorage.setItem('emp:isWaiting:'+trip.id, '1');
+    setWaitStart(Date.now()); localStorage.setItem('emp:waitStart:'+trip.id, Date.now());     const wh1 = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral;     if (wh1) sendDiscordNotification(wh1, {title: "EN ESPERA - " + vehicle?.code, description: driver?.name + " en espera en " + branches?.find(b => b.id === trip?.destinationBranchId)?.name || trip?.destinationBranchId});
+  };
+  const endWaiting = (goToNewTrip) => {
+    const waitMin = waitStart ? Math.max(0, Math.round((Date.now() - waitStart) / 60000)) : 0;
+    if (onWaitEnd) onWaitEnd(trip.id, waitMin);
+    setIsWaiting(false); localStorage.removeItem('emp:isWaiting:'+trip.id);
+    setWaitStart(null); localStorage.removeItem('emp:waitStart:'+trip.id);     const wh2 = config.discordWebhookByVehicle?.[vehicle?.id] || config.discordWebhookGeneral;     if (wh2) sendDiscordNotification(wh2, {title: "FIN ESPERA - " + vehicle?.code, description: driver?.name + " retoma. Espera: " + waitMin + " min"});
+    if (goToNewTrip) onNewTrip(); else if (onFinishJornada) onFinishJornada();
+  };
 
   useEffect(() => {
     if (departed) return;
@@ -1914,7 +3423,11 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     onMarkDeparted(trip.id);
     setDeparted(true);
     setShowConfirmDialog(false);
-    const wh2 = config.discordWebhookByVehicle?.[trip.vehicleId] || config.discordWebhookGeneral;
+    const isFuelDest = trip.destinationBranchId === 'surtir' ||
+      (trip.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(trip.customDestName || ''));
+    const wh2 = isFuelDest
+      ? (vehicle?.maintenanceWebhook || config.discordWebhookMaintenance || config.discordWebhookGeneral)
+      : (config.discordWebhookByVehicle?.[trip.vehicleId] || config.discordWebhookGeneral);
     if (wh2) sendDiscordNotification(wh2, {
       title: `🚪 Salida de sucursal · ${vehicle?.code}`,
       description: `⏱️ Tiempo en ${destination?.name}: ${minutes > 59 ? Math.floor(minutes / 60) + 'h ' + minutes % 60 + 'min' : minutes + ' min'}`,
@@ -1966,15 +3479,49 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
             </div>
             <Timer className="w-12 h-12 opacity-40" />
           </div>
-          <button onClick={handleDeparted} className="w-full mt-4 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur rounded-lg font-semibold text-sm flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4" /> Marcar salida de sucursal
-          </button>
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            <button onClick={handleDeparted} className="py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur rounded-lg font-semibold text-sm flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4" /> Marcar salida
+            </button>
+            <button onClick={startWaiting} className="py-2.5 bg-blue-400/30 hover:bg-blue-400/50 backdrop-blur rounded-lg font-semibold text-sm flex items-center justify-center gap-2">
+              ⏸️ Sin viajes por ahora
+            </button>
+          </div>
+          {trip.destinationBranchId === 'taller' && vehicle && (
+            <div className="mt-3 pt-3 border-t border-white/20">
+              <TallerEntradaForm vehicle={vehicle} driver={driver} vehicles={allVehicles} saveVehicles={saveVehicles} config={config} onRegistered={onGoToSelect || onNewTrip} appointments={appointments} saveAppointments={saveAppointments} />
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-emerald-50 border-2 border-emerald-300 rounded-2xl p-4">
           <div className="text-xs text-emerald-700 font-bold font-mono uppercase">✅ Tiempo en {destination?.name}</div>
           <div className="text-3xl font-bold text-stone-900 mt-1 font-mono">{formatDuration(confirmedMinutes ?? trip.timeAtDestinationMinutes ?? 0)}</div>
           <div className="text-xs text-stone-500 mt-1 font-mono">Salida registrada · Permanencia guardada</div>
+        </div>
+      )}
+
+      {isWaiting && (
+        <div className="bg-gradient-to-br from-blue-600 to-blue-900 text-white rounded-2xl p-5 shadow-xl border border-blue-400/30">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            <span className="text-xs font-bold uppercase tracking-widest font-mono">⏸️ En espera · {destination?.name}</span>
+          </div>
+          <div className="text-center my-4">
+            <div className="text-xs text-blue-200 font-mono uppercase mb-1">Tiempo de espera</div>
+            <div className="text-4xl font-bold tabular-nums font-mono">{waitDisplay}</div>
+            <div className="text-xs text-blue-300 mt-1 font-mono">desde las {new Date(waitStart).toLocaleTimeString('es-VE', {hour:'2-digit',minute:'2-digit'})}</div>
+          </div>
+          <div className="space-y-2">
+            <button onClick={() => endWaiting(true)}
+              className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 rounded-xl font-bold flex items-center justify-center gap-2">
+              ▶️ Hay viajes disponibles
+            </button>
+            <button onClick={() => endWaiting(false)}
+              className="w-full py-3 bg-white/20 hover:bg-white/30 rounded-xl font-bold flex items-center justify-center gap-2">
+              🌙 Finalizar Jornada de hoy
+            </button>
+          </div>
         </div>
       )}
 
@@ -2004,15 +3551,152 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-2">
-          <button onClick={onLogout} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200">Salir</button>
-          <button onClick={onNewTrip} className="py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-lg shadow-emerald-700/30 flex items-center justify-center gap-2">
-            <Plus className="w-5 h-5" /> Nuevo Viaje
+      {!isWaiting && (
+        <div>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={onLogout} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200">Salir</button>
+            <button onClick={departed ? onNewTrip : undefined} disabled={!departed}
+              className={`py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all ${departed ? 'text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-lg shadow-emerald-700/30' : 'text-stone-400 bg-stone-200 cursor-not-allowed'}`}>
+              <Plus className="w-5 h-5" /> Nuevo Viaje
+            </button>
+          </div>
+          {!departed && (
+            <p className="text-center text-xs text-purple-600 font-semibold mt-1">
+              ⚠️ Marca tu salida de la sucursal antes de continuar
+            </p>
+          )}
+          {onEntregarUnidad && (
+            <button onClick={onEntregarUnidad}
+              className="w-full mt-2 py-3 rounded-xl font-bold text-amber-700 bg-amber-50 border-2 border-amber-200 hover:bg-amber-100 flex items-center justify-center gap-2 transition-all">
+              📤 Entregar unidad a otro chofer
+            </button>
+          )}
+          <button onClick={() => onFinishJornada && onFinishJornada()} className="w-full mt-2 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 shadow-lg shadow-purple-700/30 flex items-center justify-center gap-2">
+            🌙 Finalizar Jornada de hoy
           </button>
         </div>
-        <button onClick={() => onFinishJornada && onFinishJornada()} className="w-full mt-2 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 shadow-lg shadow-purple-700/30 flex items-center justify-center gap-2">
-          🌙 Finalizar Jornada de hoy
-        </button>
+      )}
+    </div>
+  );
+}
+
+
+// ============================================================
+// MODAL ENTREGAR UNIDAD — Daniel llena y entrega a otro chofer
+// ============================================================
+function EntregarUnidadModal({ vehicle, driver, drivers = [], trips = [], onSubmit, onClose }) {
+  const lastKm = React.useMemo(() => {
+    const vTrips = (trips || []).filter(t => t.vehicleId === vehicle?.id && t.kmEnd);
+    if (vTrips.length === 0) return vehicle?.currentKm || '';
+    const last = vTrips.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+    return last.kmEnd || vehicle?.currentKm || '';
+  }, [trips, vehicle]);
+  const [km, setKm] = React.useState(() => String(lastKm));
+  const [fuel, setFuel] = React.useState('');
+  const [notes, setNotes] = React.useState('sin novedad');
+  const [photos, setPhotos] = React.useState([]);
+  const [toDriver, setToDriver] = React.useState(null);
+  const fileRef = React.useRef();
+  const canSubmit = km !== '' && Number(km) > 0 && fuel !== '' && toDriver !== null;
+
+  // Filtrar choferes — excluir al que entrega
+  const otherDrivers = (drivers || []).filter(d => d.id !== driver?.id);
+
+  const FUEL_OPTIONS = [
+    { label: '1/4', value: '1/4', color: 'bg-red-100 border-red-400 text-red-700' },
+    { label: '1/2', value: '1/2', color: 'bg-amber-100 border-amber-400 text-amber-700' },
+    { label: '3/4', value: '3/4', color: 'bg-yellow-100 border-yellow-400 text-yellow-700' },
+    { label: 'Full', value: 'Full', color: 'bg-green-100 border-green-400 text-green-700' },
+  ];
+
+  const handlePhoto = (e) => {
+    const files = Array.from(e.target.files);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => setPhotos(prev => [...prev, { file, preview: ev.target.result }]);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center text-2xl">📤</div>
+          <div>
+            <div className="font-bold text-stone-900 text-lg">Entregar unidad</div>
+            <div className="text-xs text-stone-500">{vehicle?.code} · {driver?.shortName || driver?.name}</div>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {/* Chofer que recibe */}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Entregar a *</label>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              {otherDrivers.map(d => (
+                <button key={d.id} onClick={() => setToDriver(d)}
+                  className={`py-2.5 px-3 rounded-xl font-bold text-sm border-2 transition-all flex items-center gap-2 ${toDriver?.id === d.id ? 'border-emerald-500 bg-emerald-50 text-emerald-800' : 'border-stone-200 bg-stone-50 text-stone-600 hover:border-stone-300'}`}>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold ${toDriver?.id === d.id ? 'bg-emerald-600' : 'bg-stone-400'}`}>
+                    {(d.shortName || d.name || '?')[0].toUpperCase()}
+                  </div>
+                  <span className="truncate">{d.shortName || d.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">KM actual *</label>
+            <input type="number" value={km} onChange={e => setKm(e.target.value)} placeholder="ej: 142168"
+              className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-amber-400" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Nivel de combustible *</label>
+            <div className="grid grid-cols-4 gap-2 mt-1">
+              {FUEL_OPTIONS.map(opt => (
+                <button key={opt.value} onClick={() => setFuel(opt.value)}
+                  className={`py-2.5 rounded-xl font-bold text-sm border-2 transition-all ${fuel === opt.value ? opt.color + ' scale-105' : 'bg-stone-50 border-stone-200 text-stone-500'}`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Observaciones / Novedades</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+              className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-400 resize-none" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Fotos (opcional)</label>
+            <button onClick={() => fileRef.current?.click()}
+              className="w-full mt-1 border-2 border-dashed border-stone-300 rounded-xl py-3 text-sm text-stone-500 hover:border-amber-400 hover:text-amber-600 transition-all flex items-center justify-center gap-2">
+              📷 Tomar / seleccionar foto
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple onChange={handlePhoto} className="hidden" />
+            {photos.length > 0 && (
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {photos.map((p, i) => (
+                  <div key={i} className="relative">
+                    <img src={p.preview} className="w-16 h-16 object-cover rounded-lg border border-stone-200" />
+                    <button onClick={() => setPhotos(prev => prev.filter((_, j) => j !== i))}
+                      className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mt-4">
+          <button onClick={onClose}
+            className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">
+            Cancelar
+          </button>
+          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel, notes, photos: photos.map(p => p.file), toDriver })}
+            disabled={!canSubmit}
+            className={`py-3 rounded-xl font-bold text-white transition-all ${canSubmit ? 'bg-amber-500 hover:bg-amber-600' : 'bg-stone-200 text-stone-400'}`}>
+            Entregar ✅
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2255,8 +3939,8 @@ function DriverHistoryView({ trips, vehicles, branches }) {
       </div>
       {sorted.map(t => {
         const v = vehicles.find(x => x.id === t.vehicleId);
-        const o = branches.find(x => x.id === t.originBranchId);
-        const d = branches.find(x => x.id === t.destinationBranchId);
+        const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
+        const dLabel = resolveDestName(t, branches);
         return (
           <div key={t.id} className="bg-white rounded-xl border border-stone-200 shadow-sm p-3 text-sm">
             <div className="flex justify-between items-start mb-2">
@@ -2270,11 +3954,11 @@ function DriverHistoryView({ trips, vehicles, branches }) {
               </div>
             </div>
             <div className="text-xs flex items-center gap-1 text-stone-700">
-              <span>{o?.name}</span><ArrowRight className="w-3 h-3 text-emerald-700" /><span>{d?.name}</span>
+              <span>{o?.name}</span><ArrowRight className="w-3 h-3 text-emerald-700" /><span>{dLabel}</span>
             </div>
             <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
               <div className="bg-stone-100 rounded p-1.5"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">KM</div><div className="font-bold text-stone-900">{t.kmTraveled}</div></div>
-              <div className="bg-stone-100 rounded p-1.5"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Litros</div><div className="font-bold text-stone-900">{t.liters.toFixed(1)}</div></div>
+              <div className="bg-stone-100 rounded p-1.5"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Litros</div><div className="font-bold text-stone-900">{t.liters.toFixed(2)}</div></div>
               <div className="bg-stone-100 rounded p-1.5"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Entregas</div><div className="font-bold text-stone-900">{t.deliveries}</div></div>
             </div>
           </div>
@@ -2287,9 +3971,39 @@ function DriverHistoryView({ trips, vehicles, branches }) {
 // ============================================================
 // COORDINADOR
 // ============================================================
-function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos }) {
+function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTrips, archivedMonths, photos, gpsTracks, config, checklists, handoffs = [], maintRecords = [], incidents = [], fuelRecords = [], appointments = [], saveVehicles, saveDrivers, saveBranches, saveTrips, saveActiveTrips, saveGpsTracks, saveArchived, saveConfig, savePhotos, saveChecklists, saveMaintRecords, saveIncidents, saveFuelRecords, saveHandoffs, saveAppointments }) {
   const [tab, setTab] = useState('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [autoArchiveBanner, setAutoArchiveBanner] = useState(null);
+
+  // ── AUTO-CIERRE MENSUAL ─────────────────────────────────────────────
+  useEffect(() => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const unarchived = [...new Set(trips.map(t => t.startDate.slice(0, 7)))]
+      .filter(m => m < currentMonth)
+      .filter(m => !archivedMonths.find(a => a.month === m))
+      .sort();
+    if (unarchived.length === 0) return;
+    const newArchived = [...archivedMonths];
+    const labels = [];
+    unarchived.forEach(m => {
+      const mt = trips.filter(t => t.startDate.startsWith(m));
+      if (mt.length === 0) return;
+      newArchived.push({
+        month: m, closedAt: Date.now(), autoArchived: true, tripCount: mt.length,
+        totalKm: mt.reduce((s,t)=>s+(t.kmTraveled||0),0),
+        totalLiters: mt.reduce((s,t)=>s+(t.liters||0),0),
+        totalCost: mt.reduce((s,t)=>s+(t.cost||0),0),
+        totalDeliveries: mt.reduce((s,t)=>s+(t.deliveries||0),0),
+        tripsSnapshot: mt, vehiclesSnapshot: vehicles, driversSnapshot: drivers, branchesSnapshot: branches,
+      });
+      labels.push(new Date(m+'-15').toLocaleDateString('es-VE',{month:'long',year:'numeric'}));
+    });
+    saveArchived(newArchived);
+    setSelectedMonth(currentMonth);
+    setAutoArchiveBanner(labels.join(', '));
+    setTimeout(() => setAutoArchiveBanner(null), 9000);
+  }, []);
 
   const monthTrips = useMemo(() => trips.filter(t => t.startDate.startsWith(selectedMonth)), [trips, selectedMonth]);
   const monthPhotos = useMemo(() => photos.filter(p => p.date.startsWith(selectedMonth)), [photos, selectedMonth]);
@@ -2303,6 +4017,9 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
     { id: 'drivers', label: 'Choferes', icon: Users },
     { id: 'branches', label: 'Sucursales', icon: MapPin },
     { id: 'maintenance', label: 'Mantenim.', icon: Wrench },
+    { id: 'fuel_mgmt', label: 'Combustible', icon: Fuel },
+    { id: 'incidents', label: 'Incidentes', icon: AlertTriangle },
+    { id: 'documents', label: 'Documentos', icon: FileText },
     { id: 'history', label: 'Histórico', icon: History },
     { id: 'checklists', label: 'Checklists', icon: CheckCircle2 },
     { id: 'discord', label: 'Discord', icon: MessageCircle },
@@ -2311,6 +4028,16 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
 
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900">
+      {/* Banner auto-archivo */}
+      {autoArchiveBanner && (
+        <div className="bg-amber-500 text-white px-4 py-2.5 flex items-center justify-between gap-3 shadow-md sticky top-0 z-50">
+          <div className="flex items-center gap-2 text-sm font-bold">
+            <Archive className="w-4 h-4 flex-shrink-0" />
+            <span>📅 Archivado automáticamente: <span className="capitalize">{autoArchiveBanner}</span> — disponible en Histórico</span>
+          </div>
+          <button onClick={() => setAutoArchiveBanner(null)} className="text-white/80 hover:text-white"><X className="w-4 h-4" /></button>
+        </div>
+      )}
       <header className="bg-gradient-to-r from-[#1a1d1a] via-[#252726] to-[#1a1d1a] border-b border-stone-700 sticky top-0 z-30 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -2355,16 +4082,19 @@ function CoordinatorApp({ onLogout, vehicles, drivers, branches, trips, activeTr
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-5">
-        {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} />}
+        {tab === 'dashboard' && <CoordDashboard trips={monthTrips} activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} selectedMonth={selectedMonth} gpsTracks={gpsTracks} config={config} checklists={checklists} handoffs={handoffs} incidents={incidents} saveHandoffs={saveHandoffs} sbFetch={sbFetch} />}
         {tab === 'live' && <LiveGpsView activeTrips={activeTrips} vehicles={vehicles} drivers={drivers} branches={branches} gpsTracks={gpsTracks} trips={trips} />}
-        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} />}
+        {tab === 'trips' && <TripsTable trips={monthTrips} vehicles={vehicles} drivers={drivers} branches={branches} saveTrips={saveTrips} allTrips={trips} gpsTracks={gpsTracks} handoffs={handoffs} maintRecords={maintRecords} fuelRecords={fuelRecords} />}
         {tab === 'photos' && <PhotosView photos={monthPhotos} vehicles={vehicles} drivers={drivers} onDelete={(id) => savePhotos(photos.filter(p => p.id !== id))} canAdd={false} showDriver={true} />}
-        {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} />}
+        {tab === 'vehicles' && <VehiclesTab vehicles={vehicles} saveVehicles={saveVehicles} trips={monthTrips} config={config} saveConfig={saveConfig} />}
         {tab === 'drivers' && <DriversTab drivers={drivers} saveDrivers={saveDrivers} trips={monthTrips} />}
         {tab === 'branches' && <BranchesTab branches={branches} saveBranches={saveBranches} />}
-        {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} />}
-        {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} />}
-        {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} />}
+        {tab === 'maintenance' && <MaintenanceTab vehicles={vehicles} saveVehicles={saveVehicles} maintRecords={maintRecords} saveMaintRecords={saveMaintRecords} appointments={appointments} saveAppointments={saveAppointments} config={config} />}
+        {tab === 'fuel_mgmt' && <FuelMgmtTab fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} vehicles={vehicles} trips={trips} config={config} selectedMonth={selectedMonth} />}
+        {tab === 'incidents' && <IncidentsTab incidents={incidents} vehicles={vehicles} drivers={drivers} saveIncidents={saveIncidents} />}
+        {tab === 'documents' && <DocumentsTab vehicles={vehicles} saveVehicles={saveVehicles} config={config} drivers={drivers} saveDrivers={saveDrivers} />}
+        {tab === 'history' && <HistoryTab archivedMonths={archivedMonths} trips={trips} vehicles={vehicles} drivers={drivers} branches={branches} saveArchived={saveArchived} maintRecords={maintRecords} />}
+        {tab === 'checklists' && <ChecklistCoordTab checklists={checklists} vehicles={vehicles} drivers={drivers} config={config} saveChecklists={saveChecklists} sbFetch={sbFetch} />}
         {tab === 'discord' && <DiscordTab config={config} saveConfig={saveConfig} vehicles={vehicles} />}
         {tab === 'settings' && <SettingsTab config={config} saveConfig={saveConfig} saveTrips={saveTrips} saveActiveTrips={saveActiveTrips} savePhotos={savePhotos} saveGpsTracks={saveGpsTracks} saveArchived={saveArchived} vehicles={vehicles} saveVehicles={saveVehicles} />}
       </main>
@@ -2383,7 +4113,7 @@ function DarkMonthSelector({ selectedMonth, setSelectedMonth }) {
   );
 }
 
-function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selectedMonth, gpsTracks, config, checklists = [] }) {
+function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selectedMonth, gpsTracks, config, checklists = [], handoffs = [], incidents = [], saveHandoffs, sbFetch }) {
   const [selectedChecklist, setSelectedChecklist] = React.useState(null);
   const kpis = useMemo(() => {
     const totalKm = trips.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
@@ -2438,6 +4168,152 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
       {/* SEMÁFORO DE CHEQUEOS HOY */}
       <FleetChecklistWidget vehicles={vehicles} checklists={checklists} drivers={drivers} onSelect={setSelectedChecklist} />
       {selectedChecklist && <ChecklistDetailModal checklist={selectedChecklist} vehicles={vehicles} onClose={() => setSelectedChecklist(null)} />}
+
+      {/* ALERTAS INCIDENTES RECIENTES */}
+      {(() => {
+        const recent = incidents.filter(i => i.status !== 'Resuelto' && (Date.now() - i.createdAt) < 86400000 * 3);
+        if (recent.length === 0) return null;
+        return (
+          <div className="bg-white rounded-xl border-2 border-rose-300 shadow-sm overflow-hidden">
+            <div className="px-3 py-2 bg-rose-50 border-b border-rose-200 flex items-center gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+              <div className="text-xs font-bold text-rose-700 uppercase tracking-wider">Incidentes recientes ({recent.length})</div>
+            </div>
+            <div className="p-3 space-y-2">
+              {recent.slice(0,3).map(inc => (
+                <div key={inc.id} className={`flex items-center justify-between px-3 py-2 rounded-lg ${inc.severity==='Grave'?'bg-rose-100 border border-rose-300':inc.severity==='Moderado'?'bg-rose-50 border border-rose-200':'bg-amber-50 border border-amber-200'}`}>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span>{inc.severity==='Grave'?'🚨':inc.severity==='Moderado'?'🔴':'🟡'}</span>
+                    <span className="font-bold">{inc.vehicleCode}</span>
+                    <span className="text-stone-600">— {inc.type}</span>
+                    <span className="text-stone-400 text-xs">{inc.driverName}</span>
+                  </div>
+                  <span className="text-xs text-stone-500 font-mono">{inc.date} {inc.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ALERTAS DOCUMENTOS VENCIDOS/PROXIMOS — vehículos y choferes */}
+      {(() => {
+        const vehicleDocAlerts = vehicles.flatMap(v =>
+          (v.documents||[]).map(d => ({ ...d, entityName: v.code, entityColor: v.color||'#10b981', ...docStatus(d.expiryDate) }))
+        ).filter(d => d.days !== null && d.days <= 30);
+        const driverDocAlerts = drivers.flatMap(d => {
+          const items = [];
+          if (d.licenseExpiry) items.push({ name: 'Licencia', entityName: d.shortName||d.name, entityColor: '#6366f1', ...docStatus(d.licenseExpiry) });
+          if (d.medicalExpiry) items.push({ name: 'Cert. Medico', entityName: d.shortName||d.name, entityColor: '#6366f1', ...docStatus(d.medicalExpiry) });
+          return items;
+        }).filter(d => d.days !== null && d.days <= 30);
+        const docAlerts = [...vehicleDocAlerts, ...driverDocAlerts].sort((a,b) => a.days - b.days);
+        if (docAlerts.length === 0) return null;
+        return (
+          <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+            <div className="px-3 py-2 bg-stone-50 border-b border-stone-200 flex items-center gap-2">
+              <FileText className="w-3.5 h-3.5 text-stone-600" />
+              <div className="text-xs font-bold text-stone-600 uppercase tracking-wider">Documentos — Alertas</div>
+            </div>
+            <div className="p-3 space-y-2">
+              {docAlerts.map((d,i) => (
+                <div key={i} className={`flex items-center justify-between px-3 py-2 rounded-lg ${d.color==='rose'?'bg-rose-50 border border-rose-200':'bg-amber-50 border border-amber-200'}`}>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.entityColor }} />
+                    <span className="font-bold">{d.entityName}</span>
+                    <span className="text-stone-600">→ {d.name}</span>
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${STATUS_STYLE[d.color]}`}>{d.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ALERTAS MANTENIMIENTO Y TALLER */}
+      {(() => {
+        const enTaller = vehicles.filter(v => v.status === 'EN TALLER');
+        const SERV_ALERTS = [
+          { key: 'oil',     label: 'Aceite + Filtros', icon: '🛢️', lastKey: 'lastMaintKm',   freqKey: 'maintFreq',   def: 6000,  warn: 500  },
+          { key: 'grease',  label: 'Engrase',           icon: '⚙️', lastKey: 'lastGreaseKm',  freqKey: 'greaseFreq',  def: 3000,  warn: 500  },
+          { key: 'brake',   label: 'Frenos',            icon: '🛑', lastKey: 'lastBrakeKm',   freqKey: 'brakeFreq',   def: 15000, warn: 1000 },
+          { key: 'coolant', label: 'Refrigerante',      icon: '💧', lastKey: 'lastCoolantKm', freqKey: 'coolantFreq', def: 12000, warn: 1000 },
+          { key: 'prev',    label: 'Mant. Prev.',       icon: '🔧', lastKey: 'lastPrevKm',    freqKey: 'prevFreq',    def: 15000, warn: 1000 },
+        ];
+        // Agrupar alertas por vehículo
+        const byVehicle = vehicles.filter(v => v.status !== 'EN TALLER').map(v => {
+          const alertas = SERV_ALERTS.map(s => {
+            const last = v[s.lastKey] || 0;
+            const freq = v[s.freqKey] || s.def;
+            const rem = last + freq - (v.currentKm || 0);
+            return rem < s.warn ? { ...s, rem } : null;
+          }).filter(Boolean);
+          return alertas.length > 0 ? { v, alertas } : null;
+        }).filter(Boolean);
+        if (enTaller.length === 0 && byVehicle.length === 0) return null;
+        const fmt = (s) => { const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60); return d>0?`${d}d ${h}h`:`${h}h ${m}m`; };
+        const totalAlertas = byVehicle.reduce((s,x) => s + x.alertas.length, 0);
+        return (
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+            {/* Header */}
+            <div className="px-4 py-3 bg-rose-600 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-white" />
+                <span className="font-black text-white text-sm">Alertas de Mantenimiento</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {enTaller.length > 0 && <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold">{enTaller.length} en taller</span>}
+                {totalAlertas > 0 && <span className="text-[10px] bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full font-bold">{totalAlertas} {totalAlertas===1?'alerta':'alertas'}</span>}
+              </div>
+            </div>
+            <div className="divide-y divide-stone-100">
+              {/* En taller */}
+              {enTaller.map(v => (
+                <div key={v.id} className="px-4 py-3 flex items-center gap-3 bg-rose-50">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm" style={{backgroundColor: v.color+'22', border: `2px solid ${v.color}`}}>
+                    <span style={{color: v.color}} className="font-black text-xs">{v.code.replace(/\s/g,'').slice(0,3)}</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-rose-800 text-sm">{v.code}</span>
+                      <span className="text-[10px] bg-rose-600 text-white px-2 py-0.5 rounded-full font-bold">🔧 EN TALLER</span>
+                    </div>
+                    <div className="text-xs text-rose-600 mt-0.5">{v.tallerMotivo || 'En servicio'}{v.tallerEntrada ? ` · ${fmt(Math.floor((Date.now()-v.tallerEntrada)/1000))}` : ''}</div>
+                  </div>
+                </div>
+              ))}
+              {/* Por vehículo */}
+              {byVehicle.map(({ v, alertas }) => {
+                const tieneVencido = alertas.some(a => a.rem < 0);
+                return (
+                  <div key={v.id} className={`px-4 py-3 ${tieneVencido ? 'bg-rose-50/50' : 'bg-amber-50/40'}`}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor: v.color}}></div>
+                      <span className="font-black text-stone-900 text-sm">{v.code}</span>
+                      <span className="text-xs text-stone-500 font-mono">{v.plate}</span>
+                      <span className="text-xs text-stone-400">· {(v.currentKm||0).toLocaleString()} km</span>
+                      {tieneVencido
+                        ? <span className="ml-auto text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-bold">⚠️ VENCIDO</span>
+                        : <span className="ml-auto text-[10px] bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full font-bold">⏰ PRÓXIMO</span>
+                      }
+                    </div>
+                    <div className="flex flex-wrap gap-2 pl-5">
+                      {alertas.map((a, i) => (
+                        <div key={i} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg font-medium border ${a.rem < 0 ? 'bg-rose-100 text-rose-800 border-rose-200' : 'bg-amber-100 text-amber-800 border-amber-200'}`}>
+                          <span>{a.icon}</span>
+                          <span>{a.label}</span>
+                          <span className="font-mono font-bold">{a.rem < 0 ? `−${Math.abs(a.rem).toLocaleString()}` : `+${a.rem.toLocaleString()}`} km</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* COSTO POR KM POR VEHÍCULO */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-sm">
@@ -2617,7 +4493,7 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
             {activeTrips.map(t => {
               const d = drivers.find(x => x.id === t.driverId);
               const v = vehicles.find(x => x.id === t.vehicleId);
-              const o = branches.find(x => x.id === t.originBranchId);
+              const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
               const dest = branches.find(x => x.id === t.destinationBranchId);
               return (
                 <div key={t.id} className="bg-white border border-stone-200 rounded-lg p-3 text-sm flex items-center justify-between flex-wrap gap-2">
@@ -2665,6 +4541,76 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
           </div>
         )}
       </div>
+
+      {/* TRASPASOS DE UNIDAD DEL MES */}
+      {(() => {
+        const monthHandoffs = handoffs.filter(h => h.handoffDate && h.handoffDate.startsWith(selectedMonth));
+        if (monthHandoffs.length === 0) return null;
+        const handleDeleteHandoffs = async () => {
+          if (!confirm(`¿Borrar los ${monthHandoffs.length} traspaso(s) de ${monthLabel}?`)) return;
+          const remaining = handoffs.filter(h => !h.handoffDate?.startsWith(selectedMonth));
+          saveHandoffs && saveHandoffs(remaining);
+          // Borrar de Supabase también
+          try {
+            for (const h of monthHandoffs) {
+              await sbFetch(`handoffs?id=eq.${h.id}`, { method: 'DELETE' });
+            }
+          } catch(e) {}
+        };
+        return (
+          <div className="bg-white rounded-2xl border border-amber-200 overflow-hidden shadow-sm">
+            <div className="px-4 py-3 border-b border-amber-100 bg-amber-50 flex items-center gap-2">
+              <span className="text-lg">📤</span>
+              <span className="font-bold text-stone-900 text-sm">Traspasos de unidad — {monthLabel}</span>
+              <span className="ml-2 bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">{monthHandoffs.length} traspaso{monthHandoffs.length !== 1 ? 's' : ''}</span>
+              <button onClick={handleDeleteHandoffs}
+                className="ml-auto text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-1 rounded-lg hover:bg-rose-100 transition-all">
+                🗑️ Borrar traspasos
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-stone-50 text-[10px] text-stone-600 uppercase tracking-wider">
+                  <tr>
+                    <th className="text-left px-3 py-2">Fecha · Hora</th>
+                    <th className="text-left px-3 py-2">Unidad</th>
+                    <th className="text-left px-3 py-2">Entregó</th>
+                    <th className="text-left px-3 py-2">Recibió</th>
+                    <th className="text-right px-2 py-2">KM</th>
+                    <th className="text-right px-2 py-2">Combustible</th>
+                    <th className="text-left px-3 py-2">Obs. entrega</th>
+                    <th className="text-left px-3 py-2">Obs. recepción</th>
+                    <th className="text-center px-2 py-2">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...monthHandoffs].sort((a, b) => b.handoffDate?.localeCompare(a.handoffDate)).map(h => (
+                    <tr key={h.id} className="border-t border-stone-100 hover:bg-amber-50/50">
+                      <td className="px-3 py-2.5 font-mono text-xs text-stone-600">{h.handoffDate}<br/>{h.handoffTime}</td>
+                      <td className="px-3 py-2.5 font-bold text-stone-900">{h.vehicleCode}</td>
+                      <td className="px-3 py-2.5 text-stone-700">{h.fromDriverName}</td>
+                      <td className="px-3 py-2.5 text-stone-700">
+                        {h.toDriverName || h.toDriverNameExpected
+                          ? <span>{h.toDriverName || h.toDriverNameExpected}{h.status !== 'confirmed' && <span className="ml-1 text-[10px] text-amber-600">(esperando)</span>}</span>
+                          : <span className="text-stone-400 italic">—</span>}
+                      </td>
+                      <td className="px-2 py-2.5 text-right font-mono text-stone-700">{h.kmAtHandoff?.toLocaleString() || '-'}</td>
+                      <td className="px-2 py-2.5 text-right text-stone-700">{h.fuelAtHandoff ? `${h.fuelAtHandoff}` : '-'}</td>
+                      <td className="px-3 py-2.5 text-xs text-stone-600">{h.notes || '-'}</td>
+                      <td className="px-3 py-2.5 text-xs text-stone-600">{h.receptionNotes || '-'}</td>
+                      <td className="px-2 py-2.5 text-center">
+                        {h.status === 'confirmed'
+                          ? <span className="bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full">✅ Confirmado</span>
+                          : <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full">⏳ Pendiente</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -2727,8 +4673,9 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
       if (track && track.points.length > 0) {
         const last = track.points[track.points.length - 1];
         m.push({
-          type: 'vehicle', code: v?.code || '?', lat: last.lat, lng: last.lng, color: v?.color || '#10b981',
-          popup: `<b>${v?.code}</b><br/>${d?.name}`,
+          type: 'vehicle', code: v?.code || '?', lat: last.lat, lng: last.lng,
+          color: v?.color || '#10b981', speed: last.speed || 0,
+          popup: `<b>${v?.code}</b><br/>${d?.name}<br/>${last.speed > 0 ? Math.round(last.speed) + ' km/h' : 'Velocidad no disponible'}`,
         });
       }
     });
@@ -2778,10 +4725,13 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
             {activeTrips.map(t => {
               const v = vehicles.find(x => x.id === t.vehicleId);
               const d = drivers.find(x => x.id === t.driverId);
-              const o = branches.find(x => x.id === t.originBranchId);
+              const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
               const dest = branches.find(x => x.id === t.destinationBranchId);
               const track = gpsTracks.find(g => g.tripId === t.id);
               const points = track?.points?.length || 0;
+              const lastPoint = track?.points?.[track.points.length - 1];
+              const speed = lastPoint?.speed ? Math.round(lastPoint.speed) : null;
+              const speedAlert = speed && speed > 80;
               return (
                 <div key={t.id} className="px-4 py-3 flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-3">
@@ -2789,7 +4739,14 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
                     <div>
                       <div className="font-bold text-stone-900">{v?.code} · {d?.name}</div>
                       <div className="text-xs text-stone-500 font-mono">{o?.name} → {dest?.name}</div>
-                      <div className="text-[10px] text-emerald-700 font-mono mt-0.5">{points} puntos GPS · Salió {t.startTime}</div>
+                      <div className="text-[10px] font-mono mt-0.5 flex items-center gap-2">
+                        <span className="text-emerald-700">{points} pts GPS · Salió {t.startTime}</span>
+                        {speed !== null && (
+                          <span className={`font-bold px-1.5 py-0.5 rounded-full text-white ${speedAlert ? 'bg-red-500 animate-pulse' : 'bg-emerald-600'}`}>
+                            {speed} km/h{speedAlert ? ' ⚠️' : ''}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   {d && <DarkContactButtons driver={d} compact />}
@@ -2810,7 +4767,7 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
             {completedTrips.map(t => {
               const v = vehicles.find(x => x.id === t.vehicleId);
               const d = drivers.find(x => x.id === t.driverId);
-              const o = branches.find(x => x.id === t.originBranchId);
+              const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
               const dest = branches.find(x => x.id === t.destinationBranchId);
               const isSelected = selectedTripId === t.id;
               return (
@@ -2847,7 +4804,7 @@ function LiveGpsView({ activeTrips, vehicles, drivers, branches, gpsTracks, trip
 // ============================================================
 // VIAJES TABLE
 // ============================================================
-function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks }) {
+function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, gpsTracks, handoffs = [], maintRecords = [], fuelRecords = [] }) {
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
   // Refrescar cada minuto para actualizar los cronómetros "aún ahí"
@@ -2859,7 +4816,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
     if (!search) return true;
     const v = vehicles.find(x => x.id === t.vehicleId);
     const d = drivers.find(x => x.id === t.driverId);
-    const o = branches.find(x => x.id === t.originBranchId);
+    const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
     const dest = branches.find(x => x.id === t.destinationBranchId);
     return `${t.startDate} ${v?.code} ${d?.name} ${o?.name} ${dest?.name}`.toLowerCase().includes(search.toLowerCase());
   }).sort((a, b) => b.createdAt - a.createdAt);
@@ -2869,11 +4826,23 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState(null);
   const [deleteUntil, setDeleteUntil] = useState('');
-  const handleDeleteOld = () => {
-    if (!deleteUntil) return;
-    if (!window.confirm(`¿Borrar viajes anteriores al ${deleteUntil}?`)) return;
+  const handleDeleteOld = async () => {
+    if (!deleteUntil) {
+      setExportMsg({ type: 'error', msg: '⚠️ Selecciona una fecha primero' });
+      setTimeout(() => setExportMsg(null), 3000);
+      return;
+    }
+    const toDelete = allTrips.filter(t => t.startDate < deleteUntil).length;
+    if (toDelete === 0) {
+      setExportMsg({ type: 'info', msg: `No hay viajes anteriores al ${deleteUntil}` });
+      setTimeout(() => setExportMsg(null), 3000);
+      return;
+    }
+    if (!window.confirm(`¿Borrar ${toDelete} viaje(s) anteriores al ${deleteUntil}? Esta acción no se puede deshacer.`)) return;
     const keep = allTrips.filter(t => t.startDate >= deleteUntil);
-    saveTrips(keep);
+    const idsToDelete = allTrips.filter(t => t.startDate < deleteUntil).map(t => t.id);       saveTrips(keep);       if (idsToDelete.length > 0) {         try {           await fetch(`${SB_URL}/rest/v1/trips?id=in.(${idsToDelete.join(',')})`, {             method: 'DELETE', headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }           });         } catch(e) { console.error('SB delete viajes:', e); }       }
+    setExportMsg({ type: 'success', msg: `✅ ${toDelete} viaje(s) eliminados` });
+    setTimeout(() => setExportMsg(null), 4000);
   };
 
   // Helper: convertir un valor a celda HTML escapando caracteres
@@ -2932,7 +4901,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       let totKm = 0, totL = 0, totC = 0, totD = 0;
       vTrips.forEach(t => {
         const d = drivers.find(x => x.id === t.driverId);
-        const o = branches.find(x => x.id === t.originBranchId);
+        const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
         const dest = branches.find(x => x.id === t.destinationBranchId);
         totKm += Number(t.kmTraveled) || 0;
         totL += Number(t.liters) || 0;
@@ -3077,6 +5046,25 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
     }, 100);
   };
 
+  const exportToExcelDaily = async () => {
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const todayTrips = trips.filter(t => t.startDate === todayISO || t.endDate === todayISO);
+    if (!todayTrips.length) { alert('No hay viajes hoy'); return; }
+    if (!XLSX?.utils) { alert('Excel no disponible'); return; }
+    const wb = XLSX.utils.book_new();
+    const rows = [['CHOFER','UNIDAD','RUTA','KM SAL','KM LLE','KM REC','DURACIÓN','$ COSTO','LITROS']];
+    todayTrips.forEach(t => {
+      const dr=drivers.find(d=>d.id===t.driverId), vh=vehicles.find(v=>v.id===t.vehicleId);
+      const or=branches.find(b=>b.id===t.originBranchId)?.name||'', ds=branches.find(b=>b.id===t.destinationBranchId)?.name||'';
+      const dur=t.tripMinutes>59?`${Math.floor(t.tripMinutes/60)}h ${t.tripMinutes%60}m`:`${t.tripMinutes||0}m`;
+      rows.push([dr?.name||'',vh?.code||'',`${or} → ${ds}`,t.kmStart||0,t.kmEnd||0,t.kmTraveled||0,dur,+(t.cost||0).toFixed(2),+(t.liters||0).toFixed(2)]);
+    });
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:20},{wch:10},{wch:30},{wch:9},{wch:9},{wch:8},{wch:9},{wch:9},{wch:8}];
+    XLSX.utils.book_append_sheet(wb,ws,'Hoy');
+    XLSX.writeFile(wb,`Reporte_Diario_${todayISO}.xlsx`);
+  };
+
   const exportToExcel = async () => {
     if (trips.length === 0) {
       setExportMsg({ type: 'error', msg: 'No hay viajes registrados para exportar este mes' });
@@ -3084,243 +5072,709 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       return;
     }
     setExporting(true);
-    setExportMsg({ type: 'info', msg: 'Generando reporte mensual...' });
+    setExportMsg({ type: 'info', msg: 'Generando reporte profesional...' });
 
     try {
       if (XLSX && XLSX.utils && XLSX.utils.book_new) {
         const wb = XLSX.utils.book_new();
         const r2 = (n) => Number((n || 0).toFixed(2));
-        const pct = (v, max, len = 12) => {
-          if (max === 0) return '░'.repeat(len);
-          const f = Math.min(Math.round((v / max) * len), len);
-          return '▓'.repeat(f) + '░'.repeat(len - f);
-        };
-        const kmLIndicador = (kml) => {
-          if (kml === 0) return '⚪ Sin datos';
-          if (kml >= 5) return '🟢 Eficiente';
-          if (kml >= 3) return '🟡 Normal';
-          return '🔴 Revisar';
-        };
-        const medals = ['🥇', '🥈', '🥉', '4°', '5°', '6°', '7°', '8°'];
 
-        // ── Pre-calcular métricas por vehículo ──────────────────────────
-        const vMetrics = vehicles.map(v => {
-          const vt = trips.filter(t => t.vehicleId === v.id);
-          const dias = new Set(vt.map(t => t.startDate)).size;
-          const km   = vt.reduce((s, t) => s + (t.kmTraveled || 0), 0);
-          const lt   = vt.reduce((s, t) => s + (t.liters || 0), 0);
-          const cs   = vt.reduce((s, t) => s + (t.cost || 0), 0);
-          const vj   = vt.reduce((s, t) => s + (t.tripsCount || 1), 0);
-          const en   = vt.reduce((s, t) => s + (t.deliveries || 0), 0);
-          const kml  = lt > 0 ? km / lt : 0;
-          return { v, vt, dias, km, lt, cs, vj, en, kml };
+        // ── Helpers de tiempo ────────────────────────────────────────────
+        const fmtMin = (min) => {
+          if (!min || min <= 0) return '';
+          if (min > 2880) return '--';   // > 48h = dato incorrecto
+          if (min >= 60) return `${Math.floor(min / 60)}h ${min % 60}m`;
+          return `${min} min`;
+        };
+        const addMin = (timeStr, minutes) => {
+          if (!timeStr || !minutes || minutes <= 0 || minutes > 2880) return '';
+          const [h, m] = timeStr.split(':').map(Number);
+          const tot = h * 60 + m + minutes;
+          return `${String(Math.floor(tot / 60) % 24).padStart(2, '0')}:${String(tot % 60).padStart(2, '0')}`;
+        };
+
+        // ── Paleta ───────────────────────────────────────────────────────
+        const C = {
+          darkGreen: '1B4332', medGreen: '2D6A4F', lightGreen: 'D1FAE5',
+          tealGreen: '065F46', mintGreen: 'A7F3D0',
+          darkGray: '1F2937', midGray: '6B7280', lightGray: 'F3F4F6',
+          borderGray: 'E5E7EB', white: 'FFFFFF', black: '111827',
+          amber: 'FEF3C7', amberDark: '92400E',
+          red: 'FEE2E2', redDark: '991B1B',
+          blue: 'EFF6FF', blueDark: '1E3A8A',
+        };
+
+        const bdr = (color = C.borderGray) => ({
+          top: { style: 'thin', color: { rgb: color } }, bottom: { style: 'thin', color: { rgb: color } },
+          left: { style: 'thin', color: { rgb: color } }, right: { style: 'thin', color: { rgb: color } },
         });
 
+        const ST = {
+          title: { font: { bold: true, color: { rgb: C.white }, sz: 14, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.darkGreen } }, alignment: { horizontal: 'center', vertical: 'center' } },
+          subtitle: { font: { italic: true, color: { rgb: 'A7F3D0' }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.darkGreen } }, alignment: { horizontal: 'center' } },
+          secHeader: { font: { bold: true, color: { rgb: C.white }, sz: 10, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.medGreen } } },
+          colHeader: { font: { bold: true, color: { rgb: C.white }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.darkGray } }, alignment: { horizontal: 'center', vertical: 'center', wrapText: true }, border: { ...bdr(C.midGray), bottom: { style: 'medium', color: { rgb: C.medGreen } } } },
+          dataEven: { font: { color: { rgb: C.black }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: 'F9FAFB' } }, border: bdr(), alignment: { vertical: 'center' } },
+          dataOdd: { font: { color: { rgb: C.black }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.white } }, border: bdr(), alignment: { vertical: 'center' } },
+          dataRight: (e) => ({ font: { color: { rgb: C.black }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: e ? 'F9FAFB' : C.white } }, border: bdr(), alignment: { horizontal: 'right', vertical: 'center' } }),
+          dataCenter: (e) => ({ font: { color: { rgb: C.black }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: e ? 'F9FAFB' : C.white } }, border: bdr(), alignment: { horizontal: 'center', vertical: 'center' } }),
+          totalRow: { font: { bold: true, color: { rgb: C.tealGreen }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.lightGreen } }, border: { ...bdr(C.mintGreen), top: { style: 'medium', color: { rgb: '059669' } } }, alignment: { vertical: 'center' } },
+          totalRight: { font: { bold: true, color: { rgb: C.tealGreen }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.lightGreen } }, border: { ...bdr(C.mintGreen), top: { style: 'medium', color: { rgb: '059669' } } }, alignment: { horizontal: 'right', vertical: 'center' } },
+          kpiBox: { font: { bold: true, color: { rgb: C.tealGreen }, sz: 16, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.lightGreen } }, alignment: { horizontal: 'center', vertical: 'center' }, border: { ...bdr(C.mintGreen), bottom: { style: 'medium', color: { rgb: '059669' } } } },
+          kpiLabel: { font: { bold: true, color: { rgb: C.white }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: C.medGreen } }, alignment: { horizontal: 'center', vertical: 'center' }, border: bdr(C.mintGreen) },
+          statusEficiente: { font: { bold: true, color: { rgb: C.tealGreen }, sz: 9 }, fill: { patternType: 'solid', fgColor: { rgb: C.lightGreen } }, alignment: { horizontal: 'center' }, border: bdr(C.mintGreen) },
+          statusNormal: { font: { bold: true, color: { rgb: C.amberDark }, sz: 9 }, fill: { patternType: 'solid', fgColor: { rgb: C.amber } }, alignment: { horizontal: 'center' }, border: bdr('FDE68A') },
+          statusRevisar: { font: { bold: true, color: { rgb: C.redDark }, sz: 9 }, fill: { patternType: 'solid', fgColor: { rgb: C.red } }, alignment: { horizontal: 'center' }, border: bdr('FECACA') },
+          statusSinDatos: { font: { color: { rgb: C.midGray }, sz: 9 }, fill: { patternType: 'solid', fgColor: { rgb: C.lightGray } }, alignment: { horizontal: 'center' }, border: bdr() },
+          timeCell: (e) => ({ font: { color: { rgb: '1D4ED8' }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: e ? 'EFF6FF' : C.white } }, border: bdr('BFDBFE'), alignment: { horizontal: 'center', vertical: 'center' } }),
+        };
+
+        const sc = (ws, r, c, style) => { const a = XLSX.utils.encode_cell({ r, c }); if (!ws[a]) ws[a] = { v: '', t: 's' }; ws[a].s = style; };
+        const sr = (ws, r, n, style) => { for (let c = 0; c < n; c++) sc(ws, r, c, style); };
+        const kmLText = (k) => k === 0 ? 'SIN DATOS' : k >= 5 ? 'EFICIENTE' : k >= 3 ? 'NORMAL' : 'REVISAR';
+        const kmLST = (k) => k === 0 ? ST.statusSinDatos : k >= 5 ? ST.statusEficiente : k >= 3 ? ST.statusNormal : ST.statusRevisar;
+
+        // ── Pre-cálculos ─────────────────────────────────────────────────
+        const vMetrics = vehicles.map(v => {
+          const vt = trips.filter(t => t.vehicleId === v.id);
+          const km = vt.reduce((s, t) => s + (t.kmTraveled || 0), 0);
+          const lt = vt.reduce((s, t) => s + (t.liters || 0), 0);
+          const cs = vt.reduce((s, t) => s + (t.cost || 0), 0);
+          const vj = vt.reduce((s, t) => s + (t.tripsCount || 1), 0);
+          const en = vt.reduce((s, t) => s + (t.deliveries || 0), 0);
+          const dias = new Set(vt.map(t => t.startDate)).size;
+          const kml = lt > 0 ? km / lt : 0;
+          return { v, vt, km, lt, cs, vj, en, dias, kml };
+        });
         const flotaKm = vMetrics.reduce((s, m) => s + m.km, 0);
         const flotaLt = vMetrics.reduce((s, m) => s + m.lt, 0);
         const flotaCs = vMetrics.reduce((s, m) => s + m.cs, 0);
         const flotaVj = vMetrics.reduce((s, m) => s + m.vj, 0);
         const flotaEn = vMetrics.reduce((s, m) => s + m.en, 0);
-        const maxKm   = Math.max(...vMetrics.map(m => m.km), 1);
-        const maxEn   = Math.max(...vMetrics.map(m => m.en), 1);
         const ranked  = [...vMetrics].sort((a, b) => b.kml - a.kml);
+        const periodo = [...new Set(trips.map(t => t.startDate))].sort();
+        const periodoStr = periodo.length > 0 ? `${periodo[0]}  →  ${periodo[periodo.length - 1]}` : '';
 
         // ════════════════════════════════════════════════════════════════
-        // HOJA 1 — DASHBOARD
+        // HOJA 1 — DASHBOARD PROFESIONAL con barras visuales
         // ════════════════════════════════════════════════════════════════
-        const dash = [];
-        dash.push(['🚛  REPORTE MENSUAL DE FLOTA — TRANSPORTE EMPORIUM']);
-        dash.push([`📅  Generado: ${new Date().toLocaleString('es-VE')}`]);
-        dash.push([`📦  Período: ${[...new Set(trips.map(t => t.startDate))].sort()[0]} → ${[...new Set(trips.map(t => t.startDate))].sort().reverse()[0]}`]);
-        dash.push([]);
-        dash.push(['════════════════════════════════════════════════════════']);
-        dash.push(['📊  KPIs GLOBALES DE LA FLOTA']);
-        dash.push(['════════════════════════════════════════════════════════']);
-        dash.push(['KM Totales recorridos', r2(flotaKm), 'km']);
-        dash.push(['Litros consumidos',     r2(flotaLt), 'L']);
-        dash.push(['Costo total combustible', r2(flotaCs), '$']);
-        dash.push(['Viajes realizados',     flotaVj, 'viajes']);
-        dash.push(['Entregas completadas',  flotaEn, 'entregas']);
-        dash.push(['Eficiencia promedio flota', flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, 'km/L']);
-        dash.push([]);
-        dash.push(['════════════════════════════════════════════════════════']);
-        dash.push(['🚛  RENDIMIENTO POR CAMIÓN']);
-        dash.push(['════════════════════════════════════════════════════════']);
-        dash.push(['Camión', 'Placa', 'Días op.', 'KM total', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'KM/L', 'Estado']);
+        const bar = (val, max, len = 18) => {
+          if (!max) return '░'.repeat(len);
+          const f = Math.min(Math.round((val / max) * len), len);
+          return '█'.repeat(f) + '░'.repeat(len - f);
+        };
+        const maxKm  = Math.max(...vMetrics.map(m => m.km), 1);
+        const maxLt  = Math.max(...vMetrics.map(m => m.lt), 1);
+        const maxEn  = Math.max(...vMetrics.map(m => m.en), 1);
+        const maxKml = Math.max(...vMetrics.map(m => m.kml), 1);
+        const medals = ['1° 🥇', '2° 🥈', '3° 🥉', '4°', '5°', '6°'];
+        const NC = 8;
 
-        vMetrics.forEach(({ v, dias, km, lt, cs, vj, en, kml }) => {
-          dash.push([v.code, v.plate, dias, r2(km), r2(lt), r2(cs), vj, en, r2(kml), kmLIndicador(kml)]);
+        const dd = [];
+        // Fila 0: título principal
+        dd.push(['REPORTE MENSUAL DE FLOTA — TRANSPORTE EMPORIUM', ...Array(NC-1).fill('')]);
+        // Fila 1: subtítulo
+        dd.push([`Período: ${periodoStr}     ·     Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(NC-1).fill('')]);
+        dd.push(Array(NC).fill(''));
+
+        // Filas 3-5: KPIs (label, valor, unidad)
+        dd.push(['KM TOTAL', 'LITROS', 'COSTO $', 'VIAJES', 'ENTREGAS', 'EFICIENCIA', '', '']);
+        dd.push([r2(flotaKm), r2(flotaLt), `$ ${r2(flotaCs)}`, flotaVj, flotaEn, `${flotaLt > 0 ? r2(flotaKm/flotaLt) : 0} km/L`, '', '']);
+        dd.push(['kilómetros', 'litros consumidos', 'combustible', 'viajes realizados', 'entregas completadas', 'promedio flota', '', '']);
+        dd.push(Array(NC).fill(''));
+        // Fila 7: campeones
+        const mostActive = vMetrics.reduce((a, b) => b.vj > a.vj ? b : a, vMetrics[0]);
+        const bestEff = vMetrics.filter(m => m.kml > 0).reduce((a, b) => b.kml > a.kml ? b : a, vMetrics.find(m => m.kml > 0) || vMetrics[0]);
+        dd.push([`🏆 Más activo: ${mostActive?.v.code} (${mostActive?.vj} viajes)   ·   ⚡ Más eficiente: ${bestEff?.v.code} (${r2(bestEff?.kml || 0)} km/L)`, ...Array(NC-1).fill('')]);
+        dd.push(Array(NC).fill(''));
+
+        // Sección: barras KM
+        const kmBarR = dd.length;
+        dd.push(['KILÓMETROS RECORRIDOS POR UNIDAD', ...Array(NC-1).fill('')]);
+        dd.push(['Unidad', 'Gráfico', '', 'KM', 'Estado', '', '', '']);
+        vMetrics.forEach(({ v, km, kml }) => {
+          dd.push([v.code, bar(km, maxKm), '', r2(km), kmLText(kml), '', '', '']);
+        });
+        dd.push(Array(NC).fill(''));
+
+        // Sección: barras EFICIENCIA
+        const kmlBarR = dd.length;
+        dd.push(['EFICIENCIA DE COMBUSTIBLE (km/L)', ...Array(NC-1).fill('')]);
+        dd.push(['Unidad', 'Gráfico', '', 'km/L', 'Estado', '', '', '']);
+        ranked.forEach(({ v, kml }, i) => {
+          dd.push([`${medals[i]||`${i+1}°`} ${v.code}`, bar(kml, maxKml), '', r2(kml), kmLText(kml), '', '', '']);
+        });
+        dd.push(Array(NC).fill(''));
+
+        // Sección: tabla resumen
+        const tblR = dd.length;
+        dd.push(['RESUMEN POR UNIDAD', ...Array(NC-1).fill('')]);
+        dd.push(['Camión', 'Placa', 'Días op.', 'KM', 'Litros', 'Costo $', 'Viajes', 'Entregas']);
+        vMetrics.forEach(({ v, dias, km, lt, cs, vj, en }) => {
+          dd.push([v.code, v.plate, dias, r2(km), r2(lt), r2(cs), vj, en]);
+        });
+        const dashTotalR = dd.length;
+        dd.push(['TOTAL FLOTA', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn]);
+
+        const wsDash = XLSX.utils.aoa_to_sheet(dd);
+        const merges = [
+          { s:{r:0,c:0}, e:{r:0,c:NC-1} }, { s:{r:1,c:0}, e:{r:1,c:NC-1} },
+          { s:{r:kmBarR,c:0}, e:{r:kmBarR,c:NC-1} },
+          { s:{r:kmlBarR,c:0}, e:{r:kmlBarR,c:NC-1} },
+          { s:{r:tblR,c:0}, e:{r:tblR,c:NC-1} },
+        ];
+        // Merge columna de barras (col 1-2) en cada fila de datos
+        vMetrics.forEach((_, i) => merges.push({ s:{r:kmBarR+2+i,c:1}, e:{r:kmBarR+2+i,c:2} }));
+        ranked.forEach((_, i) => merges.push({ s:{r:kmlBarR+2+i,c:1}, e:{r:kmlBarR+2+i,c:2} }));
+        wsDash['!merges'] = merges;
+
+        sr(wsDash, 0, NC, ST.title);
+        sr(wsDash, 1, NC, ST.subtitle);
+        // KPI labels (fila 3)
+        for (let c = 0; c < 6; c++) sc(wsDash, 3, c, ST.kpiLabel);
+        // KPI values (fila 4)
+        for (let c = 0; c < 6; c++) sc(wsDash, 4, c, ST.kpiBox);
+        // KPI units (fila 5)
+        for (let c = 0; c < 6; c++) sc(wsDash, 5, c, { font:{color:{rgb:C.midGray},sz:8,italic:true,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'F0FDF4'}}, alignment:{horizontal:'center'} });
+
+        // Barras KM
+        sr(wsDash, kmBarR, NC, ST.secHeader);
+        for (let c2 = 0; c2 < 5; c2++) sc(wsDash, kmBarR+1, c2, ST.colHeader);
+        vMetrics.forEach(({ km, kml }, i) => {
+          const ri = kmBarR+2+i; const e = i%2===0;
+          sc(wsDash, ri, 0, e ? ST.dataEven : ST.dataOdd);
+          // Celda de barra con color según eficiencia
+          const barColor = kml >= 5 ? {rgb:C.lightGreen} : kml >= 3 ? {rgb:C.amber} : kml > 0 ? {rgb:C.red} : {rgb:C.lightGray};
+          sc(wsDash, ri, 1, { font:{color:{rgb:kml>=5?C.tealGreen:kml>=3?C.amberDark:kml>0?C.redDark:C.midGray},sz:9,name:'Courier New'}, fill:{patternType:'solid',fgColor:barColor}, border:bdr(), alignment:{horizontal:'left'} });
+          sc(wsDash, ri, 3, ST.dataRight(e));
+          sc(wsDash, ri, 4, kmLST(kml));
         });
 
-        dash.push([]);
-        dash.push(['TOTAL FLOTA', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn, flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, '']);
-        dash.push([]);
-        dash.push(['════════════════════════════════════════════════════════']);
-        dash.push(['📈  KILÓMETROS RECORRIDOS (barras visuales)']);
-        dash.push(['════════════════════════════════════════════════════════']);
-        vMetrics.forEach(({ v, km }) => {
-          dash.push([v.code, pct(km, maxKm), r2(km) + ' km']);
-        });
-        dash.push([]);
-        dash.push(['════════════════════════════════════════════════════════']);
-        dash.push(['📦  ENTREGAS REALIZADAS (barras visuales)']);
-        dash.push(['════════════════════════════════════════════════════════']);
-        vMetrics.forEach(({ v, en }) => {
-          dash.push([v.code, pct(en, maxEn), en + ' entregas']);
-        });
-        dash.push([]);
-        dash.push(['════════════════════════════════════════════════════════']);
-        dash.push(['🏆  RANKING DE EFICIENCIA (km/L)']);
-        dash.push(['════════════════════════════════════════════════════════']);
-        ranked.forEach(({ v, kml, km, lt }, i) => {
-          dash.push([medals[i] || `${i + 1}°`, v.code, v.plate, r2(kml) + ' km/L', kmLIndicador(kml), r2(km) + ' km', r2(lt) + ' L']);
+        // Barras eficiencia
+        sr(wsDash, kmlBarR, NC, ST.secHeader);
+        for (let c2 = 0; c2 < 5; c2++) sc(wsDash, kmlBarR+1, c2, ST.colHeader);
+        ranked.forEach(({ kml }, i) => {
+          const ri = kmlBarR+2+i; const e = i%2===0;
+          sc(wsDash, ri, 0, { font:{bold:true,color:{rgb:C.white},sz:9,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:kml>=5?C.medGreen:kml>=3?'B45309':'9B1C1C'}}, alignment:{horizontal:'left'} });
+          const barColor2 = kml>=5?{rgb:C.lightGreen}:kml>=3?{rgb:C.amber}:{rgb:C.lightGray};
+          sc(wsDash, ri, 1, { font:{color:{rgb:kml>=5?C.tealGreen:kml>=3?C.amberDark:C.midGray},sz:9,name:'Courier New'}, fill:{patternType:'solid',fgColor:barColor2}, border:bdr(), alignment:{horizontal:'left'} });
+          sc(wsDash, ri, 3, ST.dataRight(e));
+          sc(wsDash, ri, 4, kmLST(kml));
         });
 
-        const wsDash = XLSX.utils.aoa_to_sheet(dash);
-        wsDash['!cols'] = [{ wch: 40 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 16 }];
+        // Tabla resumen
+        sr(wsDash, tblR, NC, ST.secHeader);
+        for (let c2 = 0; c2 < NC; c2++) sc(wsDash, tblR+1, c2, ST.colHeader);
+        vMetrics.forEach((_, i) => {
+          const ri = tblR+2+i; const e = i%2===0;
+          for (let c2 = 0; c2 < NC; c2++) sc(wsDash, ri, c2, c2>=3?ST.dataRight(e):(e?ST.dataEven:ST.dataOdd));
+        });
+        for (let c2 = 0; c2 < NC; c2++) sc(wsDash, dashTotalR, c2, c2>=3?ST.totalRight:ST.totalRow);
+
+        wsDash['!cols'] = [{wch:22},{wch:22},{wch:4},{wch:10},{wch:14},{wch:12},{wch:8},{wch:9}];
+        wsDash['!rows'] = [{hpt:30},{hpt:16},{hpt:8},{hpt:22},{hpt:30},{hpt:14},{hpt:8}];
         XLSX.utils.book_append_sheet(wb, wsDash, 'Dashboard');
 
         // ════════════════════════════════════════════════════════════════
-        // HOJAS POR CAMIÓN — Registro diario acumulado
+        // HOJAS POR CAMIÓN — Detalle por viaje + Resumen diario
         // ════════════════════════════════════════════════════════════════
         vMetrics.forEach(({ v, vt }) => {
           const rows = [];
-          rows.push([`🚛  REGISTRO DIARIO DEL MES — ${v.code}  (${v.plate})`]);
-          rows.push([`Referencia consumo: ${v.litersPer100km} L/100km`]);
-          rows.push([]);
-          rows.push(['CHOFER', 'FECHA', 'INICIO', 'FIN', 'KM INICIO', 'KM FINAL', 'KM REC.', 'LITROS', 'COSTO $', 'VIAJES', 'ENTREGAS', 'RUTA', 'NOTAS']);
+          rows.push([`REGISTRO DEL MES — ${v.code}  (${v.plate})`, ...Array(14).fill('')]);
+          rows.push([`Referencia consumo: ${v.litersPer100km} L/100km`, ...Array(14).fill('')]);
+          rows.push(Array(15).fill(''));
 
-          // Agrupar por fecha
+          // Sección: detalle por viaje
+          rows.push(['DETALLE DE VIAJES', ...Array(14).fill('')]);
+          rows.push(['Fecha', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'KM Salida', 'KM Llegada', 'T.Viaje', 'Espera en lugar', 'KM rec.', 'Litros consumo', 'Costo $', 'Entregas', 'Notas', 'L. Cargados', 'Fuente combustible']);
+
+          const sortedTrips = [...vt].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime));
+          const detStartR = rows.length;
+          sortedTrips.forEach(t => {
+            const d = drivers.find(x => x.id === t.driverId);
+            const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
+            const destLabel = resolveDestName(t, branches);
+            // Buscar carga de combustible del mismo día y camión
+            const fuelLoad = fuelRecords?.find(r => r.vehicleId === t.vehicleId && r.date === t.startDate);
+            rows.push([
+              t.startDate, d?.shortName || '',
+              o?.name || '', destLabel,
+              t.startTime || '', t.endTime || '',
+              t.kmStart || 0, t.kmEnd || 0,
+              fmtMin(t.tripMinutes),
+              t.waitMinutes ? fmtMin(t.waitMinutes) : '',
+              r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
+              t.deliveries || 0, t.notes || '',
+              fuelLoad ? fuelLoad.liters : '',
+              fuelLoad ? fuelLoad.notes : '',
+            ]);
+          });
+          const detEndR = rows.length;
+          rows.push(Array(15).fill(''));
+
+          // Sección: resumen diario
+          const resDiarR = rows.length;
+          rows.push(['RESUMEN DIARIO', ...Array(14).fill('')]);
+          rows.push(['Fecha', 'Chofer', 'H.Inicio', 'H.Fin', 'KM Inicio', 'KM Final', 'KM Rec.', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'Ruta', '', '', '']);
+
           const byDate = {};
           vt.forEach(t => { (byDate[t.startDate] = byDate[t.startDate] || []).push(t); });
-
           let totKm = 0, totLt = 0, totCs = 0, totVj = 0, totEn = 0;
+          const dailyStartR = rows.length;
           Object.entries(byDate).sort((a, b) => a[0].localeCompare(b[0])).forEach(([date, dt]) => {
             const sorted = [...dt].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime));
-            const first  = sorted[0];
-            const last   = [...dt].sort((a, b) => parseDateTime(b.endDate, b.endTime) - parseDateTime(a.endDate, a.endTime))[0];
+            const first = sorted[0];
+            const last = [...dt].sort((a, b) => parseDateTime(b.endDate, b.endTime) - parseDateTime(a.endDate, a.endTime))[0];
             const driver = drivers.find(d => d.id === first.driverId);
             const km = dt.reduce((s, t) => s + (t.kmTraveled || 0), 0);
             const lt = dt.reduce((s, t) => s + (t.liters || 0), 0);
             const cs = dt.reduce((s, t) => s + (t.cost || 0), 0);
             const vj = dt.reduce((s, t) => s + (t.tripsCount || 1), 0);
             const en = dt.reduce((s, t) => s + (t.deliveries || 0), 0);
-            const notas = dt.map(t => t.notes).filter(Boolean).join(' | ');
             totKm += km; totLt += lt; totCs += cs; totVj += vj; totEn += en;
-            rows.push([
-              driver?.shortName || '', date,
-              first.startTime || '', last.endTime || '',
-              first.kmStart || 0, last.kmEnd || 0,
-              r2(km), r2(lt), r2(cs), vj, en,
-              first.route || 'LOCAL', notas
-            ]);
+            rows.push([date, driver?.shortName || '', first.startTime || '', last.endTime || '', first.kmStart || 0, last.kmEnd || 0, r2(km), r2(lt), r2(cs), vj, en, first.route || 'LOCAL', '', '', '']);
           });
-
-          rows.push([]);
-          rows.push(['TOTAL', '', '', '', '', '', r2(totKm), r2(totLt), r2(totCs), totVj, totEn, '', '']);
-          rows.push([]);
-          rows.push(['Eficiencia del mes:', totLt > 0 ? r2(totKm / totLt) + ' km/L' : 'Sin datos', kmLIndicador(totLt > 0 ? totKm / totLt : 0)]);
+          const totalR = rows.length;
+          rows.push(['TOTAL DEL MES', '', '', '', '', '', r2(totKm), r2(totLt), r2(totCs), totVj, totEn, '', '', '', '']);
+          rows.push(Array(15).fill(''));
+          rows.push([`Eficiencia: ${totLt > 0 ? r2(totKm / totLt) + ' km/L' : 'Sin datos'}     ${kmLText(totLt > 0 ? totKm / totLt : 0)}`]);
 
           const ws = XLSX.utils.aoa_to_sheet(rows);
-          ws['!cols'] = [
-            { wch: 14 }, { wch: 12 }, { wch: 8 }, { wch: 8 },
-            { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 8 },
-            { wch: 9 }, { wch: 7 }, { wch: 9 }, { wch: 12 }, { wch: 28 }
+          const NCV = 18;
+          ws['!merges'] = [
+            { s: { r: 0, c: 0 }, e: { r: 0, c: NCV - 1 } },
+            { s: { r: 1, c: 0 }, e: { r: 1, c: NCV - 1 } },
+            { s: { r: 3, c: 0 }, e: { r: 3, c: NCV - 1 } },
+            { s: { r: resDiarR, c: 0 }, e: { r: resDiarR, c: NCV - 1 } },
           ];
+          sr(ws, 0, NCV, ST.title);
+          sr(ws, 1, NCV, ST.subtitle);
+          sr(ws, 3, NCV, ST.secHeader);
+          for (let c = 0; c < NCV; c++) sc(ws, 4, c, ST.colHeader);
+          sortedTrips.forEach((_, i) => {
+            const ri = detStartR + i; const e = i % 2 === 0;
+            for (let c = 0; c < NCV; c++) {
+              if (c === 4 || c === 5) sc(ws, ri, c, ST.timeCell(e));        // H.Salida, H.Llegada
+              else if (c === 6 || c === 7) sc(ws, ri, c, ST.dataRight(e));  // KM Salida, KM Llegada
+              else if (c === 8 || c === 9) sc(ws, ri, c, ST.timeCell(e));   // T.Viaje, Espera en lugar
+              else if (c >= 10 && c <= 13) sc(ws, ri, c, ST.dataRight(e)); // KM rec, Litros, Costo, Entregas
+              else if (c === 14) sc(ws, ri, c, { font: { color: { rgb: '1C1917' }, sz: 9, name: 'Calibri' }, fill: { patternType: 'solid', fgColor: { rgb: e ? 'FFFFFF' : 'F9FAFB' } }, alignment: { wrapText: true }, border: bdr() }); // Notas
+              else sc(ws, ri, c, e ? ST.dataEven : ST.dataOdd);
+            }
+          });
+          sr(ws, resDiarR, NCV, ST.secHeader);
+          for (let c = 0; c < 12; c++) sc(ws, resDiarR + 1, c, ST.colHeader);
+          Object.keys(byDate).forEach((_, i) => {
+            const ri = dailyStartR + i; const e = i % 2 === 0;
+            for (let c = 0; c < 12; c++) sc(ws, ri, c, c >= 2 && c <= 10 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
+          });
+          for (let c = 0; c < 12; c++) sc(ws, totalR, c, c >= 6 ? ST.totalRight : ST.totalRow);
+          ws['!cols'] = [{ wch: 12 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 9 }, { wch: 13 }, { wch: 9 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 22 }, { wch: 10 }, { wch: 18 }];
+          ws['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
           XLSX.utils.book_append_sheet(wb, ws, v.code.substring(0, 31));
         });
 
         // ════════════════════════════════════════════════════════════════
-        // HOJA — RESUMEN FLOTA (comparativo)
+        // HOJA — RESUMEN FLOTA (simplificado)
         // ════════════════════════════════════════════════════════════════
-        const res = [];
-        res.push(['📋  RESUMEN COMPARATIVO DE FLOTA — TRANSPORTE EMPORIUM']);
-        res.push([`Generado: ${new Date().toLocaleString('es-VE')}`]);
-        res.push([]);
-        res.push(['Camión', 'Placa', 'Chofer(es)', 'Días op.', 'KM total', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'KM/L', 'Estado', 'L/100km ref.']);
-
+        const rd = [];
+        rd.push(['RESUMEN DE FLOTA — TRANSPORTE EMPORIUM', ...Array(9).fill('')]);
+        rd.push([`Período: ${periodoStr}     ·     Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(9).fill('')]);
+        rd.push(Array(10).fill(''));
+        rd.push(['COMPARATIVO POR UNIDAD', ...Array(9).fill('')]);
+        rd.push(['Camión', 'Placa', 'Chofer(es)', 'Días op.', 'KM', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'km/L', 'Estado']);
         vMetrics.forEach(({ v, vt, dias, km, lt, cs, vj, en, kml }) => {
-          const driverNames = [...new Set(vt.map(t => drivers.find(d => d.id === t.driverId)?.shortName).filter(Boolean))].join(' / ');
-          res.push([v.code, v.plate, driverNames, dias, r2(km), r2(lt), r2(cs), vj, en, r2(kml), kmLIndicador(kml), v.litersPer100km]);
+          const names = [...new Set(vt.map(t => drivers.find(d => d.id === t.driverId)?.shortName).filter(Boolean))].join(' / ');
+          rd.push([v.code, v.plate, names, dias, r2(km), r2(lt), r2(cs), vj, en, r2(kml), kmLText(kml)]);
         });
-
-        res.push([]);
-        res.push(['TOTAL FLOTA', '', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn, flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, '', '']);
-        res.push([]);
-        res.push(['════════════════════════════════════════════════════════']);
-        res.push(['🏆  RANKING EFICIENCIA']);
-        res.push(['Pos.', 'Camión', 'KM/L', 'Estado', 'KM recorridos', 'Litros consumidos']);
-        ranked.forEach(({ v, km, lt, kml }, i) => {
-          res.push([medals[i] || `${i + 1}°`, v.code, r2(kml), kmLIndicador(kml), r2(km), r2(lt)]);
-        });
-        res.push([]);
-        res.push(['════════════════════════════════════════════════════════']);
-        res.push(['👨‍✈️  RESUMEN POR CONDUCTOR']);
-        res.push(['Conductor', 'Camión(es)', 'Viajes', 'KM total', 'Litros', 'Costo $', 'Entregas', 'KM/L']);
+        const resTotR = rd.length;
+        rd.push(['TOTAL', '', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn, flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, '']);
+        rd.push(Array(11).fill(''));
+        const condR = rd.length;
+        rd.push(['RESUMEN POR CONDUCTOR', ...Array(9).fill('')]);
+        rd.push(['Conductor', 'Camión(es)', 'Días op.', 'Viajes', 'KM', 'Litros', 'Costo $', 'Entregas', 'km/L', '', '']);
         drivers.forEach(d => {
           const dt = trips.filter(t => t.driverId === d.id);
-          if (dt.length === 0) return;
-          const camiones = [...new Set(dt.map(t => vehicles.find(x => x.id === t.vehicleId)?.code).filter(Boolean))].join(' / ');
+          if (!dt.length) return;
+          const camiones = [...new Set(dt.map(t => vehicles.find(v => v.id === t.vehicleId)?.code).filter(Boolean))].join(' / ');
+          const dias = new Set(dt.map(t => t.startDate)).size;
           const km = dt.reduce((s, t) => s + (t.kmTraveled || 0), 0);
           const lt = dt.reduce((s, t) => s + (t.liters || 0), 0);
-          const cs = dt.reduce((s, t) => s + (t.cost || 0), 0);
-          const en = dt.reduce((s, t) => s + (t.deliveries || 0), 0);
-          const vj = dt.reduce((s, t) => s + (t.tripsCount || 1), 0);
-          res.push([d.name, camiones, vj, r2(km), r2(lt), r2(cs), en, lt > 0 ? r2(km / lt) : 0]);
+          rd.push([d.name, camiones, dias, dt.reduce((s,t)=>s+(t.tripsCount||1),0), r2(km), r2(lt), r2(dt.reduce((s,t)=>s+(t.cost||0),0)), dt.reduce((s,t)=>s+(t.deliveries||0),0), lt > 0 ? r2(km/lt) : 0, '', '']);
         });
 
-        const wsRes = XLSX.utils.aoa_to_sheet(res);
-        wsRes['!cols'] = [
-          { wch: 20 }, { wch: 12 }, { wch: 20 }, { wch: 9 }, { wch: 10 },
-          { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 12 }
+        const wsRes = XLSX.utils.aoa_to_sheet(rd);
+        const NCR = 11;
+        wsRes['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: NCR - 1 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: NCR - 1 } },
+          { s: { r: 3, c: 0 }, e: { r: 3, c: NCR - 1 } },
+          { s: { r: condR, c: 0 }, e: { r: condR, c: NCR - 1 } },
         ];
+        sr(wsRes, 0, NCR, ST.title);
+        sr(wsRes, 1, NCR, ST.subtitle);
+        sr(wsRes, 3, NCR, ST.secHeader);
+        for (let c = 0; c < NCR; c++) sc(wsRes, 4, c, ST.colHeader);
+        vMetrics.forEach(({ kml }, i) => {
+          const ri = 5 + i; const e = i % 2 === 0;
+          for (let c = 0; c < NCR; c++) sc(wsRes, ri, c, c === NCR-1 ? kmLST(kml) : c >= 4 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
+        });
+        for (let c = 0; c < NCR; c++) sc(wsRes, resTotR, c, c >= 4 ? ST.totalRight : ST.totalRow);
+        sr(wsRes, condR, NCR, ST.secHeader);
+        for (let c = 0; c < 9; c++) sc(wsRes, condR + 1, c, ST.colHeader);
+        drivers.filter(d => trips.some(t => t.driverId === d.id)).forEach((_, i) => {
+          const ri = condR + 2 + i; const e = i % 2 === 0;
+          for (let c = 0; c < 9; c++) sc(wsRes, ri, c, c >= 2 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
+        });
+        wsRes['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 24 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 9 }, { wch: 14 }];
+        wsRes['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen Flota');
 
         // ════════════════════════════════════════════════════════════════
-        // HOJA — DETALLE DE VIAJES (individual con tiempos)
+        // HOJA — DETALLE DE VIAJES (limpio)
         // ════════════════════════════════════════════════════════════════
-        const det = [];
-        det.push(['📋  DETALLE DE VIAJES DEL MES — TRANSPORTE EMPORIUM']);
-        det.push([]);
-        det.push(['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje (min)', 'T.Origen (min)', 'T.Destino (min)', 'KM rec.', 'Litros', 'Costo $', 'Entregas', 'Notas']);
+        const detD = [];
+        detD.push(['DETALLE DE VIAJES DEL MES — TRANSPORTE EMPORIUM', ...Array(12).fill('')]);
+        detD.push([`Total: ${trips.length} viajes  ·  ${periodoStr}`, ...Array(12).fill('')]);
+        detD.push(Array(13).fill(''));
+        detD.push(['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje', 'T.Origen', 'T.Destino', 'H.Salida Suc.', 'KM', 'Litros', 'Costo $', 'Entregas', 'Combustible cargado']);
 
-        [...trips]
-          .sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime))
-          .forEach(t => {
-            const v    = vehicles.find(x => x.id === t.vehicleId);
-            const d    = drivers.find(x => x.id === t.driverId);
-            const o    = branches.find(x => x.id === t.originBranchId);
-            const dest = branches.find(x => x.id === t.destinationBranchId);
-            det.push([
-              t.startDate, v?.code || '', d?.shortName || '',
-              o?.name || '', dest?.name || '',
-              t.startTime || '', t.endTime || '',
-              t.tripMinutes || 0,
-              t.timeAtBranchPrevMinutes ?? '',
-              t.timeAtDestinationMinutes ?? '',
-              r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
-              t.deliveries || 0, t.notes || ''
-            ]);
-          });
+        let prevDate = '';
+        [...trips].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime)).forEach(t => {
+          const v = vehicles.find(x => x.id === t.vehicleId);
+          const d = drivers.find(x => x.id === t.driverId);
+          const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
+          const destLabel2 = resolveDestName(t, branches);
+          const fuelLoad2 = fuelRecords?.find(r => r.vehicleId === t.vehicleId && r.date === t.startDate);
+          const tDest = t.timeAtDestinationMinutes;
+          detD.push([
+            t.startDate, v?.code || '', d?.shortName || '',
+            o?.name || '', destLabel2,
+            t.startTime || '', t.endTime || '',
+            fmtMin(t.tripMinutes),
+            fmtMin(t.timeAtBranchPrevMinutes),
+            fmtMin(tDest),
+            addMin(t.endTime, tDest),
+            r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
+            t.deliveries || 0,
+            fuelLoad2 ? `${fuelLoad2.liters}L · ${fuelLoad2.notes}` : '',
+          ]);
+        });
 
-        const wsDet = XLSX.utils.aoa_to_sheet(det);
-        wsDet['!cols'] = [
-          { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 18 }, { wch: 18 },
-          { wch: 9 }, { wch: 9 }, { wch: 13 }, { wch: 14 }, { wch: 14 },
-          { wch: 9 }, { wch: 8 }, { wch: 9 }, { wch: 10 }, { wch: 28 }
+        const wsDet = XLSX.utils.aoa_to_sheet(detD);
+        const NCD = 16;
+        wsDet['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: NCD - 1 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: NCD - 1 } },
         ];
+        sr(wsDet, 0, NCD, ST.title);
+        sr(wsDet, 1, NCD, ST.subtitle);
+        for (let c = 0; c < NCD; c++) sc(wsDet, 3, c, ST.colHeader);
+        trips.forEach((_, i) => {
+          const ri = 4 + i; const e = i % 2 === 0;
+          for (let c = 0; c < NCD; c++) {
+            if (c >= 5 && c <= 10) sc(wsDet, ri, c, ST.timeCell(e));
+            else if (c >= 11) sc(wsDet, ri, c, ST.dataRight(e));
+            else sc(wsDet, ri, c, e ? ST.dataEven : ST.dataOdd);
+          }
+        });
+        wsDet['!cols'] = [{ wch: 12 }, { wch: 9 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 9 }];
+        wsDet['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsDet, 'Detalle de Viajes');
 
-        // ── Descargar ────────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════
+        // HOJA — TRASPASOS
+        // ════════════════════════════════════════════════════════════════
+        const monthStr = new Date().toISOString().slice(0, 7);
+        const mHandoffs = (handoffs || []).filter(h => h.handoffDate?.startsWith(monthStr));
+        const td = [];
+        td.push(['TRASPASOS DE UNIDAD DEL MES', ...Array(9).fill('')]);
+        td.push([`${mHandoffs.length} traspaso(s) registrado(s)  ·  ${periodoStr}`, ...Array(9).fill('')]);
+        td.push(Array(10).fill(''));
+        td.push(['Fecha', 'Hora', 'Unidad', 'Entregó', 'Recibió', 'KM', 'Combustible', 'Obs. entrega', 'Obs. recepción', 'Estado']);
+        if (!mHandoffs.length) {
+          td.push(['Sin traspasos registrados este mes', ...Array(9).fill('')]);
+        } else {
+          [...mHandoffs].sort((a, b) => (a.handoffDate||'').localeCompare(b.handoffDate||'')).forEach(h => {
+            td.push([h.handoffDate||'', h.handoffTime||'', h.vehicleCode||'', h.fromDriverName||'', h.toDriverName||'Pendiente', h.kmAtHandoff||0, h.fuelAtHandoff ? `${h.fuelAtHandoff} L` : '', h.notes||'', h.receptionNotes||'', h.status==='confirmed'?'CONFIRMADO':'PENDIENTE']);
+          });
+        }
+        const wsTras = XLSX.utils.aoa_to_sheet(td);
+        const NCT = 10;
+        wsTras['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: NCT - 1 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: NCT - 1 } }];
+        sr(wsTras, 0, NCT, ST.title);
+        sr(wsTras, 1, NCT, ST.subtitle);
+        for (let c = 0; c < NCT; c++) sc(wsTras, 3, c, ST.colHeader);
+        mHandoffs.forEach((h, i) => {
+          const ri = 4 + i; const e = i % 2 === 0;
+          for (let c = 0; c < NCT; c++) sc(wsTras, ri, c, c >= 5 && c <= 6 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
+          sc(wsTras, ri, 9, h.status === 'confirmed' ? ST.statusEficiente : ST.statusNormal);
+        });
+        wsTras['!cols'] = [{ wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 13 }];
+        wsTras['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
+        XLSX.utils.book_append_sheet(wb, wsTras, 'Traspasos');
+
+        // ════════════════════════════════════════════════════════════════
+        // HOJA — TALLER
+        // ════════════════════════════════════════════════════════════════
+        const NT = 11; // número de columnas historial
+        const NM = 9;  // número de columnas mantenimiento
+        const tt = [];
+        // Filas 0-1: título y subtítulo
+        tt.push(['HISTORIAL DE TALLER — TRANSPORTE EMPORIUM', ...Array(NT-1).fill('')]);
+        tt.push([`Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(NT-1).fill('')]);
+        tt.push(Array(NT).fill(''));
+        // Fila 3: encabezados historial (11 columnas)
+        tt.push(['Unidad', 'Placa', 'Chofer', 'Motivo entrada', 'Trabajo Realizado', 'KM Entrada', 'KM Salida', 'Fecha Entrada', 'Fecha Salida', 'Tiempo en Taller', 'Estado']);
+        const tallerDataStartR = tt.length;
+        let tallerCount = 0;
+        vehicles.forEach(v => {
+          if (!v.tallerMotivo && v.status !== 'EN TALLER') return;
+          const fechaEntrada = v.tallerEntrada ? new Date(v.tallerEntrada).toLocaleString('es-VE') : '—';
+          const fechaSalida  = v.tallerSalida  ? new Date(v.tallerSalida).toLocaleString('es-VE')  : '—';
+          const tiempoMs = v.tallerEntrada && v.tallerSalida
+            ? v.tallerSalida - v.tallerEntrada
+            : v.tallerEntrada ? Date.now() - v.tallerEntrada : 0;
+          const tiempoH = tiempoMs > 0
+            ? `${Math.floor(tiempoMs/3600000)}h ${Math.floor((tiempoMs%3600000)/60000)}m`
+            : '—';
+          const estado = v.status === 'EN TALLER' ? 'EN TALLER' : 'COMPLETADO';
+          tt.push([
+            v.code, v.plate, v.tallerChofer||'—',
+            v.tallerMotivo||'—', v.tallerTrabajo||'En curso',
+            v.tallerKmEntrada||'—', v.currentKm||'—',
+            fechaEntrada, fechaSalida, tiempoH, estado
+          ]);
+          tallerCount++;
+        });
+        if (tallerCount === 0) tt.push(['Sin registros de taller', ...Array(NT-1).fill('')]);
+        const tallerDataEndR = tt.length;
+        tt.push(Array(NT).fill(''));
+
+        // Sección mantenimiento actual
+        const maintHeaderR = tt.length;
+        tt.push(['ESTADO MANTENIMIENTO ACTUAL', ...Array(NT-1).fill('')]);
+        tt.push(['Unidad', 'Placa', 'KM Actual', 'Aceite+Filtros Último', 'Aceite+Filtros Próx.', 'Aceite KM Rest.', 'Engrase Último', 'Engrase Próx.', 'Engrase KM Rest.', 'Frenos Último', 'Frenos Próx.', 'Frenos KM Rest.', 'Refrigerante Último', 'Refrig. Próx.', 'Refrig. KM Rest.', 'Mant.Prev. Último', 'Mant.Prev. Próx.', 'Mant.Prev. KM Rest.', 'Batería']);
+        const maintDataStartR = tt.length;
+        vehicles.forEach(v => {
+          const calc = (last, freq) => { const n=(last||0)+freq; return [last||0, n, n-(v.currentKm||0)]; };
+          const [lo,ln,lr] = calc(v.lastMaintKm, v.maintFreq||6000);
+          const [go,gn,gr] = calc(v.lastGreaseKm, v.greaseFreq||3000);
+          const [bo,bn,br] = calc(v.lastBrakeKm, v.brakeFreq||15000);
+          const [co,cn,cr] = calc(v.lastCoolantKm, v.coolantFreq||12000);
+          const [po,pn,pr] = calc(v.lastPrevKm, v.prevFreq||15000);
+          tt.push([v.code, v.plate, v.currentKm||0, lo, ln, lr, go, gn, gr, bo, bn, br, co, cn, cr, po, pn, pr, v.lastBatteryDate||'—']);
+        });
+        const maintDataEndR = tt.length;
+
+        const wsTaller = XLSX.utils.aoa_to_sheet(tt);
+
+        // Merges
+        wsTaller['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: NT-1 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: NT-1 } },
+          { s: { r: maintHeaderR, c: 0 }, e: { r: maintHeaderR, c: NT-1 } },
+        ];
+
+        // Estilos: títulos
+        sr(wsTaller, 0, NT, ST.title);
+        sr(wsTaller, 1, NT, ST.subtitle);
+        // Encabezados historial
+        for (let c = 0; c < NT; c++) sc(wsTaller, 3, c, ST.colHeader);
+        // Filas datos historial
+        for (let i = tallerDataStartR; i < tallerDataEndR; i++) {
+          const e = (i - tallerDataStartR) % 2 === 0;
+          for (let c = 0; c < NT; c++) {
+            if (c === 10) { // Estado
+              const cell = XLSX.utils.encode_cell({ r: i, c });
+              const val = wsTaller[cell]?.v;
+              sc(wsTaller, i, c, val === 'EN TALLER' ? ST.statusRevisar : ST.statusEficiente);
+            } else if (c >= 5 && c <= 6) {
+              sc(wsTaller, i, c, ST.dataRight(e));
+            } else if (c === 7 || c === 8) {
+              sc(wsTaller, i, c, ST.timeCell(e));
+            } else {
+              sc(wsTaller, i, c, e ? ST.dataEven : ST.dataOdd);
+            }
+          }
+        }
+        // Sección mantenimiento
+        sr(wsTaller, maintHeaderR, NT, ST.secHeader);
+        for (let c = 0; c < NM; c++) sc(wsTaller, maintHeaderR + 1, c, ST.colHeader);
+        for (let i = maintDataStartR; i < maintDataEndR; i++) {
+          const e = (i - maintDataStartR) % 2 === 0;
+          for (let c = 0; c < NM; c++) {
+            if (c >= 2) {
+              // KM Rest. Aceite y Engrase: rojo si negativo
+              if ((c === 5 || c === 8)) {
+                const cell = XLSX.utils.encode_cell({ r: i, c });
+                const val = Number(wsTaller[cell]?.v);
+                sc(wsTaller, i, c, !isNaN(val) && val < 0 ? ST.statusRevisar : ST.dataRight(e));
+              } else {
+                sc(wsTaller, i, c, ST.dataRight(e));
+              }
+            } else {
+              sc(wsTaller, i, c, e ? ST.dataEven : ST.dataOdd);
+            }
+          }
+        }
+
+        wsTaller['!cols'] = [
+          { wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 26 }, { wch: 30 },
+          { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 20 }, { wch: 14 }, { wch: 12 }
+        ];
+        wsTaller['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
+        XLSX.utils.book_append_sheet(wb, wsTaller, 'Taller');
+
+        // ════════════════════════════════════════════════════════════════
+        // HOJA — GASTOS DE MANTENIMIENTO
+        // ════════════════════════════════════════════════════════════════
+        const NG = 9;
+        const monthMaint = maintRecords.filter(r => r.fecha.startsWith(trips[0]?.startDate?.slice(0,7) || ''));
+        const allMaint = maintRecords;
+        const gd = [];
+        gd.push(['GASTOS DE MANTENIMIENTO — TRANSPORTE EMPORIUM', ...Array(NG-1).fill('')]);
+        gd.push([`Período: ${trips[0]?.startDate?.slice(0,7)||''}     ·     Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(NG-1).fill('')]);
+        gd.push(Array(NG).fill(''));
+        // Encabezados detalle
+        gd.push(['Fecha', 'Unidad', 'Placa', 'KM', 'Técnico', 'Trabajo Realizado', 'Costo Repuesto $', 'Mano de Obra $', 'Total $']);
+        const gDetStartR = gd.length;
+        const gRecords = allMaint.sort((a,b) => a.fecha.localeCompare(b.fecha));
+        gRecords.forEach(r => {
+          gd.push([r.fecha, r.vehicleCode||'', r.vehiclePlate||'', r.km||0, r.tecnico||'—', r.trabajo||'', Number(r.costoRepuesto)||0, Number(r.manoObra)||0, (Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0)]);
+        });
+        if (gRecords.length === 0) gd.push(['Sin registros', ...Array(NG-1).fill('')]);
+        const gDetEndR = gd.length;
+        // Fila total
+        gd.push(['TOTAL', '', '', '', '', '', gRecords.reduce((s,r)=>s+(Number(r.costoRepuesto)||0),0), gRecords.reduce((s,r)=>s+(Number(r.manoObra)||0),0), gRecords.reduce((s,r)=>s+(Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0),0)]);
+        gd.push(Array(NG).fill(''));
+
+        // Resumen por camión
+        const gResHeaderR = gd.length;
+        gd.push(['RESUMEN POR CAMIÓN', ...Array(NG-1).fill('')]);
+        gd.push(['Unidad', 'Placa', 'N° Trabajos', 'Total Repuesto $', 'Total M. Obra $', 'Total Gastado $', 'Camión más costoso', '', '']);
+        const gResStartR = gd.length;
+        const byVehicle = vehicles.map(v => {
+          const rs = allMaint.filter(r => r.vehicleId === v.id);
+          return { code: v.code, plate: v.plate, count: rs.length, repuesto: rs.reduce((s,r)=>s+(Number(r.costoRepuesto)||0),0), obra: rs.reduce((s,r)=>s+(Number(r.manoObra)||0),0), total: rs.reduce((s,r)=>s+(Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0),0) };
+        }).sort((a,b) => b.total - a.total);
+        const maxGasto = byVehicle[0]?.total || 0;
+        byVehicle.forEach((bv, i) => {
+          gd.push([bv.code, bv.plate, bv.count, bv.repuesto, bv.obra, bv.total, i===0 && bv.total>0 ? '🏆 Mayor gasto' : '', '', '']);
+        });
+        const gResEndR = gd.length;
+
+        const wsGastos = XLSX.utils.aoa_to_sheet(gd);
+        wsGastos['!merges'] = [
+          { s:{r:0,c:0}, e:{r:0,c:NG-1} },
+          { s:{r:1,c:0}, e:{r:1,c:NG-1} },
+          { s:{r:gResHeaderR,c:0}, e:{r:gResHeaderR,c:NG-1} },
+        ];
+        sr(wsGastos, 0, NG, ST.title);
+        sr(wsGastos, 1, NG, ST.subtitle);
+        for (let c=0;c<NG;c++) sc(wsGastos, 3, c, ST.colHeader);
+        for (let i=gDetStartR;i<gDetEndR;i++) {
+          const e=(i-gDetStartR)%2===0;
+          for (let c=0;c<NG;c++) {
+            if (c>=6) sc(wsGastos,i,c,ST.dataRight(e));
+            else sc(wsGastos,i,c,e?ST.dataEven:ST.dataOdd);
+          }
+        }
+        // Fila total
+        for (let c=0;c<NG;c++) sc(wsGastos,gDetEndR,c,c>=6?ST.totalRight:ST.totalRow);
+        sr(wsGastos, gResHeaderR, NG, ST.secHeader);
+        for (let c=0;c<6;c++) sc(wsGastos, gResHeaderR+1, c, ST.colHeader);
+        for (let i=gResStartR;i<gResEndR;i++) {
+          const e=(i-gResStartR)%2===0;
+          for (let c=0;c<NG;c++) {
+            if (c>=3&&c<=5) {
+              const isMax = c===5 && wsGastos[XLSX.utils.encode_cell({r:i,c})]?.v === maxGasto && maxGasto>0;
+              sc(wsGastos,i,c,isMax?ST.statusRevisar:ST.dataRight(e));
+            } else sc(wsGastos,i,c,e?ST.dataEven:ST.dataOdd);
+          }
+        }
+        wsGastos['!cols'] = [{wch:12},{wch:10},{wch:12},{wch:12},{wch:18},{wch:36},{wch:16},{wch:16},{wch:16}];
+        wsGastos['!rows'] = [{hpt:26},{hpt:14}];
+        XLSX.utils.book_append_sheet(wb, wsGastos, 'Gastos Mantenimiento');
+
+        // ════════════════════════════════════════════════════════════════
+        // HOJA — COMBUSTIBLE
+        // ════════════════════════════════════════════════════════════════
+        const NFC = 9;
+        const fc = [];
+        fc.push(['REGISTRO DE COMBUSTIBLE — TRANSPORTE EMPORIUM', ...Array(NFC-1).fill('')]);
+        fc.push([`Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(NFC-1).fill('')]);
+        fc.push(Array(NC).fill(''));
+        fc.push(['Fecha', 'Hora', 'Unidad', 'Placa', 'Chofer', 'KM', 'Litros', 'Precio/L', 'Total $', 'KM desde última carga', 'L/100km real']);
+        const fcHeaders = ['Fecha','Hora','Unidad','Placa','Chofer','KM','Litros','Precio/L $','Total $'];
+        fc.pop(); fc.push(fcHeaders);
+        const fuelDataStartR = fc.length;
+        const sortedFR = [...fuelRecords].sort((a,b) => a.date.localeCompare(b.date) || (a.vehicleId||'').localeCompare(b.vehicleId||''));
+        sortedFR.forEach(r => {
+          fc.push([r.date, r.time||'', r.vehicleCode||'', r.vehiclePlate||'', r.driverName||'', r.km||0, r.liters||0, r.pricePerLiter||0.5, (r.liters||0)*(r.pricePerLiter||0.5)]);
+        });
+        if (sortedFR.length === 0) fc.push(['Sin registros', ...Array(fcHeaders.length-1).fill('')]);
+        const fuelDataEndR = fc.length;
+        fc.push(['TOTAL','','','','','', sortedFR.reduce((s,r)=>s+(Number(r.liters)||0),0).toFixed(1),'', sortedFR.reduce((s,r)=>s+(r.liters||0)*(r.pricePerLiter||0.5),0).toFixed(2)]);
+        fc.push(Array(fcHeaders.length).fill(''));
+        // Resumen por camión
+        const fcResR = fc.length;
+        fc.push(['RESUMEN POR CAMIÓN', ...Array(fcHeaders.length-1).fill('')]);
+        fc.push(['Unidad','Placa','N° Cargas','Total Litros','Total $','KM Promedio entre cargas','Consumo real L/100km promedio','','']);
+        const fcResDataR = fc.length;
+        vehicles.forEach(v => {
+          const vfr = fuelRecords.filter(r => r.vehicleId === v.id).sort((a,b) => a.date.localeCompare(b.date));
+          if (vfr.length === 0) return;
+          const totalL = vfr.reduce((s,r)=>s+(Number(r.liters)||0),0);
+          const totalC = vfr.reduce((s,r)=>s+(r.liters||0)*(r.pricePerLiter||0.5),0);
+          // KM entre cargas
+          let totalKmBetween = 0, kmCount = 0;
+          for (let i = 1; i < vfr.length; i++) {
+            const diff = (vfr[i].km||0) - (vfr[i-1].km||0);
+            if (diff > 0) { totalKmBetween += diff; kmCount++; }
+          }
+          const avgKmBetween = kmCount > 0 ? Math.round(totalKmBetween / kmCount) : '—';
+          const avgConsumption = kmCount > 0 && totalL > 0 ? ((totalL / totalKmBetween) * 100).toFixed(1) : '—';
+          fc.push([v.code, v.plate, vfr.length, totalL.toFixed(1), totalC.toFixed(2), avgKmBetween, avgConsumption, '', '']);
+        });
+
+        const wsFuel = XLSX.utils.aoa_to_sheet(fc);
+        wsFuel['!merges'] = [
+          { s:{r:0,c:0}, e:{r:0,c:fcHeaders.length-1} },
+          { s:{r:1,c:0}, e:{r:1,c:fcHeaders.length-1} },
+          { s:{r:fcResR,c:0}, e:{r:fcResR,c:fcHeaders.length-1} },
+        ];
+        sr(wsFuel, 0, fcHeaders.length, ST.title);
+        sr(wsFuel, 1, fcHeaders.length, ST.subtitle);
+        for (let c=0;c<fcHeaders.length;c++) sc(wsFuel, 3, c, ST.colHeader);
+        for (let i=fuelDataStartR;i<fuelDataEndR;i++) {
+          const e=(i-fuelDataStartR)%2===0;
+          for (let c=0;c<fcHeaders.length;c++) {
+            if (c>=5) sc(wsFuel,i,c,ST.dataRight(e));
+            else sc(wsFuel,i,c,e?ST.dataEven:ST.dataOdd);
+          }
+        }
+        for (let c=0;c<fcHeaders.length;c++) sc(wsFuel,fuelDataEndR,c,c>=5?ST.totalRight:ST.totalRow);
+        sr(wsFuel, fcResR, fcHeaders.length, ST.secHeader);
+        for (let c=0;c<7;c++) sc(wsFuel, fcResR+1, c, ST.colHeader);
+        for (let i=fcResDataR;i<fc.length;i++) {
+          const e=(i-fcResDataR)%2===0;
+          for (let c=0;c<7;c++) {
+            if (c>=2) sc(wsFuel,i,c,ST.dataRight(e));
+            else sc(wsFuel,i,c,e?ST.dataEven:ST.dataOdd);
+          }
+        }
+        wsFuel['!cols'] = [{wch:12},{wch:8},{wch:10},{wch:10},{wch:18},{wch:12},{wch:10},{wch:10},{wch:10}];
+        XLSX.utils.book_append_sheet(wb, wsFuel, 'Combustible');
         const fileName = `reporte_flota_emporium_${new Date().toISOString().slice(0, 10)}.xlsx`;
         XLSX.writeFile(wb, fileName);
-        setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado — 8 hojas` });
+        setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado — 11 hojas` });
         setTimeout(() => setExportMsg(null), 5000);
         setExporting(false);
         return;
       }
     } catch (e) {
-      console.warn('XLSX nativo falló, usando fallback HTML:', e);
+      console.warn('XLSX falló, usando fallback HTML:', e);
     }
 
     // Fallback HTML
@@ -3328,7 +5782,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       const html = generarExcelHTML();
       const fileName = `reporte_flota_emporium_${new Date().toISOString().slice(0, 10)}.xls`;
       descargarArchivo(html, fileName, 'application/vnd.ms-excel;charset=utf-8');
-      setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado (formato HTML)` });
+      setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado (HTML)` });
       setTimeout(() => setExportMsg(null), 5000);
     } catch (e) {
       console.error('Excel HTML failed:', e);
@@ -3346,10 +5800,16 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
             className="w-full pl-9 pr-3 py-2 bg-white border border-stone-200 shadow-sm rounded-lg text-sm text-stone-900 outline-none focus:border-emerald-500 placeholder:text-stone-400" />
         </div>
-        <button onClick={exportToExcel} disabled={exporting}
-          className={`text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition ${exporting ? 'bg-stone-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-700/30'}`}>
-          <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'REPORTE MENSUAL'}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={exportToExcelDaily}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center gap-1.5 text-sm font-bold">
+            <FileSpreadsheet className="w-4 h-4" /> HOY
+          </button>
+          <button onClick={exportToExcel} disabled={exporting}
+            className={`text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition ${exporting ? 'bg-stone-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-700/30'}`}>
+            <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'REPORTE MENSUAL'}
+          </button>
+        </div>
       </div>
       <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
           <input type="date" value={deleteUntil} onChange={e => setDeleteUntil(e.target.value)}
@@ -3396,8 +5856,8 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               {filtered.map(t => {
                 const v = vehicles.find(x => x.id === t.vehicleId);
                 const d = drivers.find(x => x.id === t.driverId);
-                const o = branches.find(x => x.id === t.originBranchId);
-                const dest = branches.find(x => x.id === t.destinationBranchId);
+                const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
+                const destLabel = resolveDestName(t, branches);
                 // Cálculo en vivo si todavía está en destino
                 let destTimeDisplay = null;
                 if (t.timeAtDestinationMinutes != null) {
@@ -3416,7 +5876,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
                     </td>
                     <td className="px-2 py-2 font-bold" style={{ color: v?.color }}>{v?.code}</td>
                     <td className="px-2 py-2 text-stone-900">{d?.shortName}</td>
-                    <td className="px-2 py-2 text-xs text-emerald-700">{o?.name} <ArrowRight className="w-3 h-3 inline" /> {dest?.name}</td>
+                    <td className="px-2 py-2 text-xs text-emerald-700">{o?.name} <ArrowRight className="w-3 h-3 inline" /> {destLabel}</td>
                     <td className="text-right px-2 py-2 text-stone-900">{t.kmTraveled}</td>
                     <td className="text-right px-2 py-2 text-xs text-stone-700 font-mono">{formatDuration(t.tripMinutes)}</td>
                     <td className="text-right px-2 py-2 text-xs font-mono">{t.timeAtBranchPrevMinutes != null ? <span className="text-blue-700">{formatDuration(t.timeAtBranchPrevMinutes)}</span> : <span className="text-stone-300 text-[10px]">primer viaje</span>}</td>
@@ -3435,77 +5895,255 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
   );
 }
 
-function VehiclesTab({ vehicles, saveVehicles, trips }) {
+// ── Diagrama SVG área de carga ──────────────────────────────────
+function CargoDiagram({ largo, ancho, alto, cubicaje, maxLoad, bodyType, color = '#10b981' }) {
+  if (!largo || !alto) return null;
+  // Proporciones del dibujo
+  const W = 340, H = 160;
+  const cabW = 54, wheelR = 18, groundY = H - 14;
+  const maxLargo = 7, maxAlto = 3.5;
+  const boxW = Math.max(80, Math.min(220, (largo / maxLargo) * 220));
+  const boxH = Math.max(40, Math.min(110, (alto / maxAlto) * 110));
+  const boxX = cabW + 8;
+  const boxY = groundY - wheelR - boxH;
+  const totalW = boxX + boxW + 10;
+  const vp = `0 0 ${totalW} ${H}`;
+
+  return (
+    <svg viewBox={vp} className="w-full" style={{ maxHeight: 160 }} xmlns="http://www.w3.org/2000/svg">
+      {/* Cabina */}
+      <rect x="4" y={boxY + 10} width={cabW - 4} height={boxH - 10} rx="6" fill={color + '30'} stroke={color} strokeWidth="1.5" />
+      <rect x="10" y={boxY + 16} width={cabW - 20} height={18} rx="3" fill={color + '50'} />
+      {/* Cuerpo / caja de carga */}
+      <rect x={boxX} y={boxY} width={boxW} height={boxH} rx="3" fill={color + '18'} stroke={color} strokeWidth="1.5" />
+      {/* Líneas internas caja */}
+      <line x1={boxX + 2} y1={boxY + boxH * 0.35} x2={boxX + boxW - 2} y2={boxY + boxH * 0.35} stroke={color + '40'} strokeWidth="0.8" strokeDasharray="4,3" />
+      <line x1={boxX + 2} y1={boxY + boxH * 0.65} x2={boxX + boxW - 2} y2={boxY + boxH * 0.65} stroke={color + '40'} strokeWidth="0.8" strokeDasharray="4,3" />
+      {/* Chasis */}
+      <line x1="4" y1={groundY - wheelR} x2={totalW - 6} y2={groundY - wheelR} stroke="#78716c" strokeWidth="3" />
+      {/* Ruedas */}
+      {[18, totalW - 28, totalW - 14].map((cx, i) => (
+        <g key={i}>
+          <circle cx={cx} cy={groundY - wheelR + wheelR} r={wheelR} fill="#292524" />
+          <circle cx={cx} cy={groundY - wheelR + wheelR} r={wheelR * 0.55} fill="#57534e" />
+          <circle cx={cx} cy={groundY - wheelR + wheelR} r={3} fill="#a8a29e" />
+        </g>
+      ))}
+      {/* Etiqueta Largo */}
+      <line x1={boxX} y1={groundY - 2} x2={boxX + boxW} y2={groundY - 2} stroke="#64748b" strokeWidth="1" markerEnd="url(#arrow)" />
+      <text x={boxX + boxW / 2} y={groundY + 10} textAnchor="middle" fontSize="9" fill="#475569" fontWeight="bold">Largo: {largo} m</text>
+      {/* Etiqueta Alto */}
+      <line x1={boxX + boxW + 4} y1={boxY} x2={boxX + boxW + 4} y2={boxY + boxH} stroke="#64748b" strokeWidth="1" />
+      <text x={boxX + boxW + 8} y={boxY + boxH / 2} fontSize="8" fill="#475569" dominantBaseline="middle">Alto: {alto}m</text>
+      {/* Info central */}
+      <text x={boxX + boxW / 2} y={boxY + boxH / 2 - 8} textAnchor="middle" fontSize="10" fill={color} fontWeight="bold">{bodyType || ''}</text>
+      {cubicaje && <text x={boxX + boxW / 2} y={boxY + boxH / 2 + 5} textAnchor="middle" fontSize="9" fill="#475569">{cubicaje} m³</text>}
+      {maxLoad && <text x={boxX + boxW / 2} y={boxY + boxH / 2 + 17} textAnchor="middle" fontSize="9" fill="#475569">{Number(maxLoad).toLocaleString()} kg</text>}
+      {ancho && <text x={boxX + boxW / 2} y={boxY + boxH / 2 + 28} textAnchor="middle" fontSize="8" fill="#94a3b8">Ancho: {ancho} m</text>}
+    </svg>
+  );
+}
+
+const EMPTY_VEHICLE = { code: '', plate: '', type: 'NPR', bodyType: 'Furgón', year: '', performance: 5, status: 'AL DIA', currentKm: 0, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, lastBrakeKm: 0, brakeFreq: 15000, lastCoolantKm: 0, coolantFreq: 12000, lastPrevKm: 0, prevFreq: 15000, lastBatteryDate: '', observations: '', litersPer100km: 21, color: '#10b981', maxLoad: '', cargoLength: '', cargoWidth: '', cargoHeight: '', cargoCubic: '', maintenanceWebhook: '' };
+
+function VehicleForm({ v, onSave, onCancel, title }) {
+  const [f, setF] = useState({...EMPTY_VEHICLE, ...v});
+  const s = (k, val) => setF(p => ({...p, [k]: val}));
+  return (
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-bold text-stone-900">{title}</h3>
+        <button onClick={onCancel} className="text-stone-400 hover:text-stone-700"><X className="w-5 h-5" /></button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <DarkField label="Vehículo"><input value={f.code} onChange={e => s('code', e.target.value)} className="dark-input" placeholder="NPR 01" /></DarkField>
+        <DarkField label="Placa"><input value={f.plate} onChange={e => s('plate', e.target.value)} className="dark-input" /></DarkField>
+        <DarkField label="Marca / Chasis"><select value={f.type} onChange={e => s('type', e.target.value)} className="dark-input"><option>NPR</option><option>FUSO</option><option>L300</option><option>OTRO</option></select></DarkField>
+        <DarkField label="Carrocería"><select value={f.bodyType||'Furgón'} onChange={e => s('bodyType', e.target.value)} className="dark-input"><option>Furgón</option><option>Cava Térmica</option><option>Panel</option><option>Plataforma</option><option>Otro</option></select></DarkField>
+        <DarkField label="Año"><input type="number" value={f.year||''} onChange={e => s('year', e.target.value)} className="dark-input" placeholder="2009" /></DarkField>
+        <DarkField label="Color"><input type="color" value={f.color||'#10b981'} onChange={e => s('color', e.target.value)} className="dark-input h-10" /></DarkField>
+        <DarkField label="Litros/100km"><input type="number" value={f.litersPer100km} onChange={e => s('litersPer100km', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Carga máx. (kg)"><input type="number" value={f.maxLoad||''} onChange={e => s('maxLoad', e.target.value)} className="dark-input" placeholder="4690" /></DarkField>
+      </div>
+      {/* Dimensiones carga */}
+      <div className="mt-3 p-3 bg-stone-50 rounded-xl border border-stone-200">
+        <div className="text-xs font-bold text-stone-600 uppercase tracking-wider mb-2">📐 Dimensiones área de carga</div>
+        <div className="grid grid-cols-2 gap-3">
+          <DarkField label="Largo (m)"><input type="number" step="0.01" value={f.cargoLength||''} onChange={e => s('cargoLength', e.target.value)} className="dark-input" placeholder="2.94" /></DarkField>
+          <DarkField label="Ancho (m)"><input type="number" step="0.01" value={f.cargoWidth||''} onChange={e => s('cargoWidth', e.target.value)} className="dark-input" placeholder="2.20" /></DarkField>
+          <DarkField label="Alto (m)"><input type="number" step="0.01" value={f.cargoHeight||''} onChange={e => s('cargoHeight', e.target.value)} className="dark-input" placeholder="1.55" /></DarkField>
+          <DarkField label="Cubicaje (m³)"><input type="number" step="0.01" value={f.cargoCubic||''} onChange={e => s('cargoCubic', e.target.value)} className="dark-input" placeholder="18.28" /></DarkField>
+        </div>
+        {f.cargoLength && f.cargoHeight && (
+          <div className="mt-3 bg-white rounded-lg border border-stone-200 p-2">
+            <CargoDiagram largo={f.cargoLength} ancho={f.cargoWidth} alto={f.cargoHeight} cubicaje={f.cargoCubic} maxLoad={f.maxLoad} bodyType={f.bodyType} color={f.color||'#10b981'} />
+          </div>
+        )}
+      </div>
+      {/* KM y mantenimiento */}
+      <div className="grid grid-cols-2 gap-3 mt-3">
+        <DarkField label="Estado"><select value={f.status} onChange={e => s('status', e.target.value)} className="dark-input"><option>AL DIA</option><option>EN TALLER</option><option>OPERATIVO</option><option>FUERA DE SERVICIO</option></select></DarkField>
+        <DarkField label="KM Actual"><input type="number" value={f.currentKm} onChange={e => s('currentKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Último Mant. KM"><input type="number" value={f.lastMaintKm} onChange={e => s('lastMaintKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Frec. Mant. KM"><input type="number" value={f.maintFreq} onChange={e => s('maintFreq', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Último Engrase KM"><input type="number" value={f.lastGreaseKm} onChange={e => s('lastGreaseKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Frec. Engrase KM"><input type="number" value={f.greaseFreq||3000} onChange={e => s('greaseFreq', Number(e.target.value))} className="dark-input" /></DarkField>
+        <div className="col-span-2"><DarkField label="Observaciones"><input value={f.observations||''} onChange={e => s('observations', e.target.value)} className="dark-input" /></DarkField></div>
+      </div>
+      {/* Webhook Discord mantenimiento */}
+      <div className="mt-3 p-3 bg-indigo-50 rounded-xl border border-indigo-200">
+        <div className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-2">🔔 Discord — Canal de mantenimiento</div>
+        <DarkField label={`Webhook de #${f.code?.toLowerCase().replace(' ','-') || 'canal'}`}>
+          <input type="text" value={f.maintenanceWebhook||''} onChange={e => s('maintenanceWebhook', e.target.value)}
+            placeholder="https://discord.com/api/webhooks/..." className="dark-input font-mono text-xs" />
+        </DarkField>
+        <p className="text-[10px] text-indigo-500 mt-1">Chequeos, taller, combustible e incidentes de este camión llegan aquí.</p>
+      </div>
+      <div className="flex justify-end gap-2 mt-4">
+        <button onClick={onCancel} className="px-3 py-1.5 text-sm text-stone-500">Cancelar</button>
+        <button onClick={() => onSave(f)} className="px-4 py-1.5 text-sm bg-emerald-600 text-white rounded-lg font-bold">Guardar</button>
+      </div>
+    </div>
+  );
+}
+
+function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig }) {
   const [editing, setEditing] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [retiroModal, setRetiroModal] = useState(null); // vehicleId
+  const [retiroTrabajo, setRetiroTrabajo] = useState('');
+  const [retiroKm, setRetiroKm] = useState('');
+  const [retiroFoto, setRetiroFoto] = useState(null);
+  const [retiroLoading, setRetiroLoading] = useState(false);
+
+  const handleRetiroCoord = () => {
+    const v = vehicles.find(x => x.id === retiroModal);
+    if (!v) return;
+    // Solo autoriza la salida — el chofer completa el retiro con trabajo/foto/KM
+    saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, status: 'RETIRO AUTORIZADO' } : x));
+    setRetiroModal(null);
+  };
+
   const handleSave = (v) => {
-    if (editing?.id) saveVehicles(vehicles.map(x => x.id === v.id ? v : x));
+    if (v.id) saveVehicles(vehicles.map(x => x.id === v.id ? v : x));
     else saveVehicles([...vehicles, { ...v, id: `v_${Date.now()}` }]);
     setEditing(null);
+    setShowAdd(false);
   };
+
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
         <h2 className="font-black text-stone-900">Flota</h2>
-        <button onClick={() => setEditing({ code: '', plate: '', type: 'NPR', performance: 5, status: 'AL DIA', currentKm: 0, lastMaintKm: 0, maintFreq: 6000, lastGreaseKm: 0, greaseFreq: 3000, observations: '', litersPer100km: 21, color: '#10b981' })}
-          className="bg-emerald-600 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-bold">
+        <button onClick={() => setShowAdd(!showAdd)} className="bg-emerald-600 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-bold">
           <Plus className="w-4 h-4" /> Agregar
         </button>
       </div>
-      {editing && (
-        <div className="bg-white rounded-xl border-2 border-emerald-500/40 p-4">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-bold text-stone-900">{editing.id ? 'Editar' : 'Nuevo'} vehículo</h3>
-            <button onClick={() => setEditing(null)} className="text-emerald-700"><X className="w-5 h-5" /></button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <DarkField label="Código"><input value={editing.code} onChange={e => setEditing({ ...editing, code: e.target.value })} className="dark-input" /></DarkField>
-            <DarkField label="Placa"><input value={editing.plate} onChange={e => setEditing({ ...editing, plate: e.target.value })} className="dark-input" /></DarkField>
-            <DarkField label="Tipo"><select value={editing.type} onChange={e => setEditing({ ...editing, type: e.target.value })} className="dark-input"><option>NPR</option><option>FUSO</option><option>L300</option><option>OTRO</option></select></DarkField>
-            <DarkField label="Color (mapa)"><input type="color" value={editing.color || '#10b981'} onChange={e => setEditing({ ...editing, color: e.target.value })} className="dark-input h-10" /></DarkField>
-            <DarkField label="Litros/100km"><input type="number" value={editing.litersPer100km} onChange={e => setEditing({ ...editing, litersPer100km: Number(e.target.value) })} className="dark-input" /></DarkField>
-            <DarkField label="Rendimiento km/L"><input type="number" step="0.01" value={editing.performance} onChange={e => setEditing({ ...editing, performance: Number(e.target.value) })} className="dark-input" /></DarkField>
-            <DarkField label="Estado"><select value={editing.status} onChange={e => setEditing({ ...editing, status: e.target.value })} className="dark-input"><option>AL DIA</option><option>EN TALLER</option><option>OPERATIVO</option><option>FUERA DE SERVICIO</option></select></DarkField>
-            <DarkField label="KM Actual"><input type="number" value={editing.currentKm} onChange={e => setEditing({ ...editing, currentKm: Number(e.target.value) })} className="dark-input" /></DarkField>
-            <DarkField label="Último Mant. (KM)"><input type="number" value={editing.lastMaintKm} onChange={e => setEditing({ ...editing, lastMaintKm: Number(e.target.value) })} className="dark-input" /></DarkField>
-            <DarkField label="Frecuencia Mant."><input type="number" value={editing.maintFreq} onChange={e => setEditing({ ...editing, maintFreq: Number(e.target.value) })} className="dark-input" /></DarkField>
-            <div className="col-span-2 md:col-span-3"><DarkField label="Observaciones"><input value={editing.observations} onChange={e => setEditing({ ...editing, observations: e.target.value })} className="dark-input" /></DarkField></div>
-          </div>
-          <div className="flex justify-end gap-2 mt-3">
-            <button onClick={() => setEditing(null)} className="px-3 py-1.5 text-sm text-emerald-700">Cancelar</button>
-            <button onClick={() => handleSave(editing)} className="px-3 py-1.5 text-sm bg-emerald-600 text-white rounded-lg font-bold">Guardar</button>
-          </div>
+
+      {showAdd && (
+        <div className="bg-white rounded-xl border-2 border-emerald-400 overflow-hidden">
+          <VehicleForm v={EMPTY_VEHICLE} onSave={handleSave} onCancel={() => setShowAdd(false)} title="Nuevo vehículo" />
         </div>
       )}
+
       <div className="grid md:grid-cols-2 gap-3">
         {vehicles.map(v => {
           const vt = trips.filter(t => t.vehicleId === v.id);
+          const isEditing = editing?.id === v.id;
           return (
-            <div key={v.id} className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: (v.color || '#10b981') + '30', border: `1px solid ${v.color || '#10b981'}` }}>
-                    <Truck className="w-5 h-5" style={{ color: v.color || '#10b981' }} />
+            <div key={v.id} className={`bg-white rounded-xl border shadow-sm overflow-hidden ${isEditing ? 'border-emerald-400 border-2' : 'border-stone-200'}`}>
+              {isEditing ? (
+                <VehicleForm v={editing} onSave={handleSave} onCancel={() => setEditing(null)} title={`Editar ${v.code}`} />
+              ) : (
+                <div className="p-4">
+                  {/* Header */}
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: (v.color||'#10b981')+'30', border: `1px solid ${v.color||'#10b981'}` }}>
+                        <Truck className="w-5 h-5" style={{ color: v.color||'#10b981' }} />
+                      </div>
+                      <div>
+                        <div className="font-black text-stone-900 text-base">{v.code}</div>
+                        <div className="text-xs text-stone-500 font-mono">{v.plate}{v.year ? ` · ${v.year}` : ''} · {v.litersPer100km}L/100km</div>
+                        {v.bodyType && <div className="text-[10px] text-stone-400 font-medium mt-0.5">{v.bodyType}</div>}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 items-center flex-shrink-0">
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${v.status==='AL DIA'?'bg-emerald-500/20 text-stone-700 border border-emerald-500/40':'bg-rose-100 text-rose-800 border border-rose-300'}`}>{v.status}</span>
+                      <button onClick={() => setEditing({...v})} className="p-1.5 rounded-lg bg-stone-100 hover:bg-emerald-100 text-stone-600 hover:text-emerald-700 transition">
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-bold text-stone-900">{v.code}</div>
-                    <div className="text-xs text-stone-500 font-mono">{v.plate} · {v.litersPer100km}L/100km</div>
+
+                  {/* Diagrama carga */}
+                  {v.cargoLength && v.cargoHeight && (
+                    <div className="mb-3 bg-stone-50 rounded-xl border border-stone-200 p-2">
+                      <div className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1 flex justify-between">
+                        <span>📐 Área de carga</span>
+                        <span className="text-stone-400">{v.cargoLength}×{v.cargoWidth}×{v.cargoHeight} m{v.cargoCubic ? ` · ${v.cargoCubic}m³` : ''}{v.maxLoad ? ` · ${Number(v.maxLoad).toLocaleString()}kg` : ''}</span>
+                      </div>
+                      <CargoDiagram largo={v.cargoLength} ancho={v.cargoWidth} alto={v.cargoHeight} cubicaje={v.cargoCubic} maxLoad={v.maxLoad} bodyType={v.bodyType} color={v.color||'#10b981'} />
+                    </div>
+                  )}
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">KM Actual</div><div className="font-bold text-stone-900">{v.currentKm.toLocaleString()}</div></div>
+                    <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Viajes</div><div className="font-bold text-stone-900">{vt.length}</div></div>
+                    <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Días</div><div className="font-bold text-stone-900">{new Set(vt.map(t=>t.startDate)).size}</div></div>
                   </div>
+                  {v.observations && <div className="mt-2 text-xs bg-amber-950/30 border border-amber-700/30 rounded p-2 text-amber-700">{v.observations}</div>}
+                  {v.status === 'EN TALLER' && (
+                    <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                      <div className="text-xs font-bold text-amber-800 uppercase tracking-wider">🔧 EN TALLER</div>
+                      <div className="text-xs text-amber-700">{v.tallerMotivo || 'Sin motivo registrado'}</div>
+                      {v.tallerEntrada && <div className="text-xs text-stone-500">⏱ {(() => { const ms=Date.now()-v.tallerEntrada; const d=Math.floor(ms/86400000),h=Math.floor(ms/3600000); return d>0?`${d}d ${h%24}h`:`${h}h ${Math.floor((ms%3600000)/60000)}m`; })()} en taller</div>}
+                      <button onClick={() => { setRetiroModal(v.id); setRetiroKm(v.currentKm?.toString()||''); }}
+                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
+                        ✅ Autorizar salida de taller
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="flex gap-2 items-center">
-                  <span className={`text-[10px] px-2 py-0.5 rounded font-bold font-mono uppercase tracking-wider ${v.status === 'AL DIA' ? 'bg-emerald-500/20 text-stone-700 border border-emerald-500/40' : 'bg-rose-100 text-rose-800 border border-rose-300'}`}>{v.status}</span>
-                  <button onClick={() => setEditing(v)} className="text-emerald-700 hover:text-stone-700"><Edit className="w-4 h-4" /></button>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-xs mt-2">
-                <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">KM Actual</div><div className="font-bold text-stone-900">{v.currentKm.toLocaleString()}</div></div>
-                <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Viajes</div><div className="font-bold text-stone-900">{vt.length}</div></div>
-                <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Días</div><div className="font-bold text-stone-900">{new Set(vt.map(t => t.startDate)).size}</div></div>
-              </div>
-              {v.observations && <div className="mt-2 text-xs bg-amber-950/30 border border-amber-700/30 rounded p-2 text-amber-700">{v.observations}</div>}
+              )}
             </div>
           );
         })}
       </div>
+
+      {/* MODAL RETIRO COORDINADOR */}
+      {retiroModal && (() => {
+        const v = vehicles.find(x => x.id === retiroModal);
+        if (!v) return null;
+        return (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl space-y-4 p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-black text-stone-900 text-lg">🔧 Autorizar salida de taller</h2>
+                  <p className="text-xs text-stone-500">{v.code} · {v.plate}</p>
+                </div>
+                <button onClick={() => setRetiroModal(null)} className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200">
+                  <X className="w-4 h-4 text-stone-600" />
+                </button>
+              </div>
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
+                <div className="text-xs font-bold text-rose-700 uppercase tracking-wider mb-1">Motivo de entrada</div>
+                <div className="text-sm font-medium text-rose-900">{v.tallerMotivo || '—'}</div>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-sm text-emerald-800 space-y-1">
+                <div>✅ Al confirmar, el vehículo quedará disponible para retiro.</div>
+                <div className="text-xs text-emerald-600">El chofer registrará el trabajo realizado, foto y KM desde su app.</div>
+              </div>
+              <button onClick={handleRetiroCoord}
+                className="w-full py-4 rounded-2xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2 transition">
+                ✅ Confirmar — el chofer puede retirar
+              </button>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -3755,76 +6393,1718 @@ function BranchesTab({ branches, saveBranches }) {
   );
 }
 
-function MaintenanceTab({ vehicles, saveVehicles }) {
-  const alerts = vehicles.map(v => {
-    const next = v.lastMaintKm + v.maintFreq;
-    const rem = next - v.currentKm;
-    let level = 'ok';
-    if (rem < 0) level = 'critical'; else if (rem < 500) level = 'warning';
-    return { ...v, kmRemaining: rem, nextMaint: next, level };
-  });
-  const reg = (v) => {
-    const km = prompt(`KM del ${v.code}:`, v.currentKm.toString());
-    if (km && !isNaN(Number(km))) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, lastMaintKm: Number(km), lastGreaseKm: Number(km) } : x));
+// ============================================================
+// TALLER VIEW — pantalla del chofer cuando el camión está en taller
+// ============================================================
+// ============================================================
+// TALLER VIEW — pantalla del chofer cuando el camión está en taller
+// ============================================================
+// ============================================================
+// RETIRAR DEL TALLER — chofer retira el camión
+// ============================================================
+function RetirarTallerView({ vehicle, driver, vehicles, saveVehicles, config, onRetiro, onBack }) {
+  const [trabajo, setTrabajo] = useState('');
+  const [kmSalida, setKmSalida] = useState(vehicle.currentKm?.toString() || '');
+  const [foto, setFoto] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const tiempoMs = vehicle.tallerEntrada ? Date.now() - vehicle.tallerEntrada : 0;
+  const fmt = (ms) => { const h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000), d=Math.floor(ms/86400000); return d>0?`${d}d ${h%24}h`:h>0?`${h}h ${m}m`:`${m}m`; };
+
+  const handleFoto = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setFoto(ev.target.result);
+    reader.readAsDataURL(file);
   };
+
+  const handleRegistrar = async () => {
+    if (!trabajo.trim()) { alert('Describe el trabajo realizado'); return; }
+    if (!kmSalida || isNaN(Number(kmSalida))) { alert('Ingresa el KM de salida'); return; }
+    setSubmitting(true);
+
+    // Actualizar vehículo
+    const updatedVehicles = vehicles.map(v => v.id === vehicle.id ? {
+      ...v, status: 'AL DIA',
+      currentKm: Number(kmSalida),
+      tallerSalida: Date.now(),
+      tallerTrabajo: trabajo,
+      tallerDias: Math.max(1, Math.round(tiempoMs / 86400000)),
+      tallerEntrada: null,
+      tallerMotivo: null,
+      tallerChofer: null,
+    } : v);
+    saveVehicles(updatedVehicles);
+
+    // Discord mantenimiento
+    const wh = getMaintWebhook(vehicle?.id, vehicles, config);
+    if (wh) {
+      const embed = {
+        title: `✅ RETIRO DE TALLER · ${vehicle.code}`,
+        description: `**${driver.name}** retira **${vehicle.code}** (${vehicle.plate}) del taller`,
+        color: 0x10B981,
+        fields: [
+          { name: '🔧 Motivo entrada', value: vehicle.tallerMotivo || '—', inline: false },
+          { name: '🛠️ Trabajo realizado', value: trabajo, inline: false },
+          { name: '⏱️ Tiempo en taller', value: fmt(tiempoMs), inline: true },
+          { name: '📍 KM salida', value: `${Number(kmSalida).toLocaleString()} km`, inline: true },
+          { name: '📅 Fecha', value: new Date().toLocaleString('es-VE'), inline: true },
+        ],
+      };
+      if (foto) {
+        try {
+          const blob = base64ToBlob(foto);
+          const fd = new FormData();
+          fd.append('files[0]', blob, 'retiro_taller.jpg');
+          fd.append('payload_json', JSON.stringify({ embeds: [embed] }));
+          if (navigator.onLine) await fetch(wh, { method: 'POST', body: fd });
+          else await sendDiscordNotification(wh, embed);
+        } catch { await sendDiscordNotification(wh, embed); }
+      } else {
+        await sendDiscordNotification(wh, embed).catch(() => {});
+      }
+    }
+    setSubmitting(false);
+    onRetiro();
+  };
+
   return (
-    <div className="space-y-3">
-      <h2 className="font-black text-stone-900">Mantenimiento</h2>
-      <div className="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-stone-100 text-[10px] text-emerald-700 uppercase tracking-wider font-mono">
-              <tr>
-                <th className="text-left px-3 py-2">Unidad</th>
-                <th className="text-right px-2 py-2">KM Actual</th>
-                <th className="text-right px-2 py-2">Próx. Mant.</th>
-                <th className="text-right px-2 py-2">Restantes</th>
-                <th className="text-center px-2 py-2">Estado</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {alerts.map(v => (
-                <tr key={v.id} className="border-t border-stone-200">
-                  <td className="px-3 py-2"><div className="font-bold text-stone-900">{v.code}</div><div className="text-xs text-stone-500 font-mono">{v.plate}</div></td>
-                  <td className="text-right px-2 py-2 text-stone-900">{v.currentKm.toLocaleString()}</td>
-                  <td className="text-right px-2 py-2 text-stone-900">{v.nextMaint.toLocaleString()}</td>
-                  <td className={`text-right px-2 py-2 font-bold font-mono ${v.kmRemaining < 0 ? 'text-rose-400' : v.kmRemaining < 500 ? 'text-amber-400' : 'text-stone-700'}`}>{v.kmRemaining.toLocaleString()}</td>
-                  <td className="text-center px-2 py-2">
-                    {v.level === 'critical' && <span className="text-[10px] bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded font-bold font-mono uppercase">CRÍTICO</span>}
-                    {v.level === 'warning' && <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-bold font-mono uppercase">PRÓXIMO</span>}
-                    {v.level === 'ok' && <span className="text-[10px] bg-emerald-500/20 text-stone-700 border border-emerald-500/40 px-2 py-0.5 rounded font-bold font-mono uppercase">AL DÍA</span>}
-                  </td>
-                  <td className="px-2 py-2"><button onClick={() => reg(v)} className="text-[10px] bg-emerald-500/20 text-stone-700 border border-emerald-500/40 px-2 py-1 rounded font-bold">Registrar</button></td>
-                </tr>
+    <div className="space-y-4 pb-8">
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="p-2 rounded-lg bg-stone-100 hover:bg-stone-200">
+          <ArrowRight className="w-4 h-4 rotate-180 text-stone-600" />
+        </button>
+        <div>
+          <h2 className="font-bold text-stone-900">🔧 Retirar del taller</h2>
+          <p className="text-xs text-stone-500">{vehicle.code} · {vehicle.plate}</p>
+        </div>
+      </div>
+
+      {/* Info entrada */}
+      <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 space-y-1">
+        <div className="text-xs font-bold text-rose-700 uppercase tracking-wider">Motivo de entrada</div>
+        <div className="text-sm font-medium text-rose-900">{vehicle.tallerMotivo || '—'}</div>
+        {vehicle.tallerEntrada && <div className="text-xs text-stone-500">Tiempo en taller: {fmt(tiempoMs)}</div>}
+      </div>
+
+      {/* Trabajo realizado */}
+      <div>
+        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">
+          🛠️ Trabajo realizado <span className="text-red-500">*</span>
+        </label>
+        <textarea rows={3} value={trabajo} onChange={e => setTrabajo(e.target.value)}
+          placeholder="Describe el trabajo realizado (cambio aceite, reparación frenos, etc.)..."
+          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-400 resize-none" />
+      </div>
+
+      {/* Foto */}
+      <div>
+        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">
+          📷 Foto del trabajo <span className="text-stone-400 font-normal">(opcional)</span>
+        </label>
+        {foto ? (
+          <div className="relative w-full rounded-xl overflow-hidden border border-stone-200">
+            <img src={foto} alt="Foto taller" className="w-full h-40 object-cover" />
+            <button onClick={() => setFoto(null)}
+              className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-7 h-7 flex items-center justify-center font-bold shadow">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <label className="w-full h-28 rounded-xl border-2 border-dashed border-stone-300 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition">
+            <Camera className="w-7 h-7 text-stone-400" />
+            <span className="text-xs text-stone-400 mt-1">Tomar foto del trabajo</span>
+            <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={handleFoto} />
+          </label>
+        )}
+      </div>
+
+      {/* KM salida */}
+      <div>
+        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">📍 KM odómetro al retirar</label>
+        <input type="number" value={kmSalida} onChange={e => setKmSalida(e.target.value)}
+          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:border-emerald-400" />
+      </div>
+
+      {/* Botón registrar */}
+      <button onClick={handleRegistrar} disabled={submitting}
+        className="w-full py-4 rounded-2xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2 transition disabled:opacity-50">
+        {submitting ? 'Registrando...' : '✅ Registrar retiro → Discord + iniciar viaje'}
+      </button>
+    </div>
+  );
+}
+
+function TallerEntradaForm({ vehicle, driver, vehicles, saveVehicles, config, onRegistered, appointments = [], saveAppointments }) {
+  const [motivo, setMotivo] = useState('');
+  const [submitted, setSubmitted] = useState(vehicle?.status === 'EN TALLER');
+
+  if (submitted) return (
+    <div className="bg-white/10 rounded-xl p-3 text-center">
+      <div className="text-white font-bold text-sm">🔧 Registrado en taller</div>
+      <div className="text-white/70 text-xs mt-1">{vehicle?.tallerMotivo || 'En servicio'}</div>
+    </div>
+  );
+
+  const handleRegistrar = async () => {
+    if (!motivo.trim()) { alert('Escribe el motivo de entrada al taller'); return; }
+    const updatedVehicles = vehicles.map(v => v.id === vehicle.id ? {
+      ...v, status: 'EN TALLER',
+      tallerEntrada: Date.now(),
+      tallerMotivo: motivo,
+      tallerKmEntrada: v.currentKm,
+      tallerChofer: driver.name,
+    } : v);
+    saveVehicles(updatedVehicles);
+    const wh = getMaintWebhook(vehicle?.id, vehicles, config);
+    if (wh) sendDiscordNotification(wh, {
+      title: `🔧 EN TALLER · ${vehicle.code}`,
+      description: `**${driver.name}** dejó **${vehicle.code}** (${vehicle.plate}) en taller`,
+      color: 0xEF4444,
+      fields: [
+        { name: '🔧 Motivo / Trabajo a realizar', value: motivo, inline: false },
+        { name: '📍 KM entrada', value: `${(vehicle.currentKm||0).toLocaleString()} km`, inline: true },
+        { name: '📅 Fecha', value: new Date().toLocaleString('es-VE'), inline: true },
+      ],
+    }).catch(() => {});
+    setSubmitted(true);
+    // Borrar citas pendientes del vehículo
+    if (saveAppointments && appointments.length > 0) {
+      const today = new Date().toISOString().slice(0,10);
+      saveAppointments(appointments.filter(a => !(a.vehicleId === vehicle.id && a.fecha >= today)));
+    }
+    // Ir directo a selección de unidades
+    setTimeout(() => { if (onRegistered) onRegistered(); }, 1500);
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="text-white/80 text-xs font-bold uppercase tracking-wider">🔧 Registrar en taller</div>
+      <textarea rows={2} value={motivo} onChange={e => setMotivo(e.target.value)}
+        placeholder="Motivo / trabajo a realizar (ej: cambio aceite, revisión frenos...)"
+        className="w-full bg-white/10 text-white placeholder:text-white/40 text-sm rounded-xl px-3 py-2 outline-none border border-white/20 focus:border-white/50 resize-none" />
+      <button onClick={handleRegistrar}
+        className="w-full py-2.5 bg-rose-500 hover:bg-rose-600 rounded-xl font-bold text-white text-sm flex items-center justify-center gap-2 transition">
+        🔧 Registrar en taller → Discord
+      </button>
+    </div>
+  );
+}
+
+function TallerView({ vehicle, driver, vehicles, saveVehicles, config, onSalir }) {
+  const [elapsed, setElapsed] = useState(0);
+  const [trabajoRealizado, setTrabajoRealizado] = useState('');
+  const [kmSalida, setKmSalida] = useState(vehicle.tallerKmEntrada?.toString() || '');
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const entrada = vehicle.tallerEntrada || Date.now();
+    const tick = () => setElapsed(Math.floor((Date.now() - entrada) / 1000));
+    tick();
+    const id = setInterval(tick, 10000);
+    return () => clearInterval(id);
+  }, [vehicle.tallerEntrada]);
+
+  const fmt = (s) => {
+    const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
+
+  const handleSalir = async () => {
+    if (!trabajoRealizado.trim()) { alert('Describe el trabajo realizado antes de salir.'); return; }
+    if (!kmSalida || isNaN(Number(kmSalida))) { alert('Ingresa el KM de salida.'); return; }
+    setSubmitting(true);
+    const diasEnTaller = Math.max(1, Math.round(elapsed / 86400));
+    const updatedVehicles = vehicles.map(v => v.id === vehicle.id ? {
+      ...v,
+      status: 'AL DIA',
+      currentKm: Number(kmSalida),
+      tallerSalida: Date.now(),
+      tallerTrabajo: trabajoRealizado,
+      tallerDias: diasEnTaller,
+      tallerEntrada: null,
+      tallerMotivo: null,
+      tallerChofer: null,
+    } : v);
+    saveVehicles(updatedVehicles);
+    // Discord → mantenimiento
+    const wh = getMaintWebhook(vehicle?.id, vehicles, config);
+    if (wh) await sendDiscordNotification(wh, {
+      title: `✅ SALIÓ DE TALLER · ${vehicle.code}`,
+      description: `**${driver.name}** reporta salida de taller de **${vehicle.code}** (${vehicle.plate})`,
+      color: 0x10B981,
+      fields: [
+        { name: '🔧 Motivo entrada', value: vehicle.tallerMotivo || '—', inline: false },
+        { name: '🛠️ Trabajo realizado', value: trabajoRealizado, inline: false },
+        { name: '⏱️ Tiempo en taller', value: fmt(elapsed), inline: true },
+        { name: '📍 KM salida', value: `${Number(kmSalida).toLocaleString()} km`, inline: true },
+        { name: '📅 Fecha salida', value: new Date().toLocaleString('es-VE'), inline: true },
+      ],
+    }).catch(() => {});
+    setSubmitting(false);
+    onSalir();
+  };
+
+  return (
+    <div className="space-y-4 pb-8">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <h2 className="font-bold text-stone-900 text-lg">🔧 En taller</h2>
+          <p className="text-stone-500 text-xs">{vehicle.code} · {vehicle.plate}</p>
+        </div>
+      </div>
+
+      {/* Timer */}
+      <div className="rounded-2xl p-5 text-center" style={{ background: 'linear-gradient(135deg, #dc2626 0%, #991b1b 100%)' }}>
+        <div className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Tiempo en taller</div>
+        <div className="text-white font-black text-5xl tracking-tight mb-1">{fmt(elapsed)}</div>
+        <div className="text-white/60 text-xs">Entró: {vehicle.tallerEntrada ? new Date(vehicle.tallerEntrada).toLocaleString('es-VE') : '—'}</div>
+      </div>
+
+      {/* Motivo */}
+      <div className="bg-rose-50 border border-rose-200 rounded-xl p-3">
+        <div className="text-xs font-bold text-rose-700 uppercase tracking-wider mb-1">🔧 Motivo de entrada</div>
+        <div className="text-sm text-rose-900 font-medium">{vehicle.tallerMotivo || '—'}</div>
+      </div>
+
+      {/* Trabajo realizado */}
+      <div>
+        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">
+          🛠️ Trabajo realizado <span className="text-red-500">*</span>
+        </label>
+        <textarea rows={3} value={trabajoRealizado} onChange={e => setTrabajoRealizado(e.target.value)}
+          placeholder="Describe el trabajo que se realizó (cambio aceite, reparación frenos, etc.)..."
+          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-400 resize-none" />
+      </div>
+
+      {/* KM salida */}
+      <div>
+        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">📍 KM odómetro al salir</label>
+        <input type="number" value={kmSalida} onChange={e => setKmSalida(e.target.value)}
+          className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm font-bold outline-none focus:border-emerald-400" />
+      </div>
+
+      {/* Botón salir */}
+      <button onClick={handleSalir} disabled={submitting}
+        className="w-full py-4 rounded-2xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg flex items-center justify-center gap-2 transition active:scale-[0.98] disabled:opacity-50">
+        {submitting ? 'Registrando...' : '✅ Salir del taller'}
+      </button>
+    </div>
+  );
+}
+
+function MaintenanceTab({ vehicles, saveVehicles, maintRecords = [], saveMaintRecords, appointments = [], saveAppointments, config = {} }) {
+  const TIPOS = ['Preventivo', 'Correctivo', 'Repuesto', 'Garantia'];
+  const emptyForm = { vehicleId: vehicles[0]?.id || '', fecha: new Date().toISOString().slice(0,10), km: '', tecnico: '', trabajo: '', costoRepuesto: '', manoObra: '', tipo: 'Correctivo' };
+  const [form, setForm] = useState(emptyForm);
+  const [showForm, setShowForm] = useState(false);
+  const [filterVehicle, setFilterVehicle] = useState('all');
+  const [filterMes, setFilterMes] = useState('all');
+
+  // ── CITAS DE TALLER ──────────────────────────────────────
+  const SERV_TIPOS = ['Aceite + Filtros', 'Engrase', 'Frenos', 'Refrigerante', 'Mant. Preventivo', 'Bateria', 'Correctivo', 'Otro'];
+  const emptyAppt = { id: '', vehicleId: vehicles[0]?.id || '', fecha: '', tipo: 'Aceite + Filtros', taller: '', notas: '' };
+  const [showApptForm, setShowApptForm] = useState(false);
+  const [apptForm, setApptForm] = useState(emptyAppt);
+
+  const addAppt = async () => {
+    if (!apptForm.vehicleId || !apptForm.fecha) return;
+    const v = vehicles.find(x => x.id === apptForm.vehicleId);
+    const appt = { ...apptForm, id: `appt_${Date.now()}`, vehicleCode: v?.code || '', createdAt: Date.now() };
+    saveAppointments([...appointments, appt]);
+    setShowApptForm(false);
+    setApptForm(emptyAppt);
+    // Discord
+    const wh = v?.maintenanceWebhook || config?.discordWebhookMaintenance;
+    if (wh) {
+      try {
+        await sendDiscordNotification(wh, {
+          title: `🔧 CITA PROGRAMADA · ${v?.code}`,
+          description: `Se ha agendado una cita de taller para **${v?.code} · ${v?.plate}**`,
+          color: 0x6366f1,
+          fields: [
+            { name: '📅 Fecha', value: appt.fecha, inline: true },
+            { name: '🛠️ Servicio', value: appt.tipo, inline: true },
+            { name: '🏪 Taller', value: appt.taller || '—', inline: true },
+            { name: '📝 Notas', value: appt.notas || 'Sin notas', inline: false },
+          ],
+          footer: { text: `Transporte Emporium · ${new Date().toLocaleDateString('es-VE')}` },
+        });
+      } catch(e) {}
+    }
+  };
+
+  const delAppt = (id) => { if (confirm('Eliminar cita?')) saveAppointments(appointments.filter(a => a.id !== id)); };
+
+  const today = new Date().toISOString().slice(0,10);
+  const upcomingAppts = appointments.filter(a => a.fecha >= today).sort((a,b) => a.fecha.localeCompare(b.fecha));
+  const pastAppts = appointments.filter(a => a.fecha < today).sort((a,b) => b.fecha.localeCompare(a.fecha));
+  // ── FIN CITAS ─────────────────────────────────────────────
+
+  const SERVICIOS = [
+    { key: 'oil',     label: 'Aceite + Filtros', icon: '🛢️', lastKey: 'lastMaintKm',   freqKey: 'maintFreq',   defaultFreq: 6000,  warnAt: 500  },
+    { key: 'grease',  label: 'Engrase',           icon: '⚙️', lastKey: 'lastGreaseKm',  freqKey: 'greaseFreq',  defaultFreq: 3000,  warnAt: 500  },
+    { key: 'brake',   label: 'Frenos',            icon: '🛑', lastKey: 'lastBrakeKm',   freqKey: 'brakeFreq',   defaultFreq: 15000, warnAt: 1000 },
+    { key: 'coolant', label: 'Refrigerante',      icon: '💧', lastKey: 'lastCoolantKm', freqKey: 'coolantFreq', defaultFreq: 12000, warnAt: 1000 },
+    { key: 'prev',    label: 'Mant. Preventivo',  icon: '🔧', lastKey: 'lastPrevKm',    freqKey: 'prevFreq',    defaultFreq: 15000, warnAt: 1000 },
+  ];
+
+  const calcServicio = (v, s) => {
+    const last = v[s.lastKey] || 0;
+    const freq = v[s.freqKey] || s.defaultFreq;
+    const next = last + freq;
+    const rem = next - (v.currentKm || 0);
+    const pct = Math.min(100, Math.max(0, ((v.currentKm || 0) - last) / freq * 100));
+    const status = rem < 0 ? 'vencido' : rem < s.warnAt ? 'proximo' : 'ok';
+    return { last, freq, next, rem, pct, status };
+  };
+
+  const alertVehicles = vehicles.filter(v => v.status !== 'EN TALLER').map(v => {
+    const servicios = SERVICIOS.map(s => ({ ...s, ...calcServicio(v, s) }));
+    const hasVencido = servicios.some(s => s.status === 'vencido');
+    const hasProximo = servicios.some(s => s.status === 'proximo');
+    const nivel = hasVencido ? 'vencido' : hasProximo ? 'proximo' : 'ok';
+    return { ...v, servicios, nivel };
+  });
+
+  const enTaller = vehicles.filter(v => v.status === 'EN TALLER');
+  const fmt = (s) => { const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60); return d>0?`${d}d ${h}h`:`${h}h ${m}m`; };
+
+  const registrar = (v, s) => {
+    const km = prompt(`KM actual para registrar ${s.label} en ${v.code}:`, v.currentKm?.toString()||'0');
+    if (!km || isNaN(Number(km))) return;
+    saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, [s.lastKey]: Number(km) } : x));
+  };
+
+  const total = (r) => (Number(r.costoRepuesto)||0) + (Number(r.manoObra)||0);
+  const meses = [...new Set(maintRecords.map(r => r.fecha.slice(0,7)))].sort().reverse();
+  const filtered = maintRecords.filter(r =>
+    (filterVehicle === 'all' || r.vehicleId === filterVehicle) &&
+    (filterMes === 'all' || r.fecha.startsWith(filterMes))
+  ).sort((a,b) => b.fecha.localeCompare(a.fecha));
+
+  const chartData = vehicles.map(v => {
+    const rs = maintRecords.filter(r => r.vehicleId === v.id && (filterMes === 'all' || r.fecha.startsWith(filterMes)));
+    return { name: v.code, 'Repuesto': Math.round(rs.reduce((s,r)=>s+(Number(r.costoRepuesto)||0),0)), 'Mano de Obra': Math.round(rs.reduce((s,r)=>s+(Number(r.manoObra)||0),0)), 'Total': Math.round(rs.reduce((s,r)=>s+total(r),0)) };
+  }).filter(d => d.Total > 0);
+
+  const handleAdd = () => {
+    if (!form.vehicleId || !form.fecha || !form.trabajo) return;
+    const v = vehicles.find(x => x.id === form.vehicleId);
+    const rec = { id: Date.now().toString(), ...form, km: Number(form.km)||0, costoRepuesto: Number(form.costoRepuesto)||0, manoObra: Number(form.manoObra)||0, vehicleCode: v?.code || '', vehiclePlate: v?.plate || '' };
+    saveMaintRecords([rec, ...maintRecords]);
+    setForm(emptyForm);
+    setShowForm(false);
+  };
+
+  const handleDelete = (id) => { if (window.confirm('Eliminar registro?')) saveMaintRecords(maintRecords.filter(r => r.id !== id)); };
+  const tipoColor = { Preventivo: 'bg-blue-100 text-blue-800', Correctivo: 'bg-rose-100 text-rose-800', Repuesto: 'bg-amber-100 text-amber-800', Garantia: 'bg-emerald-100 text-emerald-800' };
+
+  const resumen = { vencido: alertVehicles.filter(v=>v.nivel==='vencido').length, proximo: alertVehicles.filter(v=>v.nivel==='proximo').length, ok: alertVehicles.filter(v=>v.nivel==='ok').length };
+
+  return (
+    <div className="space-y-5">
+      {/* HEADER */}
+      <div className="flex items-center justify-between">
+        <h2 className="font-black text-stone-900 text-lg">Mantenimiento</h2>
+        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-lg transition">
+          <Plus className="w-3.5 h-3.5" /> Registrar trabajo
+        </button>
+      </div>
+
+      {/* COSTOS POR CAMION */}
+      {maintRecords.length > 0 && (
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex items-center gap-2">
+            <DollarSign className="w-4 h-4 text-emerald-600" />
+            <span className="font-black text-stone-900 text-sm">Costos acumulados por camion</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 divide-x divide-stone-100">
+            {vehicles.map(v => {
+              const rs = maintRecords.filter(r => r.vehicleId === v.id);
+              const total = rs.reduce((s,r)=>(Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0)+s, 0);
+              const kmRecorrido = (v.currentKm||0) - Math.min(...rs.map(r=>r.km||0).filter(k=>k>0), v.currentKm||0);
+              const costPerKm = kmRecorrido > 0 ? (total / kmRecorrido) : 0;
+              return (
+                <div key={v.id} className="p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <div className="w-2 h-2 rounded-full" style={{backgroundColor: v.color}}></div>
+                    <span className="font-black text-stone-900 text-xs">{v.code}</span>
+                  </div>
+                  <div className="text-lg font-black text-emerald-700">${total.toFixed(0)}</div>
+                  <div className="text-[9px] text-stone-400">{rs.length} trabajos</div>
+                  {costPerKm > 0 && <div className="text-[9px] text-indigo-600 font-bold mt-0.5">${costPerKm.toFixed(3)}/km</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* RESUMEN */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-center">
+          <div className="text-2xl font-black text-rose-600">{resumen.vencido}</div>
+          <div className="text-xs font-bold text-rose-500 uppercase">Vencidos</div>
+        </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center">
+          <div className="text-2xl font-black text-amber-600">{resumen.proximo}</div>
+          <div className="text-xs font-bold text-amber-500 uppercase">Por vencer</div>
+        </div>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-center">
+          <div className="text-2xl font-black text-emerald-600">{resumen.ok}</div>
+          <div className="text-xs font-bold text-emerald-500 uppercase">Al día</div>
+        </div>
+      </div>
+
+      {/* TARJETAS POR VEHÍCULO */}
+      <div className="space-y-4">
+        {alertVehicles.map(v => (
+          <div key={v.id} className={`bg-white rounded-2xl border-2 shadow-sm overflow-hidden ${v.nivel==='vencido'?'border-rose-300':v.nivel==='proximo'?'border-amber-300':'border-stone-200'}`}>
+            {/* Header tarjeta */}
+            <div className={`px-4 py-3 flex items-center justify-between ${v.nivel==='vencido'?'bg-rose-50':v.nivel==='proximo'?'bg-amber-50':'bg-stone-50'}`}>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: v.color }}></div>
+                <span className="font-black text-stone-900">{v.code}</span>
+                <span className="text-xs text-stone-500 font-mono">{v.plate}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-stone-500">{(v.currentKm||0).toLocaleString()} km</span>
+                {v.nivel==='vencido' && <span className="text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-bold">⚠️ VENCIDO</span>}
+                {v.nivel==='proximo' && <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">⏰ PRÓXIMO</span>}
+                {v.nivel==='ok' && <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold">✓ AL DÍA</span>}
+              </div>
+            </div>
+            {/* Servicios */}
+            <div className="divide-y divide-stone-100">
+              {v.servicios.map(s => (
+                <div key={s.key} className="px-4 py-2.5 flex items-center gap-3">
+                  <span className="text-base w-6 text-center">{s.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold text-stone-700">{s.label}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-mono font-bold ${s.status==='vencido'?'text-rose-600':s.status==='proximo'?'text-amber-600':'text-emerald-600'}`}>
+                          {s.rem < 0 ? `${Math.abs(s.rem).toLocaleString()} km pasado` : `${s.rem.toLocaleString()} km restantes`}
+                        </span>
+                        {s.status==='vencido' && <span className="text-[9px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-bold">VENCIDO</span>}
+                        {s.status==='proximo' && <span className="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold">PRÓXIMO</span>}
+                        {s.status==='ok' && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold">AL DÍA</span>}
+                        <button onClick={() => registrar(v, s)} className="text-[9px] bg-stone-100 hover:bg-emerald-100 text-stone-600 hover:text-emerald-700 border border-stone-200 px-2 py-0.5 rounded font-bold transition">✓ Registrar</button>
+                      </div>
+                    </div>
+                    {/* Barra de progreso */}
+                    <div className="w-full bg-stone-100 rounded-full h-1.5">
+                      <div className={`h-1.5 rounded-full transition-all ${s.status==='vencido'?'bg-rose-500':s.status==='proximo'?'bg-amber-400':'bg-emerald-400'}`} style={{ width: `${Math.min(100,s.pct)}%` }}></div>
+                    </div>
+                    <div className="flex justify-between mt-0.5">
+                      <span className="text-[9px] text-stone-400">Último: {s.last ? s.last.toLocaleString()+' km' : '—'}</span>
+                      <span className="text-[9px] text-stone-400">Próximo: {s.next.toLocaleString()} km · cada {s.freq.toLocaleString()} km</span>
+                    </div>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+              {/* Batería (por fecha) */}
+              <div className="px-4 py-2.5 flex items-center gap-3">
+                <span className="text-base w-6 text-center">🔋</span>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-700">Batería</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-stone-500">{v.lastBatteryDate ? `Últ: ${v.lastBatteryDate}` : 'Sin registro'}</span>
+                      <button onClick={() => {
+                        const fecha = prompt(`Fecha última revisión batería ${v.code} (YYYY-MM-DD):`, new Date().toISOString().slice(0,10));
+                        if (fecha) saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, lastBatteryDate: fecha } : x));
+                      }} className="text-[9px] bg-stone-100 hover:bg-emerald-100 text-stone-600 hover:text-emerald-700 border border-stone-200 px-2 py-0.5 rounded font-bold transition">✓ Registrar</button>
+                    </div>
+                  </div>
+                  <div className="text-[9px] text-stone-400 mt-0.5">Revisión cada 12 meses</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* EN TALLER */}
+      {enTaller.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-bold text-rose-700 uppercase tracking-wider flex items-center gap-1">🔧 En taller ({enTaller.length})</div>
+          {enTaller.map(v => (
+            <div key={v.id} className="bg-rose-50 border border-rose-200 rounded-xl p-3">
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="font-bold text-stone-900">{v.code} · {v.plate}</div>
+                  <div className="text-xs text-rose-700 font-medium mt-0.5">🔧 {v.tallerMotivo || 'En servicio'}</div>
+                  {v.tallerChofer && <div className="text-xs text-stone-500">Chofer: {v.tallerChofer}</div>}
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-black text-rose-700">{v.tallerEntrada ? fmt(Math.floor((Date.now()-v.tallerEntrada)/1000)) : '—'}</div>
+                  <div className="text-[10px] text-stone-400">en taller</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* FORM NUEVO REGISTRO */}
+      {showForm && (
+        <div className="bg-white rounded-2xl border border-emerald-200 shadow-lg p-5 space-y-4">
+          <div className="font-bold text-stone-900 text-sm flex items-center gap-2"><Wrench className="w-4 h-4 text-emerald-600" /> Nuevo registro de mantenimiento</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Unidad</label>
+              <select value={form.vehicleId} onChange={e => setForm({...form, vehicleId: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                {vehicles.map(v => <option key={v.id} value={v.id}>{v.code} · {v.plate}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha</label>
+              <input type="date" value={form.fecha} onChange={e => setForm({...form, fecha: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Kilometraje</label>
+              <input type="number" value={form.km} onChange={e => setForm({...form, km: e.target.value})} placeholder="0" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Tipo</label>
+              <select value={form.tipo} onChange={e => setForm({...form, tipo: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                {TIPOS.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Tecnico / Taller</label>
+              <input type="text" value={form.tecnico} onChange={e => setForm({...form, tecnico: e.target.value})} placeholder="Nombre del tecnico o taller" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Trabajo Realizado</label>
+              <input type="text" value={form.trabajo} onChange={e => setForm({...form, trabajo: e.target.value})} placeholder="Descripcion del trabajo..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Costo Repuesto $</label>
+              <input type="number" step="0.01" value={form.costoRepuesto} onChange={e => setForm({...form, costoRepuesto: e.target.value})} placeholder="0.00" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Mano de Obra $</label>
+              <input type="number" step="0.01" value={form.manoObra} onChange={e => setForm({...form, manoObra: e.target.value})} placeholder="0.00" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Total $</label>
+              <div className="w-full border border-emerald-200 bg-emerald-50 rounded-lg px-2 py-1.5 text-sm font-bold text-emerald-700">
+                $ {((Number(form.costoRepuesto)||0)+(Number(form.manoObra)||0)).toFixed(2)}
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end pt-1">
+            <button onClick={() => { setShowForm(false); setForm(emptyForm); }} className="px-4 py-2 text-sm text-stone-600 border border-stone-200 rounded-lg hover:bg-stone-50">Cancelar</button>
+            <button onClick={handleAdd} disabled={!form.trabajo} className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold rounded-lg transition">Guardar registro</button>
+          </div>
+        </div>
+      )}
+
+      {/* GRAFICOS */}
+      {chartData.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
+            <div className="text-xs font-bold text-stone-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5 text-rose-500" /> Gasto total por camion {filterMes !== 'all' ? `· ${filterMes}` : ''}
+            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
+                <Bar dataKey="Total" fill="#059669" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-4">
+            <div className="text-xs font-bold text-stone-700 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 text-blue-500" /> Repuesto vs Mano de Obra {filterMes !== 'all' ? `· ${filterMes}` : ''}
+            </div>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+                <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 700 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v) => `$${v.toFixed(2)}`} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="Repuesto" fill="#F59E0B" radius={[4,4,0,0]} />
+                <Bar dataKey="Mano de Obra" fill="#3B82F6" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* CITAS DE TALLER */}
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 bg-indigo-600 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-white text-sm">📅</span>
+            <span className="font-black text-white text-sm">Citas de Taller</span>
+            {upcomingAppts.length > 0 && <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold">{upcomingAppts.length} próximas</span>}
+          </div>
+          <button onClick={() => setShowApptForm(!showApptForm)} className="flex items-center gap-1 bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
+            <Plus className="w-3 h-3" /> Nueva cita
+          </button>
+        </div>
+
+        {/* Formulario nueva cita */}
+        {showApptForm && (
+          <div className="p-4 bg-indigo-50 border-b border-indigo-200 space-y-3">
+            <div className="font-bold text-stone-900 text-sm">Programar cita</div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Unidad</label>
+                <select value={apptForm.vehicleId} onChange={e => setApptForm({...apptForm, vehicleId: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.code} · {v.plate}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha</label>
+                <input type="date" value={apptForm.fecha} onChange={e => setApptForm({...apptForm, fecha: e.target.value})} min={today} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Servicio</label>
+                <select value={apptForm.tipo} onChange={e => setApptForm({...apptForm, tipo: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                  {SERV_TIPOS.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Taller</label>
+                <input type="text" value={apptForm.taller} onChange={e => setApptForm({...apptForm, taller: e.target.value})} placeholder="Nombre del taller..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+              </div>
+              <div className="col-span-2">
+                <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Notas</label>
+                <input type="text" value={apptForm.notas} onChange={e => setApptForm({...apptForm, notas: e.target.value})} placeholder="Observaciones..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => { setShowApptForm(false); setApptForm(emptyAppt); }} className="px-3 py-1.5 text-sm text-stone-500 border border-stone-200 rounded-lg">Cancelar</button>
+              <button onClick={addAppt} disabled={!apptForm.fecha} className="px-4 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white font-bold rounded-lg">Guardar y notificar Discord</button>
+            </div>
+          </div>
+        )}
+
+        {/* Lista citas próximas */}
+        {upcomingAppts.length === 0 && !showApptForm ? (
+          <div className="py-8 text-center text-stone-400 text-sm">Sin citas programadas. Usa "Nueva cita" para agregar.</div>
+        ) : (
+          <div className="divide-y divide-stone-100">
+            {upcomingAppts.map(a => {
+              const v = vehicles.find(x => x.id === a.vehicleId);
+              const daysLeft = Math.ceil((new Date(a.fecha) - new Date()) / 86400000);
+              return (
+                <div key={a.id} className="px-4 py-3 flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor: v?.color || '#6366f1'}}></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-stone-900 text-sm">{a.vehicleCode}</span>
+                      <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold">{a.tipo}</span>
+                      {a.taller && <span className="text-xs text-stone-500">🏪 {a.taller}</span>}
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5">
+                      <span className="text-xs text-stone-500 font-mono">📅 {a.fecha}</span>
+                      <span className={`text-xs font-bold ${daysLeft <= 1 ? 'text-rose-600' : daysLeft <= 3 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                        {daysLeft === 0 ? '¡Hoy!' : daysLeft === 1 ? 'Mañana' : `En ${daysLeft} días`}
+                      </span>
+                      {a.notas && <span className="text-xs text-stone-400">{a.notas}</span>}
+                    </div>
+                  </div>
+                  <button onClick={() => delAppt(a.id)} className="text-stone-300 hover:text-rose-500 transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* HISTORIAL */}
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex flex-wrap items-center justify-between gap-2">
+          <div className="text-xs font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Historial de trabajos ({filtered.length})</div>
+          <div className="flex items-center gap-2">
+            <select value={filterMes} onChange={e => setFilterMes(e.target.value)} className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white">
+              <option value="all">Todos los meses</option>
+              {meses.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <select value={filterVehicle} onChange={e => setFilterVehicle(e.target.value)} className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white">
+              <option value="all">Todos los camiones</option>
+              {vehicles.map(v => <option key={v.id} value={v.id}>{v.code}</option>)}
+            </select>
+          </div>
+        </div>
+        {filtered.length === 0 ? (
+          <div className="text-center py-10 text-stone-400 text-sm">Sin registros. Usa "Registrar trabajo" para agregar.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-stone-800 text-stone-200 uppercase tracking-wider font-bold">
+                <tr>
+                  <th className="text-left px-3 py-2.5">Fecha</th>
+                  <th className="text-left px-3 py-2.5">Unidad</th>
+                  <th className="text-right px-3 py-2.5">KM</th>
+                  <th className="text-left px-3 py-2.5">Tecnico</th>
+                  <th className="text-left px-3 py-2.5 min-w-[200px]">Trabajo Realizado</th>
+                  <th className="text-right px-3 py-2.5">Repuesto $</th>
+                  <th className="text-right px-3 py-2.5">M. Obra $</th>
+                  <th className="text-right px-3 py-2.5 font-black">Total $</th>
+                  <th className="text-center px-3 py-2.5">Tipo</th>
+                  <th className="px-2 py-2.5"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r, i) => (
+                  <tr key={r.id} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'} hover:bg-emerald-50/40 transition-colors`}>
+                    <td className="px-3 py-2 font-mono text-stone-600">{r.fecha}</td>
+                    <td className="px-3 py-2"><div className="font-bold text-stone-900">{r.vehicleCode}</div><div className="text-stone-400">{r.vehiclePlate}</div></td>
+                    <td className="px-3 py-2 text-right font-mono text-stone-700">{(r.km||0).toLocaleString()}</td>
+                    <td className="px-3 py-2 text-stone-700">{r.tecnico||'—'}</td>
+                    <td className="px-3 py-2 text-stone-800 max-w-xs">{r.trabajo}</td>
+                    <td className="px-3 py-2 text-right text-amber-700 font-mono">{r.costoRepuesto > 0 ? `$${Number(r.costoRepuesto).toFixed(2)}` : '—'}</td>
+                    <td className="px-3 py-2 text-right text-blue-700 font-mono">{r.manoObra > 0 ? `$${Number(r.manoObra).toFixed(2)}` : '—'}</td>
+                    <td className="px-3 py-2 text-right font-black text-emerald-700 font-mono">${total(r).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-center"><span className={`text-[10px] px-2 py-0.5 rounded font-bold ${tipoColor[r.tipo]||'bg-stone-100 text-stone-600'}`}>{r.tipo}</span></td>
+                    <td className="px-2 py-2"><button onClick={() => handleDelete(r.id)} className="text-stone-300 hover:text-rose-500 transition"><Trash2 className="w-3.5 h-3.5" /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-emerald-50 border-t-2 border-emerald-300">
+                <tr>
+                  <td colSpan={5} className="px-3 py-2 font-bold text-stone-700 text-xs">TOTAL ({filtered.length} registros)</td>
+                  <td className="px-3 py-2 text-right font-bold text-amber-700 font-mono">${filtered.reduce((s,r)=>s+(Number(r.costoRepuesto)||0),0).toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right font-bold text-blue-700 font-mono">${filtered.reduce((s,r)=>s+(Number(r.manoObra)||0),0).toFixed(2)}</td>
+                  <td className="px-3 py-2 text-right font-black text-emerald-700 font-mono">${filtered.reduce((s,r)=>s+total(r),0).toFixed(2)}</td>
+                  <td colSpan={2}></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// ============================================================
+// DOCUMENTOS POR VEHÍCULO
+// ============================================================
+const DOC_TYPES = ['Ruta de Carga', 'Trimestral', 'Seguro', 'Permiso Sanitario', 'Circulación', 'Revisión Técnica', 'Otro'];
+
+function docStatus(expiryDate) {
+  if (!expiryDate) return { label: 'Sin fecha', color: 'stone', days: null };
+  const today = new Date(); today.setHours(0,0,0,0);
+  const exp = new Date(expiryDate + 'T00:00:00');
+  const days = Math.floor((exp - today) / 86400000);
+  if (days < 0) return { label: `Vencido hace ${Math.abs(days)}d`, color: 'rose', days };
+  if (days <= 30) return { label: `Vence en ${days}d`, color: 'amber', days };
+  return { label: `${days}d restantes`, color: 'emerald', days };
+}
+
+const STATUS_STYLE = {
+  rose:    'bg-rose-100 text-rose-800 border border-rose-300',
+  amber:   'bg-amber-100 text-amber-800 border border-amber-300',
+  emerald: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
+  stone:   'bg-stone-100 text-stone-600 border border-stone-200',
+};
+const STATUS_DOT = { rose: 'bg-rose-500', amber: 'bg-amber-400', emerald: 'bg-emerald-500', stone: 'bg-stone-400' };
+
+// ============================================================
+// REPORTE DE INCIDENTES
+// ============================================================
+const INCIDENT_TYPES = ['Golpe / Raspón', 'Accidente de tránsito', 'Daño mecánico', 'Robo / Vandalismo', 'Volcamiento', 'Falla eléctrica', 'Otro'];
+const INCIDENT_SEVERITIES = ['Leve', 'Moderado', 'Grave'];
+
+function IncidentReportForm({ vehicles, currentTrip, selectedVehicle, driver, onSubmit, onCancel }) {
+  const vehicle = selectedVehicle ? vehicles.find(v => v.id === selectedVehicle) : currentTrip ? vehicles.find(v => v.id === currentTrip.vehicleId) : null;
+  const [form, setForm] = useState({ type: 'Golpe / Raspón', severity: 'Leve', description: '', location: '', km: vehicle?.currentKm || '', vehicleId: vehicle?.id || '' });
+  const [photos, setPhotos] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const valid = form.description.trim().length > 0;
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    await onSubmit({ ...form, photos });
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/70 flex items-end md:items-center justify-center p-0 md:p-4">
+      <div className="bg-white w-full md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="bg-rose-600 px-5 py-4 flex items-center justify-between rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-6 h-6 text-white" />
+            <div>
+              <div className="font-black text-white text-lg">Reportar Incidente</div>
+              <div className="text-rose-200 text-xs">{vehicle ? `${vehicle.code} · ${vehicle.plate}` : 'Sin unidad asignada'}</div>
+            </div>
+          </div>
+          <button onClick={onCancel} className="text-white/70 hover:text-white"><X className="w-6 h-6" /></button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Tipo y severidad */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">Tipo de incidente</label>
+              <select value={form.type} onChange={e => setForm({...form, type: e.target.value})} className="w-full border-2 border-stone-200 rounded-xl px-3 py-2.5 text-sm bg-white focus:border-rose-400 focus:outline-none">
+                {INCIDENT_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">Severidad</label>
+              <div className="flex flex-col gap-1.5">
+                {INCIDENT_SEVERITIES.map(s => (
+                  <button key={s} onClick={() => setForm({...form, severity: s})}
+                    className={`py-2 rounded-xl text-xs font-bold border-2 transition ${form.severity === s
+                      ? s === 'Leve' ? 'bg-amber-500 border-amber-500 text-white'
+                        : s === 'Moderado' ? 'bg-rose-500 border-rose-500 text-white'
+                        : 'bg-rose-900 border-rose-900 text-white'
+                      : 'bg-stone-50 border-stone-200 text-stone-600'}`}>
+                    {s === 'Leve' ? '🟡' : s === 'Moderado' ? '🔴' : '🚨'} {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Descripción */}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">Descripción *</label>
+            <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} rows={3}
+              placeholder="Describe qué pasó, cómo ocurrió, qué parte del vehículo fue afectada..."
+              className="w-full border-2 border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:border-rose-400 focus:outline-none resize-none" />
+          </div>
+
+          {/* Lugar y KM */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">Lugar / Ubicación</label>
+              <input type="text" value={form.location} onChange={e => setForm({...form, location: e.target.value})}
+                placeholder="Av. Principal, Casarapa..." className="w-full border-2 border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:border-rose-400 focus:outline-none" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">KM al momento</label>
+              <input type="number" value={form.km} onChange={e => setForm({...form, km: e.target.value})}
+                className="w-full border-2 border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:border-rose-400 focus:outline-none" />
+            </div>
+          </div>
+
+          {/* Fotos */}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">Fotos del daño</label>
+            <input type="file" accept="image/*" capture="environment" multiple id="incidentPhotos"
+              onChange={e => setPhotos([...photos, ...Array.from(e.target.files)])} className="hidden" />
+            <label htmlFor="incidentPhotos"
+              className="flex items-center justify-center gap-2 py-3 px-4 bg-stone-50 hover:bg-stone-100 border-2 border-dashed border-stone-300 hover:border-rose-400 rounded-xl cursor-pointer text-stone-600 text-sm font-medium transition w-full">
+              <Camera className="w-4 h-4" /> {photos.length > 0 ? `${photos.length} foto(s) cargada(s) — Agregar más` : 'Tomar / seleccionar fotos'}
+            </label>
+            {photos.length > 0 && (
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {photos.map((f,i) => (
+                  <div key={i} className="relative">
+                    <img src={URL.createObjectURL(f)} className="w-20 h-20 object-cover rounded-xl border-2 border-stone-200" />
+                    <button onClick={() => setPhotos(photos.filter((_,j)=>j!==i))} className="absolute -top-1.5 -right-1.5 bg-rose-500 rounded-full w-5 h-5 text-white text-xs flex items-center justify-center font-bold shadow">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Botones */}
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <button onClick={onCancel} className="py-3.5 rounded-xl font-bold text-stone-600 bg-stone-100 border-2 border-stone-200 hover:bg-stone-200 transition">Cancelar</button>
+            <button onClick={handleSubmit} disabled={!valid || submitting}
+              className={`py-3.5 rounded-xl font-black text-white transition ${valid && !submitting ? 'bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-600/30' : 'bg-stone-200 text-stone-400'}`}>
+              {submitting ? '⏳ Enviando...' : '🚨 Reportar'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveArchived }) {
+// ============================================================
+// GESTIÓN DE COMBUSTIBLE
+// ============================================================
+function FuelMgmtTab({ fuelRecords, saveFuelRecords, vehicles, trips, config, selectedMonth }) {
+  const [showForm, setShowForm] = useState(false);
+  const [filterVehicle, setFilterVehicle] = useState('all');
+  const [filterMes, setFilterMes] = useState(selectedMonth || new Date().toISOString().slice(0,7));
+  const emptyForm = { vehicleId: vehicles[0]?.id || '', date: new Date().toISOString().slice(0,10), km: '', liters: '', pricePerLiter: config?.fuelPrice || 0.5, notes: '' };
+  const [form, setForm] = useState(emptyForm);
+
+  const totalCost = (r) => (Number(r.liters)||0) * (Number(r.pricePerLiter)||0);
+
+  const filtered = fuelRecords.filter(r =>
+    (filterVehicle === 'all' || r.vehicleId === filterVehicle) &&
+    (filterMes === 'all' || r.date.startsWith(filterMes))
+  ).sort((a,b) => b.date.localeCompare(a.date));
+
+  const meses = [...new Set(fuelRecords.map(r => r.date.slice(0,7)))].sort().reverse();
+
+  const handleAdd = () => {
+    if (!form.vehicleId || !form.liters || !form.date) return;
+    const v = vehicles.find(x => x.id === form.vehicleId);
+    saveFuelRecords([{ id: `fr_${Date.now()}`, ...form, liters: Number(form.liters), pricePerLiter: Number(form.pricePerLiter), km: Number(form.km)||0, vehicleCode: v?.code||'', vehiclePlate: v?.plate||'' }, ...fuelRecords]);
+    setForm(emptyForm);
+    setShowForm(false);
+  };
+
+  // Análisis por camión para el mes seleccionado
+  const analysis = vehicles.map(v => {
+    const loaded = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + (Number(r.liters)||0), 0);
+    const consumed = trips.filter(t => t.vehicleId === v.id && t.startDate.startsWith(filterMes)).reduce((s,t) => s + (Number(t.liters)||0), 0);
+    const cost = fuelRecords.filter(r => r.vehicleId === v.id && r.date.startsWith(filterMes)).reduce((s,r) => s + totalCost(r), 0);
+    const diff = loaded - consumed;
+    const diffPct = consumed > 0 ? (diff / consumed) * 100 : 0;
+    return { ...v, loaded, consumed, cost, diff, diffPct };
+  }).filter(v => v.loaded > 0 || v.consumed > 0);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="font-black text-stone-900 text-lg">Combustible</h2>
+        <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition">
+          <Plus className="w-3.5 h-3.5" /> Registrar carga
+        </button>
+      </div>
+
+      {/* Formulario */}
+      {showForm && (
+        <div className="bg-white rounded-2xl border border-amber-200 shadow-lg p-5 space-y-4">
+          <div className="font-bold text-stone-900 text-sm flex items-center gap-2"><Fuel className="w-4 h-4 text-amber-500" /> Nueva carga de combustible</div>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Unidad</label>
+              <select value={form.vehicleId} onChange={e => setForm({...form, vehicleId: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                {vehicles.map(v => <option key={v.id} value={v.id}>{v.code} · {v.plate}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha</label>
+              <input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">KM al surtir</label>
+              <input type="number" value={form.km} onChange={e => setForm({...form, km: e.target.value})} placeholder="145.500" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Litros cargados</label>
+              <input type="number" step="0.1" value={form.liters} onChange={e => setForm({...form, liters: e.target.value})} placeholder="40" className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Precio / L ($)</label>
+              <input type="number" step="0.01" value={form.pricePerLiter} onChange={e => setForm({...form, pricePerLiter: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Total $</label>
+              <div className="w-full border border-amber-200 bg-amber-50 rounded-lg px-2 py-1.5 text-sm font-bold text-amber-700">
+                ${((Number(form.liters)||0) * (Number(form.pricePerLiter)||0)).toFixed(2)}
+              </div>
+            </div>
+            <div className="col-span-2 md:col-span-3">
+              <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Notas</label>
+              <input type="text" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} placeholder="Estación, observaciones..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => { setShowForm(false); setForm(emptyForm); }} className="px-4 py-2 text-sm text-stone-600 border border-stone-200 rounded-lg">Cancelar</button>
+            <button onClick={handleAdd} disabled={!form.liters||!form.vehicleId} className="px-4 py-2 text-sm bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white font-bold rounded-lg transition">Guardar</button>
+          </div>
+        </div>
+      )}
+
+      {/* Análisis por camión */}
+      {analysis.length > 0 && (
+        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
+            <div className="text-xs font-bold text-stone-600 uppercase tracking-wider">📊 Análisis — {filterMes}</div>
+            <select value={filterMes} onChange={e => setFilterMes(e.target.value)} className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white">
+              <option value="all">Todos los meses</option>
+              {meses.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-stone-800 text-stone-200 uppercase tracking-wider font-bold">
+                <tr>
+                  <th className="text-left px-3 py-2.5">Unidad</th>
+                  <th className="text-right px-3 py-2.5">Cargado (L)</th>
+                  <th className="text-right px-3 py-2.5">Consumido (L)</th>
+                  <th className="text-right px-3 py-2.5">Diferencia</th>
+                  <th className="text-right px-3 py-2.5">Costo $</th>
+                  <th className="text-center px-3 py-2.5">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {analysis.map((v,i) => {
+                  const alert = v.loaded > 0 && Math.abs(v.diffPct) > 15;
+                  return (
+                    <tr key={v.id} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'} ${alert?'bg-rose-50/50':''}`}>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: v.color||'#10b981' }} />
+                          <div><div className="font-bold">{v.code}</div><div className="text-stone-400">{v.plate}</div></div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono font-bold text-blue-700">{v.loaded.toFixed(1)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-stone-700">{v.consumed.toFixed(1)}</td>
+                      <td className={`px-3 py-2.5 text-right font-mono font-bold ${v.diff > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {v.diff > 0 ? '+' : ''}{v.diff.toFixed(1)}L ({v.diff > 0 ? '+' : ''}{v.diffPct.toFixed(0)}%)
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono font-bold text-amber-700">${v.cost.toFixed(2)}</td>
+                      <td className="px-3 py-2.5 text-center">
+                        {v.loaded === 0 ? <span className="text-[10px] bg-stone-100 text-stone-500 px-2 py-0.5 rounded font-bold">SIN DATOS</span>
+                          : alert && v.diff > 0 ? <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded font-bold">⚠️ EXCESO</span>
+                          : alert && v.diff < 0 ? <span className="text-[10px] bg-rose-100 text-rose-800 border border-rose-300 px-2 py-0.5 rounded font-bold">⚠️ DÉFICIT</span>
+                          : <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded font-bold">✅ NORMAL</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="bg-amber-50 border-t-2 border-amber-200">
+                <tr>
+                  <td className="px-3 py-2 font-bold text-stone-700">TOTAL</td>
+                  <td className="px-3 py-2 text-right font-bold text-blue-700 font-mono">{analysis.reduce((s,v)=>s+v.loaded,0).toFixed(1)}</td>
+                  <td className="px-3 py-2 text-right font-bold text-stone-700 font-mono">{analysis.reduce((s,v)=>s+v.consumed,0).toFixed(1)}</td>
+                  <td className="px-3 py-2 text-right font-bold font-mono">{(analysis.reduce((s,v)=>s+v.loaded,0) - analysis.reduce((s,v)=>s+v.consumed,0)).toFixed(1)}L</td>
+                  <td className="px-3 py-2 text-right font-bold text-amber-700 font-mono">${analysis.reduce((s,v)=>s+v.cost,0).toFixed(2)}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div className="px-4 py-2 bg-stone-50 border-t border-stone-200 text-[10px] text-stone-500">
+            💡 Diferencia = Litros cargados − Consumo calculado por viajes. Alerta si diferencia &gt; 15%.
+          </div>
+        </div>
+      )}
+
+      {/* Historial cargas */}
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+        <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex items-center justify-between flex-wrap gap-2">
+          <div className="text-xs font-bold text-stone-600 uppercase tracking-wider">⛽ Historial de cargas ({filtered.length})</div>
+          <div className="flex gap-2">
+            <select value={filterMes} onChange={e => setFilterMes(e.target.value)} className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white">
+              <option value="all">Todos</option>
+              {meses.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <select value={filterVehicle} onChange={e => setFilterVehicle(e.target.value)} className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white">
+              <option value="all">Todos los camiones</option>
+              {vehicles.map(v => <option key={v.id} value={v.id}>{v.code}</option>)}
+            </select>
+          </div>
+        </div>
+        {filtered.length === 0 ? (
+          <div className="py-10 text-center text-stone-400 text-sm">Sin registros. Usa "Registrar carga" para agregar.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-stone-100 text-stone-600 uppercase tracking-wider font-bold text-[10px]">
+                <tr>
+                  <th className="text-left px-3 py-2">Fecha</th>
+                  <th className="text-left px-3 py-2">Unidad</th>
+                  <th className="text-right px-3 py-2">KM</th>
+                  <th className="text-right px-3 py-2">Litros</th>
+                  <th className="text-right px-3 py-2">$/L</th>
+                  <th className="text-right px-3 py-2">Total $</th>
+                  <th className="text-left px-3 py-2">Notas</th>
+                  <th className="px-2 py-2"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r,i) => (
+                  <tr key={r.id} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'}`}>
+                    <td className="px-3 py-2 font-mono text-stone-600">{r.date}</td>
+                    <td className="px-3 py-2 font-bold">{r.vehicleCode}</td>
+                    <td className="px-3 py-2 text-right font-mono">{r.km > 0 ? Number(r.km).toLocaleString() : '—'}</td>
+                    <td className="px-3 py-2 text-right font-mono font-bold text-blue-700">{Number(r.liters).toFixed(1)}</td>
+                    <td className="px-3 py-2 text-right font-mono text-stone-500">${Number(r.pricePerLiter).toFixed(3)}</td>
+                    <td className="px-3 py-2 text-right font-mono font-bold text-amber-700">${totalCost(r).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-stone-500">{r.notes||'—'}</td>
+                    <td className="px-2 py-2"><button onClick={() => saveFuelRecords(fuelRecords.filter(x=>x.id!==r.id))} className="text-stone-300 hover:text-rose-500 transition"><Trash2 className="w-3.5 h-3.5" /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function IncidentsTab({ incidents, vehicles, drivers, saveIncidents }) {
+  const [filter, setFilter] = useState('all');
+  const SEV_STYLE = { Leve: 'bg-amber-100 text-amber-800 border-amber-300', Moderado: 'bg-rose-100 text-rose-800 border-rose-300', Grave: 'bg-rose-900/20 text-rose-900 border-rose-900/40' };
+
+  const filtered = incidents.filter(i => filter === 'all' || i.severity === filter).sort((a,b) => b.createdAt - a.createdAt);
+
+  const updateStatus = (id, status) => saveIncidents(incidents.map(i => i.id === id ? {...i, status} : i));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="font-black text-stone-900 text-lg">Incidentes</h2>
+        <div className="flex gap-2">
+          {['all','Leve','Moderado','Grave'].map(f => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition ${filter===f?'bg-stone-900 text-white border-stone-900':'bg-white text-stone-600 border-stone-200 hover:border-stone-400'}`}>
+              {f==='all'?'Todos':f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-xl border border-stone-200 p-10 text-center text-stone-400">
+          <AlertTriangle className="w-10 h-10 mx-auto mb-2 opacity-30" />
+          <div className="text-sm">Sin incidentes registrados.</div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(inc => {
+            const v = vehicles.find(v => v.id === inc.vehicleId);
+            const d = drivers.find(d => d.id === inc.driverId);
+            return (
+              <div key={inc.id} className={`bg-white rounded-xl border-2 shadow-sm overflow-hidden ${inc.severity==='Grave'?'border-rose-400':inc.severity==='Moderado'?'border-rose-300':'border-amber-300'}`}>
+                <div className={`px-4 py-2 flex items-center justify-between ${inc.severity==='Grave'?'bg-rose-900/10':inc.severity==='Moderado'?'bg-rose-50':'bg-amber-50'}`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{inc.severity==='Grave'?'🚨':inc.severity==='Moderado'?'🔴':'🟡'}</span>
+                    <div>
+                      <div className="font-black text-stone-900">{inc.vehicleCode} — {inc.type}</div>
+                      <div className="text-xs text-stone-500">{inc.date} · {inc.time} · {d?.name || inc.driverName}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold border ${SEV_STYLE[inc.severity]}`}>{inc.severity}</span>
+                    <select value={inc.status} onChange={e => updateStatus(inc.id, e.target.value)}
+                      className="text-xs border border-stone-200 rounded-lg px-2 py-1 bg-white font-medium">
+                      <option>Reportado</option>
+                      <option>En revisión</option>
+                      <option>Resuelto</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-sm text-stone-800">{inc.description}</p>
+                  <div className="flex gap-4 mt-2 text-xs text-stone-500 font-mono">
+                    {inc.location && <span>📍 {inc.location}</span>}
+                    {inc.km > 0 && <span>📊 {Number(inc.km).toLocaleString()} km</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DocumentsTab({ vehicles, saveVehicles, drivers = [], saveDrivers }) {
+  const [tab, setTab] = useState('vehicles'); // 'vehicles' | 'drivers'
+  const [selectedVehicle, setSelectedVehicle] = useState(vehicles[0]?.id || null);
+  const [selectedDriver, setSelectedDriver] = useState(drivers[0]?.id || null);
+  const [showForm, setShowForm] = useState(false);
+  const [editDoc, setEditDoc] = useState(null);
+  const emptyDoc = { id: '', name: 'Ruta de Carga', issueDate: '', expiryDate: '', notes: '' };
+
+  const vehicle = vehicles.find(v => v.id === selectedVehicle);
+  const driver = drivers.find(d => d.id === selectedDriver);
+  const docs = vehicle?.documents || [];
+
+  // Alertas vehículos
+  const vehicleAlerts = vehicles.flatMap(v =>
+    (v.documents || []).map(d => ({ ...d, entityName: v.code, entityColor: v.color || '#10b981', ...docStatus(d.expiryDate) }))
+  ).filter(d => d.days !== null && d.days <= 30).sort((a,b) => a.days - b.days);
+
+  // Alertas choferes
+  const driverAlerts = drivers.flatMap(d => {
+    const items = [];
+    if (d.licenseExpiry) items.push({ name: 'Licencia', entityName: d.shortName || d.name, entityColor: '#6366f1', ...docStatus(d.licenseExpiry) });
+    if (d.medicalExpiry) items.push({ name: 'Cert. Médico', entityName: d.shortName || d.name, entityColor: '#6366f1', ...docStatus(d.medicalExpiry) });
+    return items;
+  }).filter(d => d.days !== null && d.days <= 30).sort((a,b) => a.days - b.days);
+
+  const allAlerts = [...vehicleAlerts, ...driverAlerts];
+  const totalAlerts = allAlerts.length;
+
+  const saveDoc = (doc) => {
+    const newDoc = { ...doc, id: doc.id || `doc_${Date.now()}` };
+    const newDocs = doc.id ? docs.map(d => d.id === doc.id ? newDoc : d) : [...docs, newDoc];
+    saveVehicles(vehicles.map(v => v.id === selectedVehicle ? { ...v, documents: newDocs } : v));
+    setShowForm(false); setEditDoc(null);
+  };
+
+  const deleteDoc = (id) => {
+    if (!confirm('Eliminar documento?')) return;
+    saveVehicles(vehicles.map(v => v.id === selectedVehicle ? { ...v, documents: docs.filter(d => d.id !== id) } : v));
+  };
+
+  const openEdit = (doc) => { setEditDoc({...doc}); setShowForm(true); };
+  const openNew = () => { setEditDoc({...emptyDoc}); setShowForm(true); };
+
+  const saveDriverDoc = (field, value) => {
+    if (!saveDrivers) return;
+    saveDrivers(drivers.map(d => d.id === selectedDriver ? { ...d, [field]: value } : d));
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
+        <h2 className="font-black text-stone-900 text-lg">Documentos</h2>
+        {totalAlerts > 0 && (
+          <span className="text-xs bg-rose-500 text-white px-3 py-1 rounded-full font-bold">{totalAlerts} alerta{totalAlerts > 1 ? 's' : ''}</span>
+        )}
+      </div>
+
+      {/* Panel alertas */}
+      {totalAlerts > 0 && (
+        <div className="bg-white rounded-2xl border-2 border-rose-200 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-rose-600 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-white" />
+            <span className="font-black text-white text-sm">Documentos por vencer o vencidos</span>
+          </div>
+          <div className="divide-y divide-stone-100">
+            {allAlerts.map((d, i) => (
+              <div key={i} className={`px-4 py-2.5 flex items-center justify-between ${d.color==='rose' ? 'bg-rose-50' : 'bg-amber-50'}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor: d.entityColor}} />
+                  <span className="font-bold text-stone-900 text-sm">{d.entityName}</span>
+                  <span className="text-stone-600 text-sm">→ {d.name}</span>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${STATUS_STYLE[d.color]}`}>{d.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex bg-stone-100 rounded-xl p-1 gap-1">
+        <button onClick={() => setTab('vehicles')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${tab==='vehicles' ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}>
+          🚛 Vehículos
+        </button>
+        <button onClick={() => setTab('drivers')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${tab==='drivers' ? 'bg-white text-emerald-700 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}>
+          👤 Choferes
+        </button>
+      </div>
+
+      {/* TAB VEHÍCULOS */}
+      {tab === 'vehicles' && (
+        <>
+          {/* Semáforo */}
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 text-xs font-bold text-stone-600 uppercase tracking-wider">Estado por unidad</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-stone-800 text-stone-200 text-[10px] uppercase tracking-wider">
+                  <tr>
+                    <th className="text-left px-4 py-2.5">Vehículo</th>
+                    {DOC_TYPES.slice(0,5).map(t => <th key={t} className="text-center px-2 py-2.5 min-w-[80px]">{t}</th>)}
+                    <th className="text-center px-2 py-2.5">Docs</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vehicles.map((v, i) => {
+                    const vDocs = v.documents || [];
+                    return (
+                      <tr key={v.id} className={`border-t border-stone-100 cursor-pointer hover:bg-emerald-50/40 transition ${selectedVehicle===v.id?'bg-emerald-50':i%2===0?'bg-white':'bg-stone-50'}`}
+                        onClick={() => setSelectedVehicle(v.id)}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: v.color||'#10b981' }} />
+                            <div>
+                              <div className="font-bold text-stone-900">{v.code}</div>
+                              <div className="text-[10px] text-stone-400">{v.plate}</div>
+                            </div>
+                          </div>
+                        </td>
+                        {DOC_TYPES.slice(0,5).map(t => {
+                          const doc = vDocs.find(d => d.name === t);
+                          const st = doc ? docStatus(doc.expiryDate) : null;
+                          return (
+                            <td key={t} className="text-center px-2 py-3">
+                              {st ? (
+                                <div className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${STATUS_DOT[st.color]}`} title={st.label} />
+                              ) : (
+                                <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-stone-200" title="Sin registro" />
+                              )}
+                            </td>
+                          );
+                        })}
+                        <td className="text-center px-2 py-3 text-xs font-bold text-stone-500">{vDocs.length}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Detalle vehículo */}
+          {vehicle && (
+            <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: vehicle.color||'#10b981' }} />
+                  <span className="font-bold text-stone-900">{vehicle.code} — {vehicle.plate}</span>
+                  <span className="text-xs text-stone-400">{docs.length} documentos</span>
+                </div>
+                <button onClick={openNew} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">
+                  <Plus className="w-3.5 h-3.5" /> Agregar
+                </button>
+              </div>
+              {showForm && editDoc && (
+                <div className="p-4 bg-emerald-50 border-b border-emerald-200">
+                  <div className="font-bold text-stone-900 mb-3 text-sm">{editDoc.id ? 'Editar documento' : 'Nuevo documento'}</div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="col-span-2 md:col-span-1">
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Tipo de documento</label>
+                      <select value={editDoc.name} onChange={e => setEditDoc({...editDoc, name: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                        {DOC_TYPES.map(t => <option key={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha emision</label>
+                      <input type="date" value={editDoc.issueDate} onChange={e => setEditDoc({...editDoc, issueDate: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha vencimiento *</label>
+                      <input type="date" value={editDoc.expiryDate} onChange={e => setEditDoc({...editDoc, expiryDate: e.target.value})} className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+                    </div>
+                    <div className="col-span-2 md:col-span-3">
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Notas (opcional)</label>
+                      <input type="text" value={editDoc.notes||''} onChange={e => setEditDoc({...editDoc, notes: e.target.value})} placeholder="Ej: Renovado en oficina central..." className="w-full border border-stone-200 rounded-lg px-2 py-1.5 text-sm" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-end mt-3">
+                    <button onClick={() => { setShowForm(false); setEditDoc(null); }} className="px-3 py-1.5 text-sm text-stone-500 border border-stone-200 rounded-lg">Cancelar</button>
+                    <button onClick={() => saveDoc(editDoc)} disabled={!editDoc.expiryDate} className="px-4 py-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold rounded-lg">Guardar</button>
+                  </div>
+                </div>
+              )}
+              {docs.length === 0 ? (
+                <div className="py-10 text-center text-stone-400 text-sm">Sin documentos. Usa "Agregar" para añadir.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-stone-100 text-[10px] text-stone-600 uppercase tracking-wider font-bold">
+                      <tr>
+                        <th className="text-left px-4 py-2.5">Documento</th>
+                        <th className="text-center px-3 py-2.5">Emision</th>
+                        <th className="text-center px-3 py-2.5">Vencimiento</th>
+                        <th className="text-center px-3 py-2.5">Estado</th>
+                        <th className="text-left px-3 py-2.5">Notas</th>
+                        <th className="px-2 py-2.5"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {docs.map((d, i) => {
+                        const st = docStatus(d.expiryDate);
+                        return (
+                          <tr key={d.id} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'} hover:bg-emerald-50/30`}>
+                            <td className="px-4 py-3 font-bold text-stone-900">{d.name}</td>
+                            <td className="px-3 py-3 text-center text-stone-500 font-mono text-xs">{d.issueDate || '—'}</td>
+                            <td className="px-3 py-3 text-center font-mono text-xs font-bold text-stone-800">{d.expiryDate || '—'}</td>
+                            <td className="px-3 py-3 text-center">
+                              <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${STATUS_STYLE[st.color]}`}>{st.label}</span>
+                            </td>
+                            <td className="px-3 py-3 text-xs text-stone-500">{d.notes||'—'}</td>
+                            <td className="px-2 py-3">
+                              <div className="flex gap-1">
+                                <button onClick={() => openEdit(d)} className="text-stone-300 hover:text-emerald-600 transition"><Edit className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => deleteDoc(d.id)} className="text-stone-300 hover:text-rose-500 transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* TAB CHOFERES */}
+      {tab === 'drivers' && (
+        <>
+          {/* Semáforo choferes */}
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 text-xs font-bold text-stone-600 uppercase tracking-wider">Estado por chofer</div>
+            <table className="w-full text-sm">
+              <thead className="bg-stone-800 text-stone-200 text-[10px] uppercase tracking-wider">
+                <tr>
+                  <th className="text-left px-4 py-2.5">Chofer</th>
+                  <th className="text-center px-3 py-2.5 min-w-[120px]">Licencia</th>
+                  <th className="text-center px-3 py-2.5 min-w-[120px]">Cert. Medico</th>
+                </tr>
+              </thead>
+              <tbody>
+                {drivers.map((d, i) => {
+                  const licSt = d.licenseExpiry ? docStatus(d.licenseExpiry) : null;
+                  const medSt = d.medicalExpiry ? docStatus(d.medicalExpiry) : null;
+                  return (
+                    <tr key={d.id} className={`border-t border-stone-100 cursor-pointer hover:bg-emerald-50/40 transition ${selectedDriver===d.id?'bg-emerald-50':i%2===0?'bg-white':'bg-stone-50'}`}
+                      onClick={() => setSelectedDriver(d.id)}>
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-stone-900">{d.name}</div>
+                        <div className="text-[10px] text-stone-400">{d.phone}</div>
+                      </td>
+                      <td className="text-center px-3 py-3">
+                        {licSt ? (
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${STATUS_STYLE[licSt.color]}`}>{licSt.label}</span>
+                        ) : (
+                          <span className="text-[10px] text-stone-400">Sin registro</span>
+                        )}
+                      </td>
+                      <td className="text-center px-3 py-3">
+                        {medSt ? (
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${STATUS_STYLE[medSt.color]}`}>{medSt.label}</span>
+                        ) : (
+                          <span className="text-[10px] text-stone-400">Sin registro</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Detalle chofer seleccionado */}
+          {driver && (
+            <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 bg-stone-50 border-b border-stone-200 flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center font-black text-indigo-600 text-sm">{driver.name[0]}</div>
+                <div>
+                  <div className="font-bold text-stone-900">{driver.name}</div>
+                  <div className="text-xs text-stone-400">{driver.phone}</div>
+                </div>
+              </div>
+              <div className="p-4 space-y-4">
+                {/* Licencia */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🪪</span>
+                        <span className="font-bold text-stone-900 text-sm">Licencia de conducir</span>
+                      </div>
+                      {driver.licenseExpiry && (() => {
+                        const st = docStatus(driver.licenseExpiry);
+                        return <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${STATUS_STYLE[st.color]}`}>{st.label}</span>;
+                      })()}
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha vencimiento</label>
+                      <input type="date" value={driver.licenseExpiry||''} onChange={e => saveDriverDoc('licenseExpiry', e.target.value)}
+                        className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white" />
+                    </div>
+                  </div>
+                  <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🏥</span>
+                        <span className="font-bold text-stone-900 text-sm">Certificado medico</span>
+                      </div>
+                      {driver.medicalExpiry && (() => {
+                        const st = docStatus(driver.medicalExpiry);
+                        return <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${STATUS_STYLE[st.color]}`}>{st.label}</span>;
+                      })()}
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block mb-1">Fecha vencimiento</label>
+                      <input type="date" value={driver.medicalExpiry||''} onChange={e => saveDriverDoc('medicalExpiry', e.target.value)}
+                        className="w-full border border-stone-200 rounded-lg px-3 py-2 text-sm bg-white" />
+                    </div>
+                  </div>
+                </div>
+                <div className="text-xs text-stone-400 text-center">Los cambios se guardan automaticamente al seleccionar la fecha</div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+
+function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveArchived, maintRecords = [] }) {
   const [showModal, setShowModal] = useState(false);
+  const [expanded, setExpanded] = useState(null);
+
   const available = useMemo(() => {
     const months = new Set(trips.map(t => t.startDate.slice(0, 7)));
     return [...months].filter(m => !archivedMonths.find(a => a.month === m)).sort().reverse();
   }, [trips, archivedMonths]);
+
   const close = (m) => {
     const mt = trips.filter(t => t.startDate.startsWith(m));
     if (mt.length === 0) return alert('Sin viajes');
     if (!confirm(`¿Cerrar ${m}? ${mt.length} viajes archivados.`)) return;
     saveArchived([...archivedMonths, {
       month: m, closedAt: Date.now(), tripCount: mt.length,
-      totalKm: mt.reduce((s, t) => s + t.kmTraveled, 0), totalLiters: mt.reduce((s, t) => s + t.liters, 0),
-      totalCost: mt.reduce((s, t) => s + t.cost, 0), totalDeliveries: mt.reduce((s, t) => s + (t.deliveries || 0), 0),
+      totalKm: mt.reduce((s,t)=>s+(t.kmTraveled||0),0),
+      totalLiters: mt.reduce((s,t)=>s+(t.liters||0),0),
+      totalCost: mt.reduce((s,t)=>s+(t.cost||0),0),
+      totalDeliveries: mt.reduce((s,t)=>s+(t.deliveries||0),0),
       tripsSnapshot: mt, vehiclesSnapshot: vehicles, driversSnapshot: drivers, branchesSnapshot: branches,
     }]);
     setShowModal(false);
-    alert(`${m} archivado.`);
   };
+
+  const downloadExcel = (a) => {
+    const wb = XLSX.utils.book_new();
+    const mt = a.tripsSnapshot || [];
+    const vs = a.vehiclesSnapshot || vehicles;
+    const ds = a.driversSnapshot || drivers;
+    const bs = a.branchesSnapshot || branches;
+    const label = new Date(a.month+'-15').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
+
+    // Hoja resumen por camión
+    const rs = [];
+    rs.push([`RESUMEN MENSUAL — ${label.toUpperCase()}`, '', '', '', '', '']);
+    rs.push([`Generado: ${new Date().toLocaleString('es-VE')}`, '', '', '', '', '']);
+    rs.push(['', '', '', '', '', '']);
+    rs.push(['Unidad', 'Placa', 'Chofer', 'Viajes', 'KM Total', 'Litros', 'Costo $', 'Entregas']);
+    vs.forEach(v => {
+      const vt = mt.filter(t => t.vehicleId === v.id);
+      if (vt.length === 0) return;
+      const dr = ds.find(d => vt[0]?.driverId === d.id);
+      rs.push([
+        v.code, v.plate, dr?.name || '—',
+        vt.length,
+        vt.reduce((s,t)=>s+(t.kmTraveled||0),0),
+        vt.reduce((s,t)=>s+(t.liters||0),0).toFixed(2),
+        vt.reduce((s,t)=>s+(t.cost||0),0).toFixed(2),
+        vt.reduce((s,t)=>s+(t.deliveries||0),0),
+      ]);
+    });
+    rs.push(['TOTAL','','',
+      mt.length,
+      mt.reduce((s,t)=>s+(t.kmTraveled||0),0),
+      mt.reduce((s,t)=>s+(t.liters||0),0).toFixed(2),
+      mt.reduce((s,t)=>s+(t.cost||0),0).toFixed(2),
+      mt.reduce((s,t)=>s+(t.deliveries||0),0),
+    ]);
+    const wsRes = XLSX.utils.aoa_to_sheet(rs);
+    wsRes['!cols'] = [{wch:12},{wch:10},{wch:20},{wch:8},{wch:12},{wch:10},{wch:12},{wch:10}];
+    XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen');
+
+    // Hoja detalle viajes
+    const dt = [['Fecha','Unidad','Chofer','Origen','Destino','KM','Litros','Costo $','Entregas','Ruta']];
+    mt.sort((a,b)=>a.startDate.localeCompare(b.startDate)).forEach(t => {
+      const v = vs.find(x=>x.id===t.vehicleId);
+      const d = ds.find(x=>x.id===t.driverId);
+      const orig = bs.find(x=>x.id===t.originBranchId)?.name || t.originBranchId;
+      const dest = t.destinationBranchId === 'otro' ? `📍 ${t.customDestName}` : (bs.find(x=>x.id===t.destinationBranchId)?.name || t.destinationBranchId);
+      dt.push([t.startDate, v?.code||'', d?.name||'', orig, dest, t.kmTraveled||0, (t.liters||0).toFixed(2), (t.cost||0).toFixed(2), t.deliveries||0, t.route||'']);
+    });
+    const wsDt = XLSX.utils.aoa_to_sheet(dt);
+    wsDt['!cols'] = [{wch:12},{wch:10},{wch:20},{wch:18},{wch:18},{wch:8},{wch:8},{wch:10},{wch:8},{wch:8}];
+    XLSX.utils.book_append_sheet(wb, wsDt, 'Viajes');
+
+    XLSX.writeFile(wb, `resumen_flota_${a.month}.xlsx`);
+  };
+
+  const downloadPDF = async (a) => {
+    if (!window.jspdf) {
+      await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+      await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p','mm','a4');
+    const pw = doc.internal.pageSize.getWidth();
+    const GREEN = [22,101,52]; const WHITE = [255,255,255]; const LIGHT = [240,253,244];
+    const mt = a.tripsSnapshot || [];
+    const vs = a.vehiclesSnapshot || vehicles;
+    const ds = a.driversSnapshot || drivers;
+    const label = new Date(a.month+'-15').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
+    const monthMaint = maintRecords.filter(r => r.fecha && r.fecha.startsWith(a.month));
+
+    // PORTADA
+    doc.setFillColor(...GREEN); doc.rect(0,0,pw,55,'F');
+    doc.setTextColor(...WHITE); doc.setFont('helvetica','bold');
+    doc.setFontSize(22); doc.text('TRANSPORTE EMPORIUM', pw/2, 20, {align:'center'});
+    doc.setFontSize(15); doc.text('REPORTE MENSUAL DE FLOTA', pw/2, 32, {align:'center'});
+    doc.setFontSize(13); doc.text(label.toUpperCase(), pw/2, 43, {align:'center'});
+    doc.setTextColor(0); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    doc.text(`Generado: ${new Date().toLocaleString('es-VE')}`, 14, 63);
+    doc.text(`Coordinador: José Marín`, 14, 69);
+
+    // RESUMEN EJECUTIVO
+    let y = 80;
+    doc.setFillColor(...GREEN); doc.rect(14,y,pw-28,8,'F');
+    doc.setTextColor(...WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('RESUMEN EJECUTIVO', 16, y+5.5);
+    doc.setTextColor(0); y += 12;
+    const totalKm = mt.reduce((s,t)=>s+(t.kmTraveled||0),0);
+    const totalLitros = mt.reduce((s,t)=>s+(t.liters||0),0);
+    const totalComb = mt.reduce((s,t)=>s+(t.cost||0),0);
+    const totalMant = monthMaint.reduce((s,r)=>s+(Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0),0);
+    const totalGasto = totalComb + totalMant;
+    doc.autoTable({ startY:y, body:[
+      [{content:'Total viajes',styles:{fontStyle:'bold',fillColor:LIGHT}},{content:mt.length},{content:'KM totales',styles:{fontStyle:'bold',fillColor:LIGHT}},{content:totalKm.toLocaleString()}],
+      [{content:'Litros combustible',styles:{fontStyle:'bold',fillColor:LIGHT}},{content:totalLitros.toFixed(1)},{content:'Costo combustible',styles:{fontStyle:'bold',fillColor:LIGHT}},{content:`$${totalComb.toFixed(2)}`}],
+      [{content:'Costo mantenimiento',styles:{fontStyle:'bold',fillColor:LIGHT}},{content:`$${totalMant.toFixed(2)}`},{content:'GASTO TOTAL',styles:{fontStyle:'bold',fillColor:LIGHT}},{content:`$${totalGasto.toFixed(2)}`,styles:{fontStyle:'bold'}}],
+    ], styles:{fontSize:10,cellPadding:3}, margin:{left:14,right:14} });
+
+    // POR CAMIÓN
+    y = doc.lastAutoTable.finalY + 10;
+    if (y > 230) { doc.addPage(); y = 20; }
+    doc.setFillColor(...GREEN); doc.rect(14,y,pw-28,8,'F');
+    doc.setTextColor(...WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text('RENDIMIENTO POR CAMIÓN', 16, y+5.5);
+    doc.setTextColor(0); y += 10;
+    const vRows = []; vs.forEach(v => {
+      const vt = mt.filter(t=>t.vehicleId===v.id); if(!vt.length) return;
+      const mr2 = monthMaint.filter(r=>r.vehicleId===v.id);
+      const mc = mr2.reduce((s,r)=>s+(Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0),0);
+      const fc = vt.reduce((s,t)=>s+(t.cost||0),0);
+      vRows.push([v.code,v.plate,vt.length,vt.reduce((s,t)=>s+(t.kmTraveled||0),0),vt.reduce((s,t)=>s+(t.liters||0),0).toFixed(1),`$${fc.toFixed(2)}`,`$${mc.toFixed(2)}`,`$${(fc+mc).toFixed(2)}`]);
+    });
+    vRows.push([{content:'TOTAL',styles:{fontStyle:'bold'}},'',mt.length,totalKm,totalLitros.toFixed(1),`$${totalComb.toFixed(2)}`,`$${totalMant.toFixed(2)}`,{content:`$${totalGasto.toFixed(2)}`,styles:{fontStyle:'bold'}}]);
+    doc.autoTable({ startY:y, head:[['Camión','Placa','Viajes','KM','Litros','Combustible','Taller','Total']], body:vRows, styles:{fontSize:9}, headStyles:{fillColor:GREEN}, margin:{left:14,right:14} });
+
+    // MANTENIMIENTOS
+    if (monthMaint.length > 0) {
+      y = doc.lastAutoTable.finalY + 10;
+      if (y > 230) { doc.addPage(); y = 20; }
+      doc.setFillColor(...GREEN); doc.rect(14,y,pw-28,8,'F');
+      doc.setTextColor(...WHITE); doc.setFont('helvetica','bold'); doc.setFontSize(11);
+      doc.text('MANTENIMIENTOS DEL MES', 16, y+5.5);
+      doc.setTextColor(0); y += 10;
+      const mRows = monthMaint.map(r=>[r.fecha||'',r.vehicleCode||'',r.tipo||'',r.tecnico||'',r.trabajo?.slice(0,30)||'',`$${(Number(r.costoRepuesto)||0).toFixed(2)}`,`$${(Number(r.manoObra)||0).toFixed(2)}`,`$${((Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0)).toFixed(2)}`]);
+      doc.autoTable({ startY:y, head:[['Fecha','Camión','Tipo','Técnico','Trabajo','Repuestos','M.Obra','Total']], body:mRows, styles:{fontSize:8}, headStyles:{fillColor:GREEN}, margin:{left:14,right:14} });
+    }
+
+    // PIE DE PÁGINA
+    const pc = doc.internal.getNumberOfPages();
+    for(let i=1;i<=pc;i++){ doc.setPage(i); doc.setFontSize(8); doc.setTextColor(150); doc.text(`Transporte Emporium · Reporte ${label} · Pág. ${i}/${pc}`, pw/2, 290, {align:'center'}); }
+
+    doc.save(`Reporte-Flota-${a.month}.pdf`);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -3833,19 +8113,20 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
           <Archive className="w-4 h-4" /> Cerrar mes
         </button>
       </div>
+
       {showModal && (
         <div className="bg-white rounded-xl border-2 border-amber-500/40 p-5">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="font-bold text-amber-200">Cerrar mes</h3>
-            <button onClick={() => setShowModal(false)} className="text-emerald-700"><X className="w-5 h-5" /></button>
+            <h3 className="font-bold text-stone-900">Cerrar mes manualmente</h3>
+            <button onClick={() => setShowModal(false)} className="text-stone-500"><X className="w-5 h-5" /></button>
           </div>
           {available.length === 0 ? <div className="text-sm text-stone-400 py-4">Sin meses por cerrar.</div> :
             <div className="space-y-2">
               {available.map(m => {
                 const c = trips.filter(t => t.startDate.startsWith(m)).length;
-                const l = new Date(m + '-01').toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
+                const l = new Date(m+'-01').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
                 return (
-                  <button key={m} onClick={() => close(m)} className="w-full text-left p-3 border-2 border-stone-200 rounded-lg hover:border-amber-500/40 bg-stone-50">
+                  <button key={m} onClick={() => close(m)} className="w-full text-left p-3 border-2 border-stone-200 rounded-lg hover:border-amber-500 bg-stone-50">
                     <div className="font-bold text-stone-900 capitalize">{l}</div>
                     <div className="text-xs text-stone-500 font-mono">{c} viajes</div>
                   </button>
@@ -3854,25 +8135,91 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
             </div>}
         </div>
       )}
+
       {archivedMonths.length === 0 ? (
         <div className="bg-white rounded-xl border border-stone-200 shadow-sm p-8 text-center text-stone-400">
           <Archive className="w-10 h-10 mx-auto mb-2 opacity-50" />
           <div className="text-sm">No hay meses archivados.</div>
+          <div className="text-xs mt-1">Los meses anteriores se archivan automáticamente al iniciar el nuevo mes.</div>
         </div>
       ) : (
         <div className="space-y-3">
-          {[...archivedMonths].sort((a, b) => b.month.localeCompare(a.month)).map(a => {
-            const l = new Date(a.month + '-01').toLocaleDateString('es-VE', { month: 'long', year: 'numeric' });
+          {[...archivedMonths].sort((a,b)=>b.month.localeCompare(a.month)).map(a => {
+            const l = new Date(a.month+'-01').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
+            const mt = a.tripsSnapshot || [];
+            const vs = a.vehiclesSnapshot || vehicles;
+            const isExpanded = expanded === a.month;
             return (
-              <div key={a.month} className="bg-white rounded-xl border border-stone-200 shadow-sm p-4">
-                <div className="font-bold text-stone-900 capitalize">{l}</div>
-                <div className="text-xs text-stone-500 font-mono">Cerrado {new Date(a.closedAt).toLocaleDateString('es-VE')}</div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm mt-3">
-                  <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">Viajes</div><div className="font-bold text-stone-900">{a.tripCount}</div></div>
-                  <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">KM</div><div className="font-bold text-stone-900">{a.totalKm.toLocaleString()}</div></div>
-                  <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">Litros</div><div className="font-bold text-stone-900">{a.totalLiters.toFixed(0)}</div></div>
-                  <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">Gasto</div><div className="font-bold text-stone-900">${a.totalCost.toFixed(2)}</div></div>
+              <div key={a.month} className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-black text-stone-900 capitalize text-base">{l}</div>
+                      <div className="text-xs text-stone-400 font-mono flex items-center gap-1.5 mt-0.5">
+                        {a.autoArchived ? '🤖 Archivado automáticamente' : '📁 Archivado manualmente'} · {new Date(a.closedAt).toLocaleDateString('es-VE')}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => downloadExcel(a)} className="flex items-center gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg transition">
+                        <Download className="w-3.5 h-3.5" /> Excel
+                      </button>
+                      <button onClick={() => downloadPDF(a)} className="flex items-center gap-1 text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-lg transition">
+                        <Download className="w-3.5 h-3.5" /> PDF
+                      </button>
+                      <button onClick={() => setExpanded(isExpanded ? null : a.month)} className="text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold px-3 py-1.5 rounded-lg transition">
+                        {isExpanded ? '▲ Cerrar' : '▼ Ver detalle'}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm mt-3">
+                    <div className="bg-stone-50 rounded-lg p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">Viajes</div><div className="font-bold text-stone-900">{a.tripCount}</div></div>
+                    <div className="bg-stone-50 rounded-lg p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">KM Total</div><div className="font-bold text-stone-900">{(a.totalKm||0).toLocaleString()}</div></div>
+                    <div className="bg-stone-50 rounded-lg p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">Litros</div><div className="font-bold text-stone-900">{(a.totalLiters||0).toFixed(0)}</div></div>
+                    <div className="bg-stone-50 rounded-lg p-2 border border-stone-200"><div className="text-[10px] text-stone-500 font-mono uppercase tracking-wider">Gasto</div><div className="font-bold text-emerald-700">${(a.totalCost||0).toFixed(2)}</div></div>
+                  </div>
                 </div>
+
+                {/* Detalle por camión */}
+                {isExpanded && (
+                  <div className="border-t border-stone-200 overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-stone-800 text-stone-200 uppercase tracking-wider">
+                        <tr>
+                          <th className="text-left px-3 py-2">Unidad</th>
+                          <th className="text-right px-3 py-2">Viajes</th>
+                          <th className="text-right px-3 py-2">KM</th>
+                          <th className="text-right px-3 py-2">Litros</th>
+                          <th className="text-right px-3 py-2">Costo $</th>
+                          <th className="text-right px-3 py-2">Entregas</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {vs.map((v,i) => {
+                          const vt = mt.filter(t => t.vehicleId === v.id);
+                          if (vt.length === 0) return null;
+                          return (
+                            <tr key={v.id} className={`border-t border-stone-100 ${i%2===0?'bg-white':'bg-stone-50'}`}>
+                              <td className="px-3 py-2"><div className="font-bold">{v.code}</div><div className="text-stone-400">{v.plate}</div></td>
+                              <td className="px-3 py-2 text-right font-mono">{vt.length}</td>
+                              <td className="px-3 py-2 text-right font-mono">{vt.reduce((s,t)=>s+(t.kmTraveled||0),0).toLocaleString()}</td>
+                              <td className="px-3 py-2 text-right font-mono">{vt.reduce((s,t)=>s+(t.liters||0),0).toFixed(1)}</td>
+                              <td className="px-3 py-2 text-right font-mono font-bold text-emerald-700">${vt.reduce((s,t)=>s+(t.cost||0),0).toFixed(2)}</td>
+                              <td className="px-3 py-2 text-right font-mono">{vt.reduce((s,t)=>s+(t.deliveries||0),0)}</td>
+                            </tr>
+                          );
+                        })}
+                        <tr className="border-t-2 border-stone-300 bg-emerald-50">
+                          <td className="px-3 py-2 font-black text-stone-900">TOTAL</td>
+                          <td className="px-3 py-2 text-right font-black font-mono">{mt.length}</td>
+                          <td className="px-3 py-2 text-right font-black font-mono">{mt.reduce((s,t)=>s+(t.kmTraveled||0),0).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right font-black font-mono">{mt.reduce((s,t)=>s+(t.liters||0),0).toFixed(1)}</td>
+                          <td className="px-3 py-2 text-right font-black font-mono text-emerald-700">${mt.reduce((s,t)=>s+(t.cost||0),0).toFixed(2)}</td>
+                          <td className="px-3 py-2 text-right font-black font-mono">{mt.reduce((s,t)=>s+(t.deliveries||0),0)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -3890,7 +8237,18 @@ function DiscordTab({ config, saveConfig, vehicles }) {
     discordWebhookGeneral: config.discordWebhookGeneral || '',
     discordWebhookMaintenance: config.discordWebhookMaintenance || '',
     discordWebhookByVehicle: config.discordWebhookByVehicle || {},
+    discordWebhookMaintByVehicle: config.discordWebhookMaintByVehicle || {},
   });
+
+  // Sincronizar form cuando el config cambia (ej: carga desde storage)
+  useEffect(() => {
+    setForm({
+      discordWebhookGeneral: config.discordWebhookGeneral || '',
+      discordWebhookMaintenance: config.discordWebhookMaintenance || '',
+      discordWebhookByVehicle: config.discordWebhookByVehicle || {},
+      discordWebhookMaintByVehicle: config.discordWebhookMaintByVehicle || {},
+    });
+  }, [config.discordWebhookMaintByVehicle, config.discordWebhookByVehicle, config.discordWebhookGeneral, config.discordWebhookMaintenance]);
   // testStatus: { key: 'idle' | 'sending' | 'success' | 'error', error: string }
   const [testStatus, setTestStatus] = useState({});
 
@@ -3996,8 +8354,8 @@ function DiscordTab({ config, saveConfig, vehicles }) {
 
       {/* Webhooks por unidad */}
       <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
-        <h3 className="font-bold text-stone-900 mb-1">🚛 Canales por unidad</h3>
-        <p className="text-xs text-stone-600 mb-4">Inicios y llegadas de viajes van al canal del camión. Ej: NPR 01 → <code className="bg-stone-100 px-1 rounded">#npr-01-daniel</code></p>
+        <h3 className="font-bold text-stone-900 mb-1">🚛 Canales por unidad — <span className="text-emerald-700">Viajes</span></h3>
+        <p className="text-xs text-stone-600 mb-4">Inicio y fin de viajes. Ej: NPR 01 → <code className="bg-stone-100 px-1 rounded">#npr-01-daniel</code></p>
         <div className="space-y-3">
           {vehicles.map(v => (
             <div key={v.id} className="flex items-end gap-2">
@@ -4012,6 +8370,13 @@ function DiscordTab({ config, saveConfig, vehicles }) {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Webhooks mantenimiento — ahora en Flota */}
+      <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-200">
+        <h3 className="font-bold text-indigo-900 mb-1">🔧 Canales por unidad — Mantenimiento</h3>
+        <p className="text-xs text-indigo-700">Los webhooks de mantenimiento ahora se configuran directamente en cada camión.</p>
+        <p className="text-xs text-indigo-600 mt-1">Ve a <b>Flota → ✏️ editar camión → Webhook Discord Mantenimiento</b></p>
       </div>
 
       {/* Guardar */}
@@ -4037,7 +8402,7 @@ function DiscordTab({ config, saveConfig, vehicles }) {
 }
 
 function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhotos, saveGpsTracks, saveArchived, vehicles, saveVehicles }) {
-  const [form, setForm] = useState(config);
+  const [fuelPrice, setFuelPrice] = useState(config.fuelPrice || 0.5);
   const [availableVoices, setAvailableVoices] = useState([]);
   const [selectedVoice, setSelectedVoice] = useState(localStorage.getItem('emp:voice_name') || '');
   const [voiceMuted, setVoiceMuted] = useState(localStorage.getItem('emp:voice_muted') !== 'false');
@@ -4084,7 +8449,17 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
     savePhotos([]);
     saveGpsTracks([]);
     saveArchived([]);
+    // Resetear estado de vehículos
+    saveVehicles(vehicles.map(v => ({ ...v, status: v.status === 'EN TALLER' ? 'EN TALLER' : 'AL DIA' })));
     alert('✅ App limpia. Puedes empezar a registrar viajes reales.');
+  };
+
+  const cancelarViajesActivos = async () => {
+    if (!confirm(`¿Cancelar los ${vehicles.filter(v=>v.status==='EN RUTA').length || 'todos los'} viajes activos?\n\nLos camiones quedarán disponibles para nuevos viajes.`)) return;
+    try { const { supabase } = await import('./lib/syncStorage.js'); await supabase.from('app_data').delete().eq('key', 'emp:v4:active_trips'); } catch(e) {}
+    saveActiveTrips([]);
+    saveVehicles(vehicles.map(v => v.status === 'EN RUTA' ? { ...v, status: 'AL DIA' } : v));
+    alert('✅ Viajes activos cancelados.');
   };
 
   const reiniciarKmVehiculos = () => {
@@ -4109,9 +8484,9 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
           <Settings className="w-4 h-4 text-emerald-700" /> Ajustes generales
         </h3>
         <DarkField label="Precio del combustible (USD por litro)">
-          <input type="number" step="0.01" value={form.fuelPrice} onChange={e => setForm({ ...form, fuelPrice: Number(e.target.value) })} className="dark-input" />
+          <input type="number" step="0.01" value={fuelPrice} onChange={e => setFuelPrice(Number(e.target.value))} className="dark-input" />
         </DarkField>
-        <button onClick={() => { saveConfig({ ...config, ...form }); alert('✅ Guardado'); }}
+        <button onClick={() => { saveConfig({ ...config, fuelPrice }); alert('✅ Guardado'); }}
           className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg font-bold transition">
           Guardar cambios
         </button>
@@ -4194,6 +8569,17 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
             </button>
           </div>
 
+          <div className="border-2 border-amber-200 bg-amber-50 rounded-xl p-3">
+            <div className="font-semibold text-amber-900 text-sm mb-1">🚛 Cancelar viajes activos</div>
+            <div className="text-xs text-amber-800 mb-2">
+              Cancela todos los viajes que quedaron abiertos sin completar.<br/>
+              Los camiones quedan disponibles para nuevos viajes.
+            </div>
+            <button onClick={cancelarViajesActivos} className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-bold">
+              Cancelar viajes activos
+            </button>
+          </div>
+
           <div className="border-2 border-rose-200 bg-rose-50 rounded-xl p-3">
             <div className="font-semibold text-rose-900 text-sm mb-1">🗑️ Limpiar viajes de prueba</div>
             <div className="text-xs text-rose-800 mb-2">
@@ -4226,14 +8612,160 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
 // Si no → muestra el formulario completo (obligatorio).
 // Si sí → muestra quién lo chequeó y permite continuar.
 // ============================================================
-function ChecklistScreen({ vehicle, driver, checklists, saveChecklists, onProceed, onBack, config }) {
-  const todayKey = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
-  const existing = checklists.find(c => c.vehicleId === vehicle.id && c.date === todayKey);
+// ============================================================
+// FORMULARIO CIERRE DE JORNADA
+// ============================================================
+function EndShiftForm({ driver, vehicle, trips = [], kmInicial = '', onConfirm, onBack }) {
+  const [kmFinal, setKmFinal] = useState(kmInicial ? String(kmInicial) : '');
+  const [foto, setFoto] = useState(null);
+  const [fotoChofer, setFotoChofer] = useState(null);
+  const [novedades, setNovedades] = useState('');
+  const [combustibleRestante, setCombustibleRestante] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [simpleItems, setSimpleItems] = useState({ estacionado: false, luces: false, puertas: false });
+  const [cauchos, setCauchos] = useState('');
+  const [cauchoNota, setCauchoNota] = useState('');
+  const [danos, setDanos] = useState('');
+  const [danosNota, setDanosNota] = useState('');
+  const hora = new Date().toLocaleTimeString('es-VE',{hour:'2-digit',minute:'2-digit'});
+  const totalKm = trips.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
+  const handleFoto = (e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = ev => setFoto(ev.target.result); reader.readAsDataURL(file); };
+  const handleFotoChofer = (e) => { const file = e.target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = ev => setFotoChofer(ev.target.result); reader.readAsDataURL(file); };
+  const allSimpleChecked = Object.values(simpleItems).every(Boolean);
+  const cauchoNecesitaNota = (cauchos === 'revisar' || cauchos === 'mal') && !cauchoNota.trim();
+  const danosNecesitaNota = (danos === 'menor' || danos === 'grave') && !danosNota.trim();
+  const kmValido = kmFinal !== '' && Number(kmFinal) > 0;
+  const canSubmit = kmValido && foto && fotoChofer && allSimpleChecked && cauchos && danos && !cauchoNecesitaNota && !danosNecesitaNota;
+  const submit = async () => {
+    if (!canSubmit) return;
+    if (vehicle?.currentKm && Number(kmFinal) < vehicle.currentKm) {
+      if (!confirm(`⚠️ KM ingresado (${Number(kmFinal).toLocaleString()}) menor al actual (${vehicle.currentKm.toLocaleString()}). ¿Continuar?`)) return;
+    }
+    setSubmitting(true);
+    const hayAlerta = cauchos !== 'bien' || danos !== 'ninguno';
+    await onConfirm({ kmFinal: Number(kmFinal), foto, fotoChofer, items: { ...simpleItems, cauchos, danos }, novedades, combustibleRestante: combustibleRestante || '', hayAlerta, cauchoNota, danosNota });
+    setSubmitting(false);
+  };
+  const BtnOpt = ({ active, color, onClick, children }) => {
+    const colors = { green: active ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-stone-50 border-stone-200 text-stone-500', amber: active ? 'bg-amber-50 border-amber-400 text-amber-800' : 'bg-stone-50 border-stone-200 text-stone-500', red: active ? 'bg-red-50 border-red-400 text-red-800' : 'bg-stone-50 border-stone-200 text-stone-500' };
+    return <button onClick={onClick} className={`flex-1 py-2 px-2 rounded-xl border-2 text-xs font-bold text-center transition ${colors[color]}`}>{children}</button>;
+  };
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 to-stone-900 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div className="bg-indigo-700 px-5 py-4 text-white">
+          <div className="text-xs font-mono uppercase tracking-wider opacity-80 mb-1">🌙 Cierre de jornada</div>
+          <div className="font-black text-lg">{driver.name}</div>
+          <div className="text-indigo-200 text-sm">{hora} · {vehicle?.code || '—'} · {trips.length} viajes · {totalKm} km</div>
+        </div>
+        <div className="px-5 pt-4 pb-2 space-y-4 max-h-[75vh] overflow-y-auto">
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1">🔢 KM Final del odómetro <span className="text-red-500">*</span></label>
+            {vehicle?.lastParkedKm && <div className="text-xs text-stone-400 mb-1">Último: {vehicle.lastParkedKm.toLocaleString()} km</div>}
+            <input type="number" value={kmFinal} onChange={e=>setKmFinal(e.target.value)} placeholder="Ingresa el KM del odómetro" className="w-full border-2 border-stone-200 rounded-xl px-3 py-2 text-sm font-mono focus:border-indigo-400 outline-none" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">⛽ Combustible restante</label>
+            <div className="flex gap-2">
+              {['1/4','1/2','3/4','Full'].map(opt => (
+                <button key={opt} onClick={()=>setCombustibleRestante(opt)}
+                  className={`flex-1 py-2 rounded-xl border-2 text-sm font-bold transition ${combustibleRestante===opt ? 'bg-emerald-50 border-emerald-400 text-emerald-800' : 'bg-stone-50 border-stone-200 text-stone-500'}`}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">✅ Chequeo rápido <span className="text-red-500">*</span></label>
+            <div className="space-y-2">
+              {[{key:'estacionado',label:'🅿️ Estacionado en su sitio'},{key:'luces',label:'💡 Luces apagadas'},{key:'puertas',label:'🔒 Puertas cerradas y aseguradas'}].map(item => (
+                <button key={item.key} onClick={() => setSimpleItems(p=>({...p,[item.key]:!p[item.key]}))}
+                  className={`w-full flex items-center gap-3 p-2.5 rounded-xl border-2 text-sm text-left transition ${simpleItems[item.key] ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-stone-50 border-stone-200 text-stone-600'}`}>
+                  <div className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${simpleItems[item.key] ? 'bg-emerald-500 border-emerald-500' : 'border-stone-300'}`}>{simpleItems[item.key] && <span className="text-white text-xs">✓</span>}</div>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">🔵 Estado de cauchos <span className="text-red-500">*</span></label>
+            <div className="flex gap-2">
+              <BtnOpt active={cauchos==='bien'} color="green" onClick={()=>{setCauchos('bien');setCauchoNota('');}}>✅ Bien</BtnOpt>
+              <BtnOpt active={cauchos==='revisar'} color="amber" onClick={()=>setCauchos('revisar')}>⚠️ Revisar</BtnOpt>
+              <BtnOpt active={cauchos==='mal'} color="red" onClick={()=>setCauchos('mal')}>🔴 Mal estado</BtnOpt>
+            </div>
+            {(cauchos==='revisar'||cauchos==='mal') && (
+              <input value={cauchoNota} onChange={e=>setCauchoNota(e.target.value)} placeholder="Describe el problema (obligatorio)..."
+                className={`w-full mt-2 border-2 rounded-xl px-3 py-2 text-sm focus:outline-none ${!cauchoNota.trim() ? 'border-red-300' : 'border-amber-300'}`} />
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">🔍 Daños visibles <span className="text-red-500">*</span></label>
+            <div className="flex gap-2">
+              <BtnOpt active={danos==='ninguno'} color="green" onClick={()=>{setDanos('ninguno');setDanosNota('');}}>✅ Ninguno</BtnOpt>
+              <BtnOpt active={danos==='menor'} color="amber" onClick={()=>setDanos('menor')}>⚠️ Menor</BtnOpt>
+              <BtnOpt active={danos==='grave'} color="red" onClick={()=>setDanos('grave')}>🔴 Grave</BtnOpt>
+            </div>
+            {(danos==='menor'||danos==='grave') && (
+              <input value={danosNota} onChange={e=>setDanosNota(e.target.value)} placeholder="Describe el daño (obligatorio)..."
+                className={`w-full mt-2 border-2 rounded-xl px-3 py-2 text-sm focus:outline-none ${!danosNota.trim() ? 'border-red-300' : 'border-amber-300'}`} />
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">🤳 Selfie del chofer <span className="text-red-500">*</span></label>
+            {fotoChofer ? (
+              <div className="relative"><img src={fotoChofer} alt="Chofer" className="w-full h-32 object-cover rounded-xl border-2 border-indigo-300" /><button onClick={() => setFotoChofer(null)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button></div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-indigo-300 rounded-xl cursor-pointer hover:bg-indigo-50">
+                <span className="text-2xl">🤳</span><span className="text-xs text-indigo-400 mt-1">Selfie (cámara frontal)</span>
+                <input type="file" accept="image/*" capture="user" className="hidden" onChange={handleFotoChofer} />
+              </label>
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">📸 Foto del camión guardado <span className="text-red-500">*</span></label>
+            {foto ? (
+              <div className="relative"><img src={foto} alt="" className="w-full h-32 object-cover rounded-xl border-2 border-emerald-300" /><button onClick={() => setFoto(null)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs">✕</button></div>
+            ) : (
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-stone-300 rounded-xl cursor-pointer hover:bg-stone-50">
+                <span className="text-2xl">📷</span><span className="text-xs text-stone-400 mt-1">Tomar foto del camión</span>
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFoto} />
+              </label>
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1">Otras novedades (opcional)</label>
+            <textarea value={novedades} onChange={e=>setNovedades(e.target.value)} placeholder="Cualquier otra observación..." rows={2} className="w-full border-2 border-stone-200 rounded-xl px-3 py-2 text-sm resize-none focus:border-indigo-400 outline-none" />
+          </div>
+        </div>
+        <div className="px-5 pb-5 pt-3 space-y-2 border-t border-stone-100">
+          {(cauchos==='mal'||danos==='grave') && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-2 text-xs text-red-700 font-bold text-center">🚨 Se enviará alerta urgente al coordinador</div>
+          )}
+          <button onClick={submit} disabled={!canSubmit || submitting}
+            className={`w-full py-3 rounded-xl font-black text-white text-base transition ${canSubmit && !submitting ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-stone-300 cursor-not-allowed'}`}>
+            {submitting ? '⏳ Guardando...' : '🌙 Confirmar cierre de jornada'}
+          </button>
+          <button onClick={onBack} className="w-full py-2 text-xs text-stone-400 hover:text-stone-600">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
+function ChecklistScreen({ vehicle, driver, checklists, saveChecklists, onProceed, onBack, config, endShifts = [] }) {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const existing = checklists.find(c => c.vehicleId === vehicle.id && c.date === todayKey);
+  // Alerta si el KM actual difiere del registrado al guardar
+  const kmAlert = vehicle.lastParkedKm && vehicle.lastParkedDate && vehicle.lastParkedDate !== todayKey
+    ? { lastKm: vehicle.lastParkedKm, lastDate: vehicle.lastParkedDate, lastTime: vehicle.lastParkedTime, currentKm: vehicle.currentKm }
+    : null;
+  // Último cierre de jornada de este camión
+  const lastEndShift = endShifts.filter(s => s.vehicleId === vehicle.id).sort((a,b) => b.timestamp - a.timestamp)[0] || null;
   if (existing) {
     return <ChecklistAlreadyDone checklist={existing} vehicle={vehicle} driver={driver} onProceed={onProceed} onBack={onBack} />;
   }
-  return <ChecklistForm vehicle={vehicle} driver={driver} saveChecklists={saveChecklists} checklists={checklists} onDone={onProceed} onBack={onBack} config={config} />;
+  return <ChecklistForm vehicle={vehicle} driver={driver} saveChecklists={saveChecklists} checklists={checklists} onDone={onProceed} onBack={onBack} config={config} kmAlert={kmAlert} lastEndShift={lastEndShift} />;
 }
 
 // ============================================================
@@ -4322,7 +8854,7 @@ function ChecklistAlreadyDone({ checklist, vehicle, driver, onProceed, onBack })
         </button>
       ) : (
         <button
-          onClick={onProceed}
+          onClick={() => onProceed(checklist.kmInicial || checklist.kmOdometer || '')}
           className="w-full py-4 rounded-2xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-lg active:scale-[0.98]">
           <CheckCircle className="w-5 h-5" /> Iniciar viaje
         </button>
@@ -4343,6 +8875,12 @@ function SignatureCanvas({ onSignature, cleared }) {
     const r = canvas.getBoundingClientRect();
     const src = e.touches ? e.touches[0] : e;
     return { x: (src.clientX - r.left) * (canvas.width / r.width), y: (src.clientY - r.top) * (canvas.height / r.height) };
+  };
+
+  const clearCanvas = (canvas) => {
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
   };
 
   const startDraw = (e) => {
@@ -4375,12 +8913,13 @@ function SignatureCanvas({ onSignature, cleared }) {
   };
   const clear = () => {
     const canvas = canvasRef.current;
-    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+    clearCanvas(canvas);
     hasSig.current = false;
     onSignature(null);
   };
 
   useEffect(() => { if (cleared > 0) clear(); }, [cleared]);
+  useEffect(() => { if (canvasRef.current) clearCanvas(canvasRef.current); }, []);
 
   return (
     <div>
@@ -4399,7 +8938,7 @@ function SignatureCanvas({ onSignature, cleared }) {
 // ============================================================
 // FORMULARIO COMPLETO DEL CHECKLIST
 // ============================================================
-function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, onBack, config }) {
+function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, onBack, config, kmAlert, lastEndShift }) {
   const now = new Date();
   const todayKey = now.toISOString().slice(0, 10);
   const timeNow = now.toTimeString().slice(0, 5);
@@ -4412,6 +8951,7 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
   const [signature, setSignature] = useState(null);
   const [clearSig, setClearSig] = useState(0);
   const [finalPhoto, setFinalPhoto] = useState(null);
+  const [unitPhotos, setUnitPhotos] = useState([]);
   const [kmInicial, setKmInicial] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -4435,6 +8975,16 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
     const reader = new FileReader();
     reader.onload = ev => setPhotos(p => ({ ...p, [itemId]: ev.target.result }));
     reader.readAsDataURL(file);
+  };
+
+  const handleUnitPhoto = (e) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => setUnitPhotos(p => [...p, ev.target.result]);
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
   };
 
   const handleFinalPhoto = (e) => {
@@ -4471,9 +9021,12 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
         note: notes[i.id] || '',
         photo: values[i.id] === 'bad' ? (photos[i.id] || null) : null,
       })),
+      criticalCount: criticalItems.length,
+      warningCount: warnItems.length,
       reporte,
       signature,
       finalPhoto,
+      unitPhotos,
       createdAt: Date.now(),
     };
 
@@ -4483,7 +9036,7 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
         await sendChecklistDiscord(checklist, vehicle, driver, config);
 
     setSubmitting(false);
-    onDone();
+    onDone(kmInicial || '');
   };
 
   const groupColors = {
@@ -4501,6 +9054,68 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
 
   return (
     <div className="space-y-4 pb-8">
+      {/* ALERTA KM — camión movido sin autorización */}
+      {kmAlert && kmAlert.currentKm > kmAlert.lastKm && (
+        <div className="bg-red-50 border-2 border-red-400 rounded-2xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl">🚨</div>
+            <div>
+              <div className="font-black text-red-800 text-sm">¡El camión fue movido!</div>
+              <div className="text-xs text-red-700 mt-1 space-y-0.5">
+                <div>🌙 Guardado ayer ({kmAlert.lastDate} {kmAlert.lastTime}): <strong>{kmAlert.lastKm.toLocaleString()} km</strong></div>
+                <div>🌅 KM actual: <strong>{(kmAlert.currentKm||0).toLocaleString()} km</strong></div>
+                <div className="font-bold text-red-800">⚠️ Diferencia: +{((kmAlert.currentKm||0) - kmAlert.lastKm).toLocaleString()} km SIN AUTORIZACIÓN</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* CIERRE DE JORNADA ANTERIOR */}
+      {lastEndShift && (
+        <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4">
+          <div className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-2">🌙 Cierre jornada anterior — {lastEndShift.driverName}</div>
+          <div className="grid grid-cols-2 gap-2 text-xs mb-2">
+            <div className="bg-white rounded-lg p-2 border border-indigo-100">
+              <div className="text-indigo-400 font-mono">📅 Fecha</div>
+              <div className="font-bold text-indigo-900">{lastEndShift.date} {lastEndShift.time}</div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-indigo-100">
+              <div className="text-indigo-400 font-mono">🔢 KM guardado</div>
+              <div className="font-bold text-indigo-900">{(lastEndShift.kmFinal||0).toLocaleString()} km</div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-indigo-100">
+              <div className="text-indigo-400 font-mono">🔵 Cauchos</div>
+              <div className={`font-bold ${lastEndShift.items?.cauchos==='mal'?'text-red-600':lastEndShift.items?.cauchos==='revisar'?'text-amber-600':'text-emerald-700'}`}>
+                {lastEndShift.items?.cauchos==='bien'?'✅ Bien':lastEndShift.items?.cauchos==='revisar'?'⚠️ Revisar':lastEndShift.items?.cauchos==='mal'?'🔴 Mal estado':'—'}
+              </div>
+            </div>
+            <div className="bg-white rounded-lg p-2 border border-indigo-100">
+              <div className="text-indigo-400 font-mono">🔍 Daños</div>
+              <div className={`font-bold ${lastEndShift.items?.danos==='grave'?'text-red-600':lastEndShift.items?.danos==='menor'?'text-amber-600':'text-emerald-700'}`}>
+                {lastEndShift.items?.danos==='ninguno'?'✅ Ninguno':lastEndShift.items?.danos==='menor'?'⚠️ Menor':lastEndShift.items?.danos==='grave'?'🔴 Grave':'—'}
+              </div>
+            </div>
+          </div>
+          {lastEndShift.cauchoNota && lastEndShift.items?.cauchos !== 'bien' && (
+            <div className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 mb-1">🔵 {lastEndShift.cauchoNota}</div>
+          )}
+          {lastEndShift.danosNota && lastEndShift.items?.danos !== 'ninguno' && (
+            <div className="text-xs text-red-700 bg-red-50 rounded-lg p-2 mb-1">🔍 {lastEndShift.danosNota}</div>
+          )}
+          {lastEndShift.fotoChofer && (
+            <div className="flex items-center gap-2 mt-2">
+              <img src={lastEndShift.fotoChofer} alt="Chofer" className="w-16 h-16 object-cover rounded-xl border-2 border-indigo-200" />
+              <div className="text-xs text-indigo-600">🧑 {lastEndShift.driverName}</div>
+            </div>
+          )}
+          {lastEndShift.foto && (
+            <img src={lastEndShift.foto} alt="Foto cierre" className="w-full h-24 object-cover rounded-xl mt-2 border border-indigo-200" />
+          )}
+          {lastEndShift.novedades && (
+            <div className="text-xs text-stone-600 mt-1">📝 {lastEndShift.novedades}</div>
+          )}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="p-2 rounded-xl bg-stone-100 hover:bg-stone-200 transition">
@@ -4605,6 +9220,32 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
         <textarea rows={3} value={reporte} onChange={e => setReporte(e.target.value)}
           placeholder="Ej: vibración en el volante al pasar de 60 km/h..."
           className="w-full bg-white border border-stone-200 rounded-2xl px-3 py-2.5 text-sm outline-none focus:border-emerald-400 resize-none" />
+      </div>
+
+      {/* Fotos de la unidad */}
+      <div>
+        <label className="text-xs font-bold text-stone-500 uppercase tracking-wider block mb-2">
+          📷 Fotos de la unidad <span className="text-stone-400 font-normal normal-case">(opcional — toma las que quieras)</span>
+        </label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {unitPhotos.map((p, i) => (
+            <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-stone-200 flex-shrink-0">
+              <img src={p} alt={`Foto ${i+1}`} className="w-full h-full object-cover" />
+              <button type="button" onClick={() => setUnitPhotos(ps => ps.filter((_, j) => j !== i))}
+                className="absolute top-0.5 right-0.5 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold shadow">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+          <label className="w-20 h-20 rounded-xl border-2 border-dashed border-stone-300 flex flex-col items-center justify-center cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition flex-shrink-0">
+            <Camera className="w-6 h-6 text-stone-400" />
+            <span className="text-[10px] text-stone-400 mt-1">Agregar</span>
+            <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={handleUnitPhoto} />
+          </label>
+        </div>
+        {unitPhotos.length > 0 && (
+          <p className="text-[10px] text-stone-400">{unitPhotos.length} foto{unitPhotos.length > 1 ? 's' : ''} — se enviarán al Discord</p>
+        )}
       </div>
 
       {/* Firma + Foto de Respaldo Final (lado a lado en pantallas grandes, apilados en móvil) */}
@@ -4959,7 +9600,7 @@ function ChecklistDetailModal({ checklist, vehicles, onClose }) {
 }
 
 async function sendChecklistDiscord(cl, vehicle, driver, config) {
-  const webhookUrl = config?.discordWebhookMaintenance || config?.discordWebhookGeneral;
+  const webhookUrl = vehicle?.maintenanceWebhook || config?.discordWebhookMaintenance || config?.discordWebhookGeneral || '';
   if (!webhookUrl) return;
   const crits = cl.criticalCount || 0;
   const warns = cl.warningCount || 0;
@@ -4985,12 +9626,77 @@ async function sendChecklistDiscord(cl, vehicle, driver, config) {
     footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
     timestamp: new Date().toISOString(),
   };
-  if (cl.notas || cl.notes) embed.fields.push({ name: '📝 Novedades', value: cl.notas || cl.notes });
+  if (cl.reporte || cl.notas || cl.notes) embed.fields.push({ name: '📝 Novedades', value: cl.reporte || cl.notas || cl.notes });
+  // Detalle de ítems críticos con notas
+  const badItems = (cl.items || []).filter(i => i.value === 'bad');
+  if (badItems.length > 0) {
+    const badLines = badItems.map(i => {
+      const def = allItems.find(ci => ci.id === i.id);
+      return `🔴 **${def?.label || i.id}**: ${def?.bad || 'crítico'}${i.note ? ` — _${i.note}_` : ''}`;
+    }).join('\n');
+    embed.fields.push({ name: `🔴 Ítems críticos (${badItems.length})`, value: badLines.slice(0, 1000) });
+  }
   embed.fields.push({ name: '✍️ Firma', value: (cl.firma || cl.signature) ? '✅ Firmado por el chofer' : '❌ Sin firma' });
-  embed.fields.push({ name: '📸 Foto', value: (cl.finalPhoto || cl.foto || cl.photo) ? '✅ Foto tomada' : '❌ Sin foto' });
-  await sendDiscordNotification(webhookUrl, embed);
+  const fotoData = cl.finalPhoto || cl.foto || cl.photo;
+  if (fotoData) {
+    embed.image = { url: 'attachment://foto_checklist.jpg' };
+    embed.fields.push({ name: '📸 Foto', value: '✅ Foto adjunta ↓' });
+  } else {
+    embed.fields.push({ name: '📸 Foto', value: '❌ Sin foto' });
+  }
+  // Fotos adicionales de la unidad
+  const extraPhotos = cl.unitPhotos || [];
+  if (extraPhotos.length > 0) {
+    embed.fields.push({ name: '📷 Fotos de la unidad', value: `✅ ${extraPhotos.length} foto(s) adjunta(s)` });
+  }
+  // Enviar embed + foto adjunta en un solo mensaje
+  if (fotoData && webhookUrl) {
+    try {
+      if (!navigator.onLine) throw new Error('offline');
+      const blob = base64ToBlob(fotoData);
+      const fd = new FormData();
+      fd.append('files[0]', blob, 'foto_checklist.jpg');
+      fd.append('payload_json', JSON.stringify({ embeds: [embed] }));
+      const res = await fetch(webhookUrl, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error('http ' + res.status);
+    } catch(e) {
+      // Offline o error → guardar en cola
+      await idbAdd({ type: 'discord', webhookUrl, content: '📸 Foto checklist', photoData: fotoData, filename: 'foto_checklist.jpg', embed, queuedAt: new Date().toISOString() });
+      // Enviar solo embed sin foto (notificación inmediata)
+      await sendDiscordNotification(webhookUrl, { ...embed, image: undefined });
+    }
+  } else {
+    await sendDiscordNotification(webhookUrl, embed);
+  }
+  // Enviar fotos de ítems críticos
+  for (const item of badItems) {
+    if (!item.photo) continue;
+    const def = allItems.find(ci => ci.id === item.id);
+    try {
+      const blob = base64ToBlob(item.photo);
+      const fd = new FormData();
+      fd.append('files[0]', blob, `falla_${item.id}.jpg`);
+      fd.append('payload_json', JSON.stringify({ content: `🔴 **Falla crítica: ${def?.label || item.id}**${item.note ? ` — ${item.note}` : ''} · ${vehicle?.code}` }));
+      if (navigator.onLine) await fetch(webhookUrl, { method: 'POST', body: fd });
+      else await idbAdd({ type: 'discord', webhookUrl, content: `🔴 Falla: ${def?.label}`, photoData: item.photo, filename: `falla_${item.id}.jpg`, embed: null, queuedAt: new Date().toISOString() });
+    } catch(e) {
+      await idbAdd({ type: 'discord', webhookUrl, content: `🔴 Falla: ${def?.label}`, photoData: item.photo, filename: `falla_${item.id}.jpg`, embed: null, queuedAt: new Date().toISOString() });
+    }
+  }
+  // Enviar fotos adicionales de la unidad
+  for (let idx = 0; idx < extraPhotos.length; idx++) {
+    try {
+      const blob = base64ToBlob(extraPhotos[idx]);
+      const fd = new FormData();
+      fd.append('files[0]', blob, `foto_unidad_${idx+1}.jpg`);
+      fd.append('payload_json', JSON.stringify({ content: `📷 Foto de la unidad ${idx+1}/${extraPhotos.length} · ${vehicle?.code}` }));
+      if (navigator.onLine) await fetch(webhookUrl, { method: 'POST', body: fd });
+      else await idbAdd({ type: 'discord', webhookUrl, content: `📷 Foto unidad ${idx+1}`, photoData: extraPhotos[idx], filename: `foto_unidad_${idx+1}.jpg`, embed: null, queuedAt: new Date().toISOString() });
+    } catch(e) {
+      await idbAdd({ type: 'discord', webhookUrl, content: `📷 Foto unidad ${idx+1}`, photoData: extraPhotos[idx], filename: `foto_unidad_${idx+1}.jpg`, embed: null, queuedAt: new Date().toISOString() });
+    }
+  }
 }
-
 // ============================================================
 // ChecklistCoordTab — vista para el coordinador con PDF
 // ============================================================
@@ -4998,12 +9704,19 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config, saveChecklis
   const [filterDate, setFilterDate] = useState(new Date().toISOString().slice(0, 10));
   const [filterVehicle, setFilterVehicle] = useState('all');
   const [deleteUntil, setDeleteUntil] = useState('');
-  const handleDeleteOld = () => {
-    if (!deleteUntil) return;
-    if (!window.confirm(`¿Borrar checklists anteriores al ${deleteUntil}?`)) return;
-    const keep = checklists.filter(c => c.date >= deleteUntil);
-    
-    if (sbF) sbF(`checklists?date=lt.${deleteUntil}`, { method: 'DELETE' }).then(() => window.location.reload()).catch(() => {})
+  const [deleteVehicle, setDeleteVehicle] = useState('all');
+  const handleDeleteOld = async () => {
+    if (!deleteUntil) {
+      alert('Selecciona una fecha primero');
+      return;
+    }
+    const vehicleName = deleteVehicle === 'all' ? 'todas las unidades' : (vehicles.find(v => v.id === deleteVehicle)?.code || deleteVehicle);
+    const toDelete = checklists.filter(c => c.date < deleteUntil && (deleteVehicle === 'all' || c.vehicleId === deleteVehicle)).length;
+    if (toDelete === 0) { alert(`No hay checklists de ${vehicleName} anteriores al ${deleteUntil}`); return; }
+    if (!window.confirm(`¿Borrar ${toDelete} checklist(s) de ${vehicleName} anteriores al ${deleteUntil}?`)) return;
+    const keep = checklists.filter(c => !(c.date < deleteUntil && (deleteVehicle === 'all' || c.vehicleId === deleteVehicle)));
+    saveChecklists(keep);
+    if (sbF) { const q = deleteVehicle === 'all' ? `checklists?date=lt.${deleteUntil}` : `checklists?date=lt.${deleteUntil}&vehicle_id=eq.${deleteVehicle}`; sbF(q, { method: 'DELETE' }).catch(() => {}); }
   };
   const filtered = (checklists || [])
     .filter(c => (!filterDate || c.date === filterDate) && (filterVehicle === 'all' || c.vehicleId === filterVehicle))
@@ -5035,7 +9748,7 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config, saveChecklis
     const foto = cl.finalPhoto || cl.foto || cl.photo;
     const notas = cl.notas || cl.notes;
     const w = window.open('', '_blank', 'width=820,height=960');
-    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Chequeo - ${v?.code} - ${cl.date}</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#1c1917;font-size:13px}@media print{.no-print{display:none}}h1{font-size:18px;margin:0;color:#047857}.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #10b981;padding-bottom:12px;margin-bottom:16px}.info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:14px}.info label{font-size:10px;text-transform:uppercase;color:#6b7280;display:block;font-weight:700}table{width:100%;border-collapse:collapse;border:1px solid #e5e7eb;margin-bottom:14px}th{background:#f9fafb;padding:6px 10px;font-size:10px;text-transform:uppercase;color:#6b7280;text-align:left;border-bottom:1px solid #e5e7eb}.sf{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.sf-box{border:1px solid #e5e7eb;border-radius:8px;padding:10px}.sf-title{font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:700;margin-bottom:6px}.print-btn{background:#047857;color:white;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:700;margin-bottom:16px;font-size:13px}.footer{margin-top:16px;border-top:1px solid #e5e7eb;padding-top:8px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}</style></head><body><button class="no-print print-btn" onclick="window.print()">🖨️ Guardar como PDF / Imprimir</button><div class="hdr"><div><h1>Transporte Emporium</h1><div style="font-weight:700;margin-top:4px">Chequeo Pre-Viaje</div><div style="color:#6b7280">${v?.code || '—'} · ${v?.plate || '—'}</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:700">${cl.date}</div><div style="margin:4px 0">${cl.time || ''}</div>${statusBadge}</div></div><div class="info"><div><label>Chofer</label><strong>${d?.name || '—'}</strong></div><div><label>Unidad</label><strong>${v?.code || '—'}</strong></div><div><label>Placa</label><strong>${v?.plate || '—'}</strong></div><div><label>KM Odómetro</label><strong>${(cl.kmOdometer || 0).toLocaleString()}</strong></div></div><table><tr><th>Ítem</th><th>Categoría</th><th>Estado</th></tr>${rows}</table>${notas ? `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:14px"><div style="font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:700;margin-bottom:4px">Novedades reportadas</div><div>${notas}</div></div>` : ''}<div class="sf"><div class="sf-box"><div class="sf-title">Firma del chofer</div>${sig ? `<img src="${sig}" style="width:100%;max-height:90px;object-fit:contain;background:#f9fafb">` : '<div style="height:70px;background:#f9fafb;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px">Sin firma</div>'}</div><div class="sf-box"><div class="sf-title">Foto de respaldo</div>${foto ? `<img src="${foto}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px">` : '<div style="height:90px;background:#f9fafb;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px">Sin foto</div>'}</div></div><div class="footer"><span>Transporte Emporium · Sistema de Control de Flota</span><span>Generado: ${new Date().toLocaleString('es-VE')}</span></div></body></html>`);
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Chequeo - ${v?.code} - ${cl.date}</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#1c1917;font-size:13px}@media print{.no-print{display:none}}h1{font-size:18px;margin:0;color:#047857}.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #10b981;padding-bottom:12px;margin-bottom:16px}.info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:14px}.info label{font-size:10px;text-transform:uppercase;color:#6b7280;display:block;font-weight:700}table{width:100%;border-collapse:collapse;border:1px solid #e5e7eb;margin-bottom:14px}th{background:#f9fafb;padding:6px 10px;font-size:10px;text-transform:uppercase;color:#6b7280;text-align:left;border-bottom:1px solid #e5e7eb}.sf{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.sf-box{border:1px solid #e5e7eb;border-radius:8px;padding:10px}.sf-title{font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:700;margin-bottom:6px}.print-btn{background:#047857;color:white;border:none;padding:8px 18px;border-radius:6px;cursor:pointer;font-weight:700;margin-bottom:16px;font-size:13px}.footer{margin-top:16px;border-top:1px solid #e5e7eb;padding-top:8px;font-size:10px;color:#9ca3af;display:flex;justify-content:space-between}</style></head><body><button class="no-print print-btn" onclick="window.print()">🖨️ Guardar como PDF / Imprimir</button><div class="hdr"><div><h1>Transporte Emporium</h1><div style="font-weight:700;margin-top:4px">Chequeo Pre-Viaje</div><div style="color:#6b7280">${v?.code || '—'} · ${v?.plate || '—'}</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:700">${cl.date}</div><div style="margin:4px 0">${cl.time || ''}</div>${statusBadge}</div></div><div class="info"><div><label>Chofer</label><strong>${d?.name || '—'}</strong></div><div><label>Unidad</label><strong>${v?.code || '—'}</strong></div><div><label>Placa</label><strong>${v?.plate || '—'}</strong></div><div><label>KM Odómetro</label><strong>${(cl.kmOdometer || 0).toLocaleString()}</strong></div></div><table><tr><th>Ítem</th><th>Categoría</th><th>Estado</th></tr>${rows}</table>${notas ? `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-bottom:14px"><div style="font-size:10px;text-transform:uppercase;color:#6b7280;font-weight:700;margin-bottom:4px">Novedades reportadas</div><div>${notas}</div></div>` : ''}<div class="sf"><div class="sf-box"><div class="sf-title">Firma del chofer</div>${sig ? `<img src="${sig}" style="width:100%;max-height:90px;object-fit:contain;background:#ffffff;border:1px solid #e5e7eb;border-radius:6px">` : '<div style="height:70px;background:#f9fafb;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px">Sin firma</div>'}</div><div class="sf-box"><div class="sf-title">Foto de respaldo</div>${foto ? `<img src="${foto}" style="width:100%;max-height:120px;object-fit:cover;border-radius:6px">` : '<div style="height:90px;background:#f9fafb;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:11px">Sin foto</div>'}</div></div><div class="footer"><span>Transporte Emporium · Sistema de Control de Flota</span><span>Generado: ${new Date().toLocaleString('es-VE')}</span></div></body></html>`);
     w.document.close(); w.focus();
   };
   return (
@@ -5055,12 +9768,17 @@ function ChecklistCoordTab({ checklists, vehicles, drivers, config, saveChecklis
           </select>
         </div>
       </div>
-      <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
+      <div className="flex items-center gap-2 flex-wrap bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
           <input type="date" value={deleteUntil} onChange={e => setDeleteUntil(e.target.value)}
             className="border border-rose-300 rounded-lg px-3 py-1.5 text-sm font-mono bg-white text-stone-900 outline-none focus:border-rose-500" />
+          <select value={deleteVehicle} onChange={e => setDeleteVehicle(e.target.value)}
+            className="border border-rose-300 rounded-lg px-3 py-1.5 text-sm bg-white text-stone-900 outline-none focus:border-rose-500">
+            <option value="all">🚛 Todas las unidades</option>
+            {vehicles.map(v => <option key={v.id} value={v.id}>{v.code} · {v.plate}</option>)}
+          </select>
           <button onClick={handleDeleteOld}
             className="px-4 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold flex items-center gap-1">
-            🗑️ Borrar anteriores a esta fecha
+            🗑️ Borrar anteriores
           </button>
         </div>
       {filtered.length === 0 ? (
