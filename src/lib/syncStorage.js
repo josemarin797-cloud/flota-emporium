@@ -250,6 +250,8 @@ export const storageAPI = {
 // REALTIME: escuchar cambios de otros usuarios
 // ============================================================
 export function startRealtimeListeners(onChange) {
+  // Realtime desactivado — causa remount de la app
+  return () => {};
   const channels = [];
 
   for (const key of SYNCED_KEYS) {
