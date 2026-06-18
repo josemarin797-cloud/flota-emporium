@@ -783,6 +783,46 @@ export default function App() {
     return () => clearInterval(iv);
   }, []);
 
+  // Sync de viajes a Supabase cada 60s — completamente independiente del flujo del chofer
+  useEffect(() => {
+    const syncTrips = async () => {
+      try {
+        const local = JSON.parse(localStorage.getItem(KEYS.TRIPS) || '[]');
+        if (!local.length) return;
+        // Verificar cuáles ya existen en Supabase
+        const ids = local.slice(0, 50).map(t => t.id).join(',');
+        const existing = await sbFetch(`trips?id=in.(${ids})&select=id`);
+        const existingIds = new Set(Array.isArray(existing) ? existing.map(r => r.id) : []);
+        const pending = local.filter(t => !existingIds.has(t.id));
+        for (const trip of pending.slice(0, 10)) {
+          try {
+            await fetch(`${SB_URL}/rest/v1/trips`, {
+              method: 'POST',
+              headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+              body: JSON.stringify({
+                id: trip.id, driver_id: trip.driverId, vehicle_id: trip.vehicleId,
+                origin_branch_id: trip.originBranchId, destination_branch_id: trip.destinationBranchId,
+                custom_dest_name: trip.customDestName || '', custom_dest_type: trip.customDestType || '',
+                km_start: trip.kmStart, km_end: trip.kmEnd, km_traveled: trip.kmTraveled,
+                start_date: trip.startDate, start_time: trip.startTime,
+                end_date: trip.endDate, end_time: trip.endTime,
+                trip_minutes: trip.tripMinutes, time_at_branch_prev_minutes: trip.timeAtBranchPrevMinutes,
+                liters: trip.liters, fuel_price: trip.fuelPrice, cost: trip.cost,
+                deliveries: trip.deliveries, trips_count: trip.tripsCount,
+                route: trip.route, fuel_loaded: trip.fuelLoaded || 0,
+                notes: trip.notes || '', arrival_notes: trip.arrivalNotes || '',
+                created_at: trip.createdAt,
+              }),
+            });
+          } catch(e) {}
+        }
+      } catch(e) {}
+    };
+    const iv = setInterval(syncTrips, 60000);
+    syncTrips(); // correr una vez al iniciar
+    return () => clearInterval(iv);
+  }, []);
+
   const handleLogin = (role, user) => {
     setCurrentUser(user);
     setView(role);
