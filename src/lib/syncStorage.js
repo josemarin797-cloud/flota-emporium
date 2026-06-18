@@ -15,7 +15,7 @@ const KEY_TO_TABLE = {
   'emp:v4:vehicles': 'vehicles',
   'emp:v4:drivers': 'drivers',
   'emp:v4:branches': 'branches',
-  'emp:v4:trips': 'trips',
+
   'emp:v4:active_trips': 'active_trips',
   'emp:v4:archived_months': 'archived_months',
   'emp:v4:photos': 'photos',
