@@ -2090,32 +2090,34 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     } else {
       sessionStorage.removeItem('emp:preOrigin');
     }
-    // Sync viajes pendientes a Supabase al iniciar nuevo viaje
-    try {
-      const local = JSON.parse(localStorage.getItem(KEYS.TRIPS) || '[]');
-      local.slice(0, 20).forEach(trip => {
-        if (!trip.driverId || !trip.vehicleId) return;
-        fetch(`${SB_URL}/rest/v1/trips`, {
-          method: 'POST',
-          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-          body: JSON.stringify({
-            id: trip.id, driver_id: trip.driverId, vehicle_id: trip.vehicleId,
-            origin_branch_id: trip.originBranchId || '', destination_branch_id: trip.destinationBranchId || '',
-            custom_dest_name: trip.customDestName || '', custom_dest_type: trip.customDestType || '',
-            km_start: trip.kmStart || 0, km_end: trip.kmEnd || 0, km_traveled: trip.kmTraveled || 0,
-            start_date: trip.startDate || '', start_time: trip.startTime || '',
-            end_date: trip.endDate || '', end_time: trip.endTime || '',
-            trip_minutes: trip.tripMinutes || 0, time_at_branch_prev_minutes: trip.timeAtBranchPrevMinutes || 0,
-            liters: trip.liters || 0, fuel_price: trip.fuelPrice || 0, cost: trip.cost || 0,
-            deliveries: trip.deliveries || 0, trips_count: trip.tripsCount || 1,
-            route: trip.route || 'LOCAL', fuel_loaded: trip.fuelLoaded || 0,
-            notes: trip.notes || '', arrival_notes: trip.arrivalNotes || '',
-            created_at: trip.createdAt || Date.now(),
-          }),
-        }).catch(() => {});
-      });
-    } catch(e) {}
     setCurrentTrip(null); setTripFormKey(k => k + 1); setStep('start');
+    // Sync viajes a Supabase — 3 segundos después para no interferir con React
+    window.setTimeout(() => {
+      try {
+        const local = JSON.parse(localStorage.getItem(KEYS.TRIPS) || '[]');
+        local.slice(0, 20).forEach(trip => {
+          if (!trip.driverId || !trip.vehicleId) return;
+          fetch(`${SB_URL}/rest/v1/trips`, {
+            method: 'POST',
+            headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+            body: JSON.stringify({
+              id: trip.id, driver_id: trip.driverId, vehicle_id: trip.vehicleId,
+              origin_branch_id: trip.originBranchId || '', destination_branch_id: trip.destinationBranchId || '',
+              custom_dest_name: trip.customDestName || '', custom_dest_type: trip.customDestType || '',
+              km_start: trip.kmStart || 0, km_end: trip.kmEnd || 0, km_traveled: trip.kmTraveled || 0,
+              start_date: trip.startDate || '', start_time: trip.startTime || '',
+              end_date: trip.endDate || '', end_time: trip.endTime || '',
+              trip_minutes: trip.tripMinutes || 0, time_at_branch_prev_minutes: trip.timeAtBranchPrevMinutes || 0,
+              liters: trip.liters || 0, fuel_price: trip.fuelPrice || 0, cost: trip.cost || 0,
+              deliveries: trip.deliveries || 0, trips_count: trip.tripsCount || 1,
+              route: trip.route || 'LOCAL', fuel_loaded: trip.fuelLoaded || 0,
+              notes: trip.notes || '', arrival_notes: trip.arrivalNotes || '',
+              created_at: trip.createdAt || Date.now(),
+            }),
+          }).catch(() => {});
+        });
+      } catch(e) {}
+    }, 3000);
   }; // mantiene camión seleccionado
   const handleWaitEnd = (tripId, waitMin) => {
     if (!waitMin || waitMin <= 0) return;
