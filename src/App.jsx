@@ -141,9 +141,10 @@ const loadSBTrips = async () => {
 
 // Guardar un viaje completado en Supabase
 const saveSBTrip = async (trip) => {
-  return sbFetch('trips', {
+  try {
+  return await sbFetch('trips', {
     method: 'POST',
-    headers: { 'Prefer': 'return=minimal', 'on-conflict': 'id' },
+    headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
     body: JSON.stringify({
       id: trip.id,
       driver_id: trip.driverId,
@@ -173,6 +174,7 @@ const saveSBTrip = async (trip) => {
       created_at: trip.createdAt,
     }),
   });
+  } catch(e) { console.warn('saveSBTrip error:', e); return null; }
 };
 
 // ============================================================
@@ -2044,8 +2046,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     };
 
     saveTrips([...trips, completed]);
-    // Sincronizar viaje a Supabase para que el coordinador lo vea en tiempo real
-    saveSBTrip(completed).catch(() => {}); // silencioso si no hay internet
+    // Sincronizar viaje a Supabase (fire-and-forget, nunca interrumpe el flujo)
+    setTimeout(() => saveSBTrip(completed).catch(() => {}), 100);
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
     const newKm = Number(data.kmEnd);
     saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, ...(newKm > x.currentKm ? { currentKm: newKm } : {}), fuelLevel: newFuelLevel } : x));
