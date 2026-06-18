@@ -105,6 +105,76 @@ const saveSBChecklist = async (checklist) => {
   });
 };
 
+// Cargar todos los viajes desde Supabase
+const loadSBTrips = async () => {
+  const data = await sbFetch('trips?order=created_at.desc&limit=2000');
+  if (!Array.isArray(data)) return null;
+  return data.map(r => ({
+    id: r.id,
+    driverId: r.driver_id,
+    vehicleId: r.vehicle_id,
+    originBranchId: r.origin_branch_id,
+    destinationBranchId: r.destination_branch_id,
+    customDestName: r.custom_dest_name || '',
+    customDestType: r.custom_dest_type || '',
+    kmStart: r.km_start,
+    kmEnd: r.km_end,
+    kmTraveled: r.km_traveled,
+    startDate: r.start_date,
+    startTime: r.start_time,
+    endDate: r.end_date,
+    endTime: r.end_time,
+    tripMinutes: r.trip_minutes,
+    timeAtBranchPrevMinutes: r.time_at_branch_prev_minutes,
+    liters: r.liters,
+    fuelPrice: r.fuel_price,
+    cost: r.cost,
+    deliveries: r.deliveries,
+    tripsCount: r.trips_count,
+    route: r.route,
+    fuelLoaded: r.fuel_loaded || 0,
+    notes: r.notes || '',
+    arrivalNotes: r.arrival_notes || '',
+    createdAt: r.created_at,
+  }));
+};
+
+// Guardar un viaje completado en Supabase
+const saveSBTrip = async (trip) => {
+  return sbFetch('trips', {
+    method: 'POST',
+    headers: { 'Prefer': 'return=minimal', 'on-conflict': 'id' },
+    body: JSON.stringify({
+      id: trip.id,
+      driver_id: trip.driverId,
+      vehicle_id: trip.vehicleId,
+      origin_branch_id: trip.originBranchId,
+      destination_branch_id: trip.destinationBranchId,
+      custom_dest_name: trip.customDestName || '',
+      custom_dest_type: trip.customDestType || '',
+      km_start: trip.kmStart,
+      km_end: trip.kmEnd,
+      km_traveled: trip.kmTraveled,
+      start_date: trip.startDate,
+      start_time: trip.startTime,
+      end_date: trip.endDate,
+      end_time: trip.endTime,
+      trip_minutes: trip.tripMinutes,
+      time_at_branch_prev_minutes: trip.timeAtBranchPrevMinutes,
+      liters: trip.liters,
+      fuel_price: trip.fuelPrice,
+      cost: trip.cost,
+      deliveries: trip.deliveries,
+      trips_count: trip.tripsCount,
+      route: trip.route,
+      fuel_loaded: trip.fuelLoaded || 0,
+      notes: trip.notes || '',
+      arrival_notes: trip.arrivalNotes || '',
+      created_at: trip.createdAt,
+    }),
+  });
+};
+
 // ============================================================
 // CHECKLIST PRE-VIAJE — 14 ítems, 3 opciones cada uno
 // ok=verde(palomita), warn=amarillo(letra), bad=rojo(letra)
@@ -560,7 +630,19 @@ export default function App() {
           setBranches(merged);
           persist(KEYS.BRANCHES, merged);
         }
-        if (reads[3]) setTrips(reads[3]);
+        // Cargar viajes: mergear localStorage + Supabase (Supabase tiene prioridad por id)
+        const localTrips = reads[3] || [];
+        const sbTrips = await loadSBTrips();
+        if (sbTrips !== null && sbTrips.length > 0) {
+          const sbIds = new Set(sbTrips.map(t => t.id));
+          const onlyLocal = localTrips.filter(t => !sbIds.has(t.id));
+          const merged = [...sbTrips, ...onlyLocal].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+          setTrips(merged);
+          // Actualizar localStorage con datos frescos
+          try { localStorage.setItem(KEYS.TRIPS, JSON.stringify(merged)); } catch(e) {}
+        } else if (localTrips.length > 0) {
+          setTrips(localTrips);
+        }
         if (reads[4]) setActiveTrips(reads[4]);
         if (reads[5]) setArchivedMonths(reads[5]);
         if (reads[6]) setConfig(savedCfg);
@@ -1931,6 +2013,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     };
 
     saveTrips([...trips, completed]);
+    // Sincronizar viaje a Supabase para que el coordinador lo vea en tiempo real
+    saveSBTrip(completed).catch(() => {}); // silencioso si no hay internet
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
     const newKm = Number(data.kmEnd);
     saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, ...(newKm > x.currentKm ? { currentKm: newKm } : {}), fuelLevel: newFuelLevel } : x));
