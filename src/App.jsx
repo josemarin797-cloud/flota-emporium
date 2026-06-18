@@ -1932,7 +1932,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     saveTrips([...trips, completed]);
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
-    // Sync a Supabase — completamente aislado, 2s después para no interferir
+    // Sync a Supabase — completamente aislado, 2s después
     window.setTimeout(() => {
       try {
         fetch(`${SB_URL}/rest/v1/trips`, {
