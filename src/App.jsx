@@ -2004,7 +2004,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       : (config.discordWebhookByVehicle?.[v?.id] || config.discordWebhookGeneral);
     sendDiscordNotification(webhookUrl, {
       title: `✅ VIAJE COMPLETADO · ${v.code}`,
-      description: `**${currentDriver.name}** llegó a **${destName}** desde **${origin?.name}**`,
+      description: `**${currentDriver.name}** llegó desde **${resolveOriginName(currentTrip, branches)}** a **${destName}**`,
       color: 0x059669,
       fields: [
         { name: '📍 KM Salida', value: currentTrip.kmStart.toLocaleString(), inline: true },
@@ -2994,15 +2994,16 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
 // ============================================================
 function SurtirCombustibleForm({ trip, vehicle, driver, fuelRecords = [], saveFuelRecords, config, vehicles, saveVehicles, onDone }) {
   const isL300 = vehicle?.type === 'L300' || vehicle?.code?.includes('L300') || vehicle?.plate === 'A15BP7M';
-  const pricePerLiter = config?.fuelPrice || 0.5;
   const [fuelLiters, setFuelLiters] = useState(isL300 ? '30' : '');
+  const [fuelPriceInput, setFuelPriceInput] = useState(isL300 ? '0.50' : '');
   const [tankLevel, setTankLevel] = useState('');
   const [fuelPhoto, setFuelPhoto] = useState(null);
   const [nombreBomba, setNombreBomba] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const pricePerLiter = isL300 ? 0.5 : (Number(fuelPriceInput) || 0);
   const totalCost = isL300 ? 15 : (Number(fuelLiters) * pricePerLiter);
-  const valid = isL300 ? true : (Number(fuelLiters) > 0);
+  const valid = isL300 ? true : (Number(fuelLiters) > 0 && pricePerLiter > 0);
 
   const handleGuardar = async () => {
     setSaving(true);
@@ -3014,7 +3015,7 @@ function SurtirCombustibleForm({ trip, vehicle, driver, fuelRecords = [], saveFu
       date: now.toISOString().slice(0, 10), time: now.toTimeString().slice(0, 5),
       km: trip?.kmEnd || vehicle?.currentKm || 0,
       liters: isL300 ? 30 : Number(fuelLiters),
-      pricePerLiter: isL300 ? 0.5 : pricePerLiter,
+      pricePerLiter: pricePerLiter,
       tankLevelBefore: tankLevel,
       createdAt: Date.now(),
       notes: nombreBomba ? nombreBomba : (isL300 ? 'Bomba gasolinera' : 'Gasoil · Tanque'),
@@ -3112,7 +3113,12 @@ function SurtirCombustibleForm({ trip, vehicle, driver, fuelRecords = [], saveFu
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">🛢️ Litros cargados *</label>
             <input type="number" value={fuelLiters} onChange={e => setFuelLiters(e.target.value)}
               placeholder="Ej: 85" className="w-full border-2 border-stone-200 rounded-xl px-4 py-3 text-2xl font-black text-center focus:border-amber-400 focus:outline-none" />
-            {Number(fuelLiters) > 0 && (
+            <div className="mt-3">
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1.5">💵 Precio por litro ($/L) *</label>
+              <input type="number" step="0.01" value={fuelPriceInput} onChange={e => setFuelPriceInput(e.target.value)}
+                placeholder="Ej: 0.75" className="w-full border-2 border-stone-200 rounded-xl px-4 py-3 text-2xl font-black text-center focus:border-amber-400 focus:outline-none" />
+            </div>
+            {Number(fuelLiters) > 0 && pricePerLiter > 0 && (
               <div className="text-center text-sm mt-1.5 font-mono text-amber-700">
                 {fuelLiters}L × ${pricePerLiter.toFixed(2)} = <b>${totalCost.toFixed(2)}</b>
               </div>
@@ -3441,6 +3447,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
   const [confirmedMinutes, setConfirmedMinutes] = useState(trip.timeAtDestinationMinutes || null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showZonaDecision, setShowZonaDecision] = useState(false);
+  const [showSubMenu, setShowSubMenu] = useState(false);
   const isZonaDestino = ZONAS_MULTISECTOR.includes(trip.destinationBranchId);
   const zonaName = branches.find(b => b.id === trip.destinationBranchId)?.name || '';
   const sectorName = trip.caracasDestName || '';
@@ -3508,10 +3515,12 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
     const wh2 = isFuelDest
       ? (vehicle?.maintenanceWebhook || config.discordWebhookMaintenance || config.discordWebhookGeneral)
       : (config.discordWebhookByVehicle?.[trip.vehicleId] || config.discordWebhookGeneral);
-    const depOriginName = resolveOriginName({...trip, originBranchId: trip.destinationBranchId, caracasOriginName: trip.caracasDestName}, branches);
+    const depOriginName = trip.caracasDestName
+      ? `${trip.caracasDestName} · ${branches.find(b=>b.id===trip.destinationBranchId)?.name || ''}`
+      : resolveOriginName({...trip, originBranchId: trip.destinationBranchId, caracasOriginName: trip.caracasDestName}, branches);
     if (wh2) sendDiscordNotification(wh2, {
       title: `🚪 Salida de ${depOriginName} · ${vehicle?.code}`,
-      description: `⏱️ Tiempo en ${depOriginName}: ${minutes > 59 ? Math.floor(minutes / 60) + 'h ' + minutes % 60 + 'min' : minutes + ' min'}`,
+      description: `⏱️ Tiempo en ${trip.caracasDestName || depOriginName}: ${minutes > 59 ? Math.floor(minutes / 60) + 'h ' + minutes % 60 + 'min' : minutes + ' min'}`,
       color: 0x8b5cf6,
       footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` }
     }).catch(() => {});
@@ -3678,14 +3687,35 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
                       <div className="text-xs font-normal text-emerald-600 mt-0.5">CDE, Casarapa, Miranda, Guatire...</div>
                     </div>
                   </button>
-                  <button onClick={() => { setShowZonaDecision(false); onNewTrip({ preOriginId: trip.destinationBranchId, preOriginSector: sectorName, preDestId: 'otro' }); }}
-                    className="w-full py-3 px-4 rounded-xl border-2 border-purple-200 bg-purple-50 text-purple-800 font-bold text-sm flex items-center gap-3 hover:bg-purple-100 active:bg-purple-200 transition">
-                    <span className="text-2xl">📍</span>
-                    <div className="text-left">
-                      <div>Otro destino</div>
-                      <div className="text-xs font-normal text-purple-600 mt-0.5">Proveedor, gestión, trámite...</div>
+                  {!showSubMenu ? (
+                    <button onClick={() => setShowSubMenu(true)}
+                      className="w-full py-3 px-4 rounded-xl border-2 border-stone-200 bg-stone-50 text-stone-700 font-bold text-sm flex items-center gap-3 hover:bg-stone-100 active:bg-stone-200 transition">
+                      <span className="text-2xl">⛽🔧</span>
+                      <div className="text-left">
+                        <div>Bomba / Taller</div>
+                        <div className="text-xs font-normal text-stone-500 mt-0.5">Combustible o avería</div>
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="border-2 border-stone-200 rounded-xl overflow-hidden">
+                      <div className="bg-stone-100 px-4 py-2 text-xs font-bold text-stone-500 uppercase tracking-wider text-center">⛽🔧 Bomba / Taller</div>
+                      <div className="grid grid-cols-2 gap-0">
+                        <button onClick={() => { setShowZonaDecision(false); setShowSubMenu(false); onNewTrip({ preOriginId: trip.destinationBranchId, preOriginSector: sectorName, preDestId: 'surtir' }); }}
+                          className="py-5 flex flex-col items-center gap-2 border-r border-stone-200 bg-amber-50 hover:bg-amber-100 active:bg-amber-200 transition">
+                          <span className="text-4xl">⛽</span>
+                          <div className="font-bold text-amber-800 text-sm">Bomba</div>
+                          <div className="text-xs text-amber-600">Surtir combustible</div>
+                        </button>
+                        <button onClick={() => { setShowZonaDecision(false); setShowSubMenu(false); onNewTrip({ preOriginId: trip.destinationBranchId, preOriginSector: sectorName, preDestId: 'taller' }); }}
+                          className="py-5 flex flex-col items-center gap-2 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 transition">
+                          <span className="text-4xl">🔧</span>
+                          <div className="font-bold text-rose-800 text-sm">Taller</div>
+                          <div className="text-xs text-rose-600">Avería / asistencia</div>
+                        </button>
+                      </div>
+                      <button onClick={() => setShowSubMenu(false)} className="w-full py-2 text-stone-400 text-xs border-t border-stone-200 bg-white">← Volver</button>
                     </div>
-                  </button>
+                  )}
                   <button onClick={() => setShowZonaDecision(false)}
                     className="w-full py-2 text-stone-400 text-sm hover:text-stone-600">Cancelar</button>
                 </div>
