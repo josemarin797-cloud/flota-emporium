@@ -184,8 +184,8 @@ const resolveDestName = (trip, branches) => {
   if (trip.destinationBranchId === 'taller') return '🔧 Taller';
   if (trip.destinationBranchId === 'otro') return `📍 ${trip.customDestName || 'Otro'}`;
   const branchName = branches?.find(b => b.id === trip.destinationBranchId)?.name || trip.destinationBranchId || '—';
-  // Para zonas multisector mostrar el sector específico
-  if (trip.caracasDestName) return `${branchName} - ${trip.caracasDestName}`;
+  // Para zonas multisector mostrar solo lo que escribió el chofer
+  if (trip.caracasDestName) return trip.caracasDestName;
   if (trip.customDestName && ZONAS_MULTISECTOR?.includes(trip.destinationBranchId)) return trip.customDestName;
   return branchName;
 };
@@ -2916,11 +2916,11 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
           {ZONAS_MULTISECTOR.includes(form.destinationBranchId) && (
             <div className="mt-3 bg-orange-50 border border-orange-300 rounded-xl p-3">
               <label className="text-xs font-bold text-orange-700 uppercase tracking-wider block mb-1">
-                📍 ¿A qué sector de {branches.find(b => b.id === form.destinationBranchId)?.name}?
+                📍 ¿A qué lugar vas?
               </label>
               <input type="text" value={caracasDestName} onChange={e => setCaracasDestName(e.target.value)}
-                placeholder="Ej: sector, urbanización, lugar específico..." className="dark-input w-full" autoFocus />
-              <p className="text-xs text-orange-600 mt-1">Escribe el sector o lugar específico al que te diriges.</p>
+                placeholder="Ej: Guatire el Márquez, Rimara, La Candelaria..." className="dark-input w-full" autoFocus />
+              <p className="text-xs text-orange-600 mt-1">Escribe el lugar específico al que te diriges.</p>
             </div>
           )}
         </div>
@@ -2978,7 +2978,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
         </div>
       <div className="grid grid-cols-2 gap-2">
         <button onClick={onBack} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200 hover:bg-stone-200">← Atrás</button>
-        <button onClick={() => onStart({...form, tripNotes, tripPhotos, customDestName: form.destinationBranchId === 'otro' ? customDestName.trim() : ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? `${branches.find(b=>b.id===form.destinationBranchId)?.name} - ${caracasDestName.trim()}` : '', customDestType: form.destinationBranchId === 'otro' ? customDestType : '', caracasDestName: ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', caracasOriginName: ZONAS_MULTISECTOR.includes(form.originBranchId) ? caracasOriginName.trim() : ''})} disabled={!valid}
+        <button onClick={() => onStart({...form, tripNotes, tripPhotos, customDestName: form.destinationBranchId === 'otro' ? customDestName.trim() : ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', customDestType: form.destinationBranchId === 'otro' ? customDestType : '', caracasDestName: ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', caracasOriginName: ZONAS_MULTISECTOR.includes(form.originBranchId) ? caracasOriginName.trim() : ''})} disabled={!valid}
           className={`py-3 rounded-xl font-bold text-white transition shadow-lg flex items-center justify-center gap-2 ${valid ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-emerald-700/30 active:scale-[0.98]' : 'bg-stone-100 text-stone-300'}`}>
           <Play className="w-5 h-5" /> INICIAR
         </button>
@@ -3675,8 +3675,8 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
                     className="w-full py-3 px-4 rounded-xl border-2 border-orange-200 bg-orange-50 text-orange-800 font-bold text-sm flex items-center gap-3 hover:bg-orange-100 active:bg-orange-200 transition">
                     <span className="text-2xl">🏙️</span>
                     <div className="text-left">
-                      <div>Otro sector en {zonaName}</div>
-                      <div className="text-xs font-normal text-orange-600 mt-0.5">Rimara, Quinta Crespo, La Candelaria...</div>
+                      <div>Otro sector / Lugar</div>
+                      <div className="text-xs font-normal text-orange-600 mt-0.5">Otro sitio en {zonaName} o zona cercana</div>
                     </div>
                   </button>
                   <button onClick={() => { setShowZonaDecision(false); onNewTrip({ preOriginId: trip.destinationBranchId, preOriginSector: sectorName }); }}
