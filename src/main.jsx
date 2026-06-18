@@ -61,7 +61,6 @@ function Root() {
   const [loadTotal, setLoadTotal] = useState(0);
   const [loadCurrent, setLoadCurrent] = useState('');
   const [error, setError] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let stopRealtime = null;
@@ -75,18 +74,15 @@ function Root() {
           setLoadCurrent(current);
         });
 
-        // 2) Empezar a escuchar cambios en tiempo real
+        // 2) Escuchar cambios en tiempo real — sin remontar la app
         stopRealtime = startRealtimeListeners((key, value) => {
-          // Cuando llega un cambio remoto, forzamos un refresh de la app
-          // (incrementa una key que React usa para remontar el componente)
-          setRefreshKey((k) => k + 1);
+          // No hacemos nada que desmonte la app
         });
 
         setReady(true);
       } catch (e) {
         console.error('Error inicial:', e);
         setError(e.message || 'Error de conexión');
-        // Aunque haya error, dejamos arrancar la app con cache local
         setTimeout(() => setReady(true), 1000);
       }
     })();
@@ -115,8 +111,7 @@ function Root() {
     return <Loader step={loadStep} total={loadTotal} current={loadCurrent} />;
   }
 
-  // refreshKey en la key fuerza un re-mount cuando llega un cambio realtime
-  return <App key={refreshKey} />;
+  return <App />;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
