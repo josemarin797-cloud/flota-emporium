@@ -575,7 +575,38 @@ function TVDashboard({ vehicles, activeTrips, trips, drivers, branches }) {
   );
 }
 
-export default function App() {
+// Error boundary para atrapar crashes y mostrarlos en pantalla
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  componentDidCatch(e, info) { console.error('APP CRASH:', e, info); }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{padding:20, background:'#1a1a1a', color:'white', minHeight:'100vh', fontFamily:'monospace'}}>
+          <div style={{background:'#ff4444', padding:12, borderRadius:8, marginBottom:16, fontSize:18, fontWeight:'bold'}}>
+            💥 ERROR — copia este texto y mándalo
+          </div>
+          <div style={{background:'#333', padding:12, borderRadius:8, whiteSpace:'pre-wrap', wordBreak:'break-all', fontSize:13}}>
+            {String(this.state.error)}
+            {'\n\n'}
+            {this.state.error?.stack}
+          </div>
+          <button onClick={()=>window.location.reload()} style={{marginTop:16,padding:'10px 20px',background:'#10b981',color:'white',border:'none',borderRadius:8,fontSize:16,cursor:'pointer'}}>
+            🔄 Recargar app
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function AppWithBoundary() {
+  return <ErrorBoundary><App /></ErrorBoundary>;
+}
+
+function App() {
   const [view, setView] = useState('welcome');
   const [currentUser, setCurrentUser] = useState(null);
   const [vehicles, setVehicles] = useState(INITIAL_VEHICLES);
