@@ -74,10 +74,8 @@ function Root() {
           setLoadCurrent(current);
         });
 
-        // 2) Escuchar cambios en tiempo real — sin remontar la app
-        stopRealtime = startRealtimeListeners((key, value) => {
-          // No hacemos nada que desmonte la app
-        });
+        // 2) Realtime desactivado — no es necesario, los datos se sincronizan por polling
+        // stopRealtime = startRealtimeListeners(...)
 
         setReady(true);
       } catch (e) {
