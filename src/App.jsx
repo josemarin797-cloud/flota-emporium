@@ -1932,6 +1932,29 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     saveTrips([...trips, completed]);
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
+    // Sync a Supabase — completamente aislado, 2s después para no interferir
+    window.setTimeout(() => {
+      try {
+        fetch(`${SB_URL}/rest/v1/trips`, {
+          method: 'POST',
+          headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({
+            id: completed.id, driver_id: completed.driverId, vehicle_id: completed.vehicleId,
+            origin_branch_id: completed.originBranchId, destination_branch_id: completed.destinationBranchId,
+            custom_dest_name: completed.customDestName || '', custom_dest_type: completed.customDestType || '',
+            km_start: completed.kmStart, km_end: completed.kmEnd, km_traveled: completed.kmTraveled,
+            start_date: completed.startDate, start_time: completed.startTime,
+            end_date: completed.endDate, end_time: completed.endTime,
+            trip_minutes: completed.tripMinutes, time_at_branch_prev_minutes: completed.timeAtBranchPrevMinutes,
+            liters: completed.liters, fuel_price: completed.fuelPrice, cost: completed.cost,
+            deliveries: completed.deliveries, trips_count: completed.tripsCount,
+            route: completed.route, fuel_loaded: completed.fuelLoaded || 0,
+            notes: completed.notes || '', arrival_notes: completed.arrivalNotes || '',
+            created_at: completed.createdAt,
+          }),
+        }).catch(() => {});
+      } catch(e) {}
+    }, 2000);
     const newKm = Number(data.kmEnd);
     saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, ...(newKm > x.currentKm ? { currentKm: newKm } : {}), fuelLevel: newFuelLevel } : x));
 
