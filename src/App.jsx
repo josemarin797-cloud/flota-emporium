@@ -71,6 +71,25 @@ const sbFetch = async (path, options = {}) => {
 };
 
 // Cargar todos los checklists desde Supabase
+const loadSBTrips = async () => {
+  const data = await sbFetch('trips?order=created_at.desc&limit=1000');
+  if (!Array.isArray(data)) return null;
+  return data.filter(r => r.driver_id).map(r => ({
+    id: r.id, driverId: r.driver_id, vehicleId: r.vehicle_id,
+    originBranchId: r.origin_branch_id, destinationBranchId: r.destination_branch_id,
+    customDestName: r.custom_dest_name || '', customDestType: r.custom_dest_type || '',
+    kmStart: r.km_start, kmEnd: r.km_end, kmTraveled: r.km_traveled,
+    startDate: r.start_date, startTime: r.start_time,
+    endDate: r.end_date, endTime: r.end_time,
+    tripMinutes: r.trip_minutes, timeAtBranchPrevMinutes: r.time_at_branch_prev_minutes,
+    liters: r.liters, fuelPrice: r.fuel_price, cost: r.cost,
+    deliveries: r.deliveries, tripsCount: r.trips_count,
+    route: r.route, fuelLoaded: r.fuel_loaded || 0,
+    notes: r.notes || '', arrivalNotes: r.arrival_notes || '',
+    createdAt: r.created_at,
+  }));
+};
+
 const loadSBChecklists = async () => {
   const data = await sbFetch('checklists?order=created_at.desc&limit=500');
   if (!Array.isArray(data)) return null;
@@ -562,6 +581,17 @@ export default function App() {
         }
         if (reads[3]) setTrips(reads[3]);
         if (reads[4]) setActiveTrips(reads[4]);
+        // Cargar viajes desde Supabase y mergear con localStorage
+        try {
+          const sbTrips = await loadSBTrips();
+          if (sbTrips && sbTrips.length > 0) {
+            const local = reads[3] || [];
+            const sbIds = new Set(sbTrips.map(t => t.id));
+            const onlyLocal = local.filter(t => !sbIds.has(t.id));
+            const merged = [...sbTrips, ...onlyLocal].sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+            setTrips(merged);
+          }
+        } catch(e) {}
         if (reads[5]) setArchivedMonths(reads[5]);
         if (reads[6]) setConfig(savedCfg);
         if (reads[7]) setPhotos(reads[7]);
