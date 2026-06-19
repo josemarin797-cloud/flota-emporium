@@ -8208,51 +8208,237 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
     const ds = a.driversSnapshot || drivers;
     const bs = a.branchesSnapshot || branches;
     const label = new Date(a.month+'-15').toLocaleDateString('es-VE',{month:'long',year:'numeric'});
+    const monthMaint = maintRecords.filter(r => r.fecha && r.fecha.startsWith(a.month));
 
-    // Hoja resumen por camión
-    const rs = [];
-    rs.push([`RESUMEN MENSUAL — ${label.toUpperCase()}`, '', '', '', '', '']);
-    rs.push([`Generado: ${new Date().toLocaleString('es-VE')}`, '', '', '', '', '']);
-    rs.push(['', '', '', '', '', '']);
-    rs.push(['Unidad', 'Placa', 'Chofer', 'Viajes', 'KM Total', 'Litros', 'Costo $', 'Entregas']);
-    vs.forEach(v => {
+    // ── Helpers de estilo ──────────────────────────────────────────────
+    const C = { green:'1B4332', medGreen:'166534', lightGreen:'DCFCE7', white:'FFFFFF', offWhite:'F8FAFC', midGray:'6B7280', lightGray:'F3F4F6', amber:'FEF3C7', amberDark:'B45309', red:'FEE2E2', tealGreen:'065F46' };
+    const bdr = () => ({ top:{style:'thin',color:{rgb:'D1D5DB'}}, bottom:{style:'thin',color:{rgb:'D1D5DB'}}, left:{style:'thin',color:{rgb:'D1D5DB'}}, right:{style:'thin',color:{rgb:'D1D5DB'}} });
+    const sc = (ws, r, c, st) => { const addr = XLSX.utils.encode_cell({r,c}); if (!ws[addr]) ws[addr]={t:'s',v:''}; ws[addr].s = st; };
+    const sr = (ws, r, nc, st) => { for(let c=0;c<nc;c++) sc(ws,r,c,st); };
+    const r2 = v => Math.round((v||0)*100)/100;
+    const fmtMin = m => { if(!m&&m!==0) return ''; const h=Math.floor(m/60); const mn=m%60; return h>0?`${h}h ${mn}m`:`${mn}m`; };
+    const kmLText = kml => kml>=5?'EFICIENTE':kml>=3?'REGULAR':kml>0?'BAJO':'SIN DATOS';
+    const kmLColor = kml => kml>=5?C.medGreen:kml>=3?C.amberDark:kml>0?'9B1C1C':C.midGray;
+    const ST = {
+      title: { font:{bold:true,color:{rgb:C.white},sz:14,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:C.green}}, alignment:{horizontal:'center',vertical:'center'} },
+      subtitle: { font:{italic:true,color:{rgb:C.white},sz:9,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:C.medGreen}}, alignment:{horizontal:'center'} },
+      secHeader: { font:{bold:true,color:{rgb:C.white},sz:10,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:C.green}}, border:bdr(), alignment:{horizontal:'left'} },
+      colHeader: { font:{bold:true,color:{rgb:C.white},sz:9,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:C.medGreen}}, border:bdr(), alignment:{horizontal:'center',wrapText:true} },
+      dataEven: { font:{color:{rgb:'111827'},sz:9,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:C.offWhite}}, border:bdr(), alignment:{horizontal:'left'} },
+      dataOdd: { font:{color:{rgb:'111827'},sz:9,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'FFFFFF'}}, border:bdr(), alignment:{horizontal:'left'} },
+      dataRight: e => ({ font:{color:{rgb:'111827'},sz:9,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:e?C.offWhite:'FFFFFF'}}, border:bdr(), alignment:{horizontal:'right'} }),
+      totalRow: { font:{bold:true,color:{rgb:C.white},sz:10,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:C.green}}, border:bdr(), alignment:{horizontal:'left'} },
+      totalRight: { font:{bold:true,color:{rgb:C.white},sz:10,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:C.green}}, border:bdr(), alignment:{horizontal:'right'} },
+      kpiLabel: { font:{bold:true,color:{rgb:C.white},sz:9,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:C.medGreen}}, border:bdr(), alignment:{horizontal:'center'} },
+      kpiBox: { font:{bold:true,color:{rgb:C.green},sz:20,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:C.lightGreen}}, border:bdr(), alignment:{horizontal:'center',vertical:'center'} },
+    };
+
+    // ── Métricas por vehículo ─────────────────────────────────────────
+    const vMetrics = vs.map(v => {
       const vt = mt.filter(t => t.vehicleId === v.id);
-      if (vt.length === 0) return;
-      const dr = ds.find(d => vt[0]?.driverId === d.id);
-      rs.push([
-        v.code, v.plate, dr?.name || '—',
-        vt.length,
-        vt.reduce((s,t)=>s+(t.kmTraveled||0),0),
-        vt.reduce((s,t)=>s+(t.liters||0),0).toFixed(2),
-        vt.reduce((s,t)=>s+(t.cost||0),0).toFixed(2),
-        vt.reduce((s,t)=>s+(t.deliveries||0),0),
-      ]);
+      const km = vt.reduce((s,t)=>s+(t.kmTraveled||0),0);
+      const lt = vt.reduce((s,t)=>s+(t.liters||0),0);
+      const cs = vt.reduce((s,t)=>s+(t.cost||0),0);
+      const en = vt.reduce((s,t)=>s+(t.deliveries||0),0);
+      const kml = lt>0 ? km/lt : 0;
+      const maint = monthMaint.filter(r=>r.vehicleId===v.id);
+      const maintCost = maint.reduce((s,r)=>s+(Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0),0);
+      const driverIds = [...new Set(vt.map(t=>t.driverId))];
+      const driverNames = driverIds.map(id=>ds.find(d=>d.id===id)?.name||id).join(', ');
+      return { v, vt, km, lt, cs, en, kml, maint, maintCost, driverNames };
+    }).filter(m => m.vt.length > 0 || m.maint.length > 0);
+
+    const totalKm = mt.reduce((s,t)=>s+(t.kmTraveled||0),0);
+    const totalLt = mt.reduce((s,t)=>s+(t.liters||0),0);
+    const totalCs = mt.reduce((s,t)=>s+(t.cost||0),0);
+    const totalMantCs = monthMaint.reduce((s,r)=>s+(Number(r.costoRepuesto)||0)+(Number(r.manoObra)||0),0);
+
+    // ════════════════════════════════════════════════════════════════════
+    // HOJA 1: RESUMEN EJECUTIVO
+    // ════════════════════════════════════════════════════════════════════
+    const NC = 8;
+    const rs = [];
+    rs.push([`REPORTE MENSUAL DE FLOTA — TRANSPORTE EMPORIUM`, ...Array(NC-1).fill('')]);
+    rs.push([`${label.toUpperCase()}   ·   Generado: ${new Date().toLocaleString('es-VE')}   ·   Coordinador: José Marín`, ...Array(NC-1).fill('')]);
+    rs.push(Array(NC).fill(''));
+
+    // KPIs
+    rs.push(['VIAJES', 'KM TOTAL', 'LITROS', 'COSTO COMB.', 'COSTO TALLER', 'GASTO TOTAL', 'EFICIENCIA', 'CAMIONES ACTIVOS']);
+    rs.push([mt.length, r2(totalKm), r2(totalLt), `$${r2(totalCs)}`, `$${r2(totalMantCs)}`, `$${r2(totalCs+totalMantCs)}`, totalLt>0?`${r2(totalKm/totalLt)} km/L`:'—', vMetrics.length]);
+    rs.push(['viajes totales','kilómetros','litros consumidos','combustible','mantenimiento','total flota','promedio flota','unidades']);
+    rs.push(Array(NC).fill(''));
+
+    // Ranking por camión
+    const rankR = rs.length;
+    rs.push(['RENDIMIENTO POR UNIDAD', ...Array(NC-1).fill('')]);
+    rs.push(['Camión','Placa','Chofer(es)','Viajes','KM','Litros','Costo $','Eficiencia']);
+    const ranked = [...vMetrics].sort((a,b)=>b.km-a.km);
+    ranked.forEach(({v,vt,km,lt,cs,kml,driverNames}) => {
+      rs.push([v.code, v.plate, driverNames, vt.length, r2(km), r2(lt), `$${r2(cs)}`, kmLText(kml)]);
     });
-    rs.push(['TOTAL','','',
-      mt.length,
-      mt.reduce((s,t)=>s+(t.kmTraveled||0),0),
-      mt.reduce((s,t)=>s+(t.liters||0),0).toFixed(2),
-      mt.reduce((s,t)=>s+(t.cost||0),0).toFixed(2),
-      mt.reduce((s,t)=>s+(t.deliveries||0),0),
-    ]);
+    rs.push(['TOTAL FLOTA','','',mt.length,r2(totalKm),r2(totalLt),`$${r2(totalCs)}`,'']);
+    rs.push(Array(NC).fill(''));
+
+    // Barras KM
+    const barR = rs.length;
+    rs.push(['KM RECORRIDOS POR UNIDAD', ...Array(NC-1).fill('')]);
+    rs.push(['Unidad','Gráfico','','KM','Eficiencia','','','']);
+    const maxKm = Math.max(...vMetrics.map(m=>m.km), 1);
+    vMetrics.sort((a,b)=>b.km-a.km).forEach(({v,km,kml}) => {
+      const bars = Math.round((km/maxKm)*30);
+      rs.push([v.code, '█'.repeat(bars), '', r2(km), kmLText(kml),'','','']);
+    });
+    rs.push(Array(NC).fill(''));
+
+    // Mantenimientos
+    if (monthMaint.length > 0) {
+      rs.push(['MANTENIMIENTOS DEL MES', ...Array(NC-1).fill('')]);
+      rs.push(['Fecha','Camión','Tipo','Técnico','Trabajo','Repuestos $','M.Obra $','Total $']);
+      monthMaint.forEach(r => {
+        const rep = Number(r.costoRepuesto)||0;
+        const mo = Number(r.manoObra)||0;
+        rs.push([r.fecha||'', r.vehicleCode||'', r.tipo||'', r.tecnico||'', r.trabajo||'', `$${rep.toFixed(2)}`, `$${mo.toFixed(2)}`, `$${(rep+mo).toFixed(2)}`]);
+      });
+      rs.push(['TOTAL TALLER','','','','','','',`$${r2(totalMantCs)}`]);
+    }
+
     const wsRes = XLSX.utils.aoa_to_sheet(rs);
-    wsRes['!cols'] = [{wch:12},{wch:10},{wch:20},{wch:8},{wch:12},{wch:10},{wch:12},{wch:10}];
-    XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen');
+    wsRes['!cols'] = [{wch:18},{wch:22},{wch:22},{wch:10},{wch:12},{wch:10},{wch:14},{wch:14}];
+    wsRes['!rows'] = [{hpt:32},{hpt:16},{hpt:8},{hpt:18},{hpt:30},{hpt:14}];
 
-    // Hoja detalle viajes
-    const dt = [['Fecha','Unidad','Chofer','Origen','Destino','KM','Litros','Costo $','Entregas','Ruta']];
-    mt.sort((a,b)=>a.startDate.localeCompare(b.startDate)).forEach(t => {
-      const v = vs.find(x=>x.id===t.vehicleId);
-      const d = ds.find(x=>x.id===t.driverId);
-      const orig = bs.find(x=>x.id===t.originBranchId)?.name || t.originBranchId;
-      const dest = t.destinationBranchId === 'otro' ? `📍 ${t.customDestName}` : (bs.find(x=>x.id===t.destinationBranchId)?.name || t.destinationBranchId);
-      dt.push([t.startDate, v?.code||'', d?.name||'', orig, dest, t.kmTraveled||0, (t.liters||0).toFixed(2), (t.cost||0).toFixed(2), t.deliveries||0, t.route||'']);
+    // Estilos resumen
+    sr(wsRes, 0, NC, ST.title);
+    sr(wsRes, 1, NC, ST.subtitle);
+    for(let c=0;c<NC;c++) sc(wsRes,3,c,ST.kpiLabel);
+    for(let c=0;c<NC;c++) sc(wsRes,4,c,ST.kpiBox);
+    for(let c=0;c<NC;c++) sc(wsRes,5,c,{font:{color:{rgb:C.midGray},sz:8,italic:true,name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:C.lightGreen}},alignment:{horizontal:'center'}});
+    sr(wsRes, rankR, NC, ST.secHeader);
+    for(let c=0;c<NC;c++) sc(wsRes,rankR+1,c,ST.colHeader);
+    ranked.forEach(({kml},i)=>{
+      const ri=rankR+2+i; const e=i%2===0;
+      for(let c=0;c<NC;c++) sc(wsRes,ri,c,c>=3?ST.dataRight(e):e?ST.dataEven:ST.dataOdd);
+      sc(wsRes,ri,7,{font:{bold:true,color:{rgb:kmLColor(kml)},sz:9,name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:e?C.offWhite:'FFFFFF'}},border:bdr(),alignment:{horizontal:'center'}});
     });
-    const wsDt = XLSX.utils.aoa_to_sheet(dt);
-    wsDt['!cols'] = [{wch:12},{wch:10},{wch:20},{wch:18},{wch:18},{wch:8},{wch:8},{wch:10},{wch:8},{wch:8}];
-    XLSX.utils.book_append_sheet(wb, wsDt, 'Viajes');
+    const totalRankR = rankR+2+ranked.length;
+    for(let c=0;c<NC;c++) sc(wsRes,totalRankR,c,c>=3?ST.totalRight:ST.totalRow);
+    sr(wsRes, barR, NC, ST.secHeader);
+    for(let c=0;c<NC;c++) sc(wsRes,barR+1,c,ST.colHeader);
+    vMetrics.forEach((_,i)=>{ const ri=barR+2+i; const e=i%2===0; for(let c=0;c<NC;c++) sc(wsRes,ri,c,e?ST.dataEven:ST.dataOdd); });
+    wsRes['!merges'] = [
+      {s:{r:0,c:0},e:{r:0,c:NC-1}},{s:{r:1,c:0},e:{r:1,c:NC-1}},
+      {s:{r:rankR,c:0},e:{r:rankR,c:NC-1}},{s:{r:barR,c:0},e:{r:barR,c:NC-1}},
+    ];
+    XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen Ejecutivo');
 
-    XLSX.writeFile(wb, `resumen_flota_${a.month}.xlsx`);
+    // ════════════════════════════════════════════════════════════════════
+    // HOJAS POR CAMIÓN
+    // ════════════════════════════════════════════════════════════════════
+    vMetrics.forEach(({v, vt, km, lt, cs, en, kml, maint, maintCost, driverNames}) => {
+      const rows = [];
+      const NC2 = 14;
+      rows.push([`REPORTE MENSUAL — ${v.code}  (${v.plate})`, ...Array(NC2-1).fill('')]);
+      rows.push([`${label.toUpperCase()}   ·   Chofer(es): ${driverNames}   ·   Ref. consumo: ${v.litersPer100km||13} L/100km`, ...Array(NC2-1).fill('')]);
+      rows.push(Array(NC2).fill(''));
+
+      // KPIs del camión
+      rows.push(['VIAJES','KM','LITROS','COSTO COMB.','COSTO TALLER','GASTO TOTAL','EFICIENCIA','ESTADO']);
+      rows.push([vt.length, r2(km), r2(lt), `$${r2(cs)}`, `$${r2(maintCost)}`, `$${r2(cs+maintCost)}`, lt>0?`${r2(kml)} km/L`:'—', kmLText(kml)]);
+      rows.push(['viajes','kilómetros','litros','combustible','mantenimiento','total','rendimiento','calificación']);
+      rows.push(Array(NC2).fill(''));
+
+      // Barra de eficiencia
+      const bars2 = Math.min(Math.round(kml*4), 30);
+      rows.push([`EFICIENCIA: ${'█'.repeat(bars2)}${'░'.repeat(30-bars2)}  ${lt>0?r2(kml)+' km/L':'Sin datos'}  →  ${kmLText(kml)}`, ...Array(NC2-1).fill('')]);
+      rows.push(Array(NC2).fill(''));
+
+      // Detalle de viajes
+      const detR = rows.length;
+      rows.push(['DETALLE DE VIAJES', ...Array(NC2-1).fill('')]);
+      rows.push(['Fecha','Chofer','Origen','Destino','H.Salida','H.Llegada','KM Salida','KM Llegada','T.Viaje','Espera lugar','KM rec.','Litros','Costo $','Entregas']);
+      const sortedVt = [...vt].sort((a,b)=>a.startDate.localeCompare(b.startDate)||(a.startTime||'').localeCompare(b.startTime||''));
+      sortedVt.forEach(t => {
+        const d = ds.find(x=>x.id===t.driverId);
+        const o = bs.find(x=>x.id===t.originBranchId);
+        const dest = t.destinationBranchId==='otro'?`📍 ${t.customDestName}`:(bs.find(x=>x.id===t.destinationBranchId)?.name||t.destinationBranchId);
+        rows.push([
+          t.startDate, d?.name||'', o?.name||t.originBranchId||'', dest,
+          t.startTime||'', t.endTime||'',
+          t.kmStart||0, t.kmEnd||0,
+          fmtMin(t.tripMinutes),
+          (t.timeAtBranchPrevMinutes!=null&&t.timeAtBranchPrevMinutes>0)?fmtMin(t.timeAtBranchPrevMinutes):'',
+          r2(t.kmTraveled||0), r2(t.liters||0), r2(t.cost||0), t.deliveries||0,
+        ]);
+      });
+      const detEndR = rows.length;
+      rows.push(Array(NC2).fill(''));
+
+      // Resumen diario
+      const diaR = rows.length;
+      rows.push(['RESUMEN DIARIO', ...Array(NC2-1).fill('')]);
+      rows.push(['Fecha','H.Inicio','H.Fin','KM Inicio','KM Final','KM Rec.','Litros','Costo $','Viajes','Entregas','','','','']);
+      const byDate = {};
+      vt.forEach(t=>{ (byDate[t.startDate]=byDate[t.startDate]||[]).push(t); });
+      let totKm=0,totLt2=0,totCs2=0,totVj=0,totEn=0;
+      Object.entries(byDate).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([date,dt])=>{
+        const sorted=[...dt].sort((a,b)=>parseFloat((a.startTime||'0').replace(':','.'))-parseFloat((b.startTime||'0').replace(':','.')));
+        const last=[...dt].sort((a,b)=>parseFloat((b.endTime||'0').replace(':','.'))-parseFloat((a.endTime||'0').replace(':','.')))[0];
+        const dkm=dt.reduce((s,t)=>s+(t.kmTraveled||0),0);
+        const dlt=dt.reduce((s,t)=>s+(t.liters||0),0);
+        const dcs=dt.reduce((s,t)=>s+(t.cost||0),0);
+        const dvj=dt.reduce((s,t)=>s+(t.tripsCount||1),0);
+        const den=dt.reduce((s,t)=>s+(t.deliveries||0),0);
+        totKm+=dkm; totLt2+=dlt; totCs2+=dcs; totVj+=dvj; totEn+=den;
+        rows.push([date,sorted[0].startTime||'',last.endTime||'',sorted[0].kmStart||0,last.kmEnd||0,r2(dkm),r2(dlt),r2(dcs),dvj,den,'','','','']);
+      });
+      rows.push(['TOTAL MES','','','','',r2(totKm),r2(totLt2),r2(totCs2),totVj,totEn,'','','','']);
+      rows.push(Array(NC2).fill(''));
+
+      // Mantenimientos del camión
+      if (maint.length > 0) {
+        rows.push(['MANTENIMIENTOS DEL MES', ...Array(NC2-1).fill('')]);
+        rows.push(['Fecha','Tipo','Técnico','Trabajo','Repuestos $','M.Obra $','Total $','','','','','','','']);
+        maint.forEach(r => {
+          const rep=Number(r.costoRepuesto)||0; const mo=Number(r.manoObra)||0;
+          rows.push([r.fecha||'',r.tipo||'',r.tecnico||'',r.trabajo||'',`$${rep.toFixed(2)}`,`$${mo.toFixed(2)}`,`$${(rep+mo).toFixed(2)}`,'','','','','','','']);
+        });
+      }
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{wch:12},{wch:16},{wch:18},{wch:18},{wch:8},{wch:8},{wch:10},{wch:10},{wch:8},{wch:10},{wch:8},{wch:8},{wch:9},{wch:8}];
+      ws['!rows'] = [{hpt:30},{hpt:16},{hpt:8},{hpt:18},{hpt:30},{hpt:14},{hpt:8},{hpt:14},{hpt:8}];
+
+      // Estilos hoja camión
+      sr(ws,0,NC2,ST.title);
+      sr(ws,1,NC2,ST.subtitle);
+      for(let c=0;c<8;c++) sc(ws,3,c,ST.kpiLabel);
+      for(let c=0;c<8;c++) sc(ws,4,c,ST.kpiBox);
+      sc(ws,4,7,{font:{bold:true,color:{rgb:kmLColor(kml)},sz:16,name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:kml>=5?C.lightGreen:kml>=3?C.amber:C.red}},border:bdr(),alignment:{horizontal:'center',vertical:'center'}});
+      for(let c=0;c<8;c++) sc(ws,5,c,{font:{color:{rgb:C.midGray},sz:8,italic:true,name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:C.lightGreen}},alignment:{horizontal:'center'}});
+      sr(ws,8,NC2,{font:{bold:true,color:{rgb:C.tealGreen},sz:9,name:'Courier New'},fill:{patternType:'solid',fgColor:{rgb:C.lightGreen}},border:bdr(),alignment:{horizontal:'left'}});
+      sr(ws,detR,NC2,ST.secHeader);
+      for(let c=0;c<NC2;c++) sc(ws,detR+1,c,ST.colHeader);
+      sortedVt.forEach((_,i)=>{
+        const ri=detR+2+i; const e=i%2===0;
+        for(let c=0;c<NC2;c++) sc(ws,ri,c,c>=6?ST.dataRight(e):e?ST.dataEven:ST.dataOdd);
+      });
+      sr(ws,diaR,NC2,ST.secHeader);
+      for(let c=0;c<NC2;c++) sc(ws,diaR+1,c,ST.colHeader);
+      Object.keys(byDate).forEach((_,i)=>{
+        const ri=diaR+2+i; const e=i%2===0;
+        for(let c=0;c<NC2;c++) sc(ws,ri,c,c>=3?ST.dataRight(e):e?ST.dataEven:ST.dataOdd);
+      });
+      const totR=diaR+2+Object.keys(byDate).length;
+      for(let c=0;c<NC2;c++) sc(ws,totR,c,c>=3?ST.totalRight:ST.totalRow);
+
+      ws['!merges'] = [
+        {s:{r:0,c:0},e:{r:0,c:NC2-1}},{s:{r:1,c:0},e:{r:1,c:NC2-1}},
+        {s:{r:8,c:0},e:{r:8,c:NC2-1}},
+        {s:{r:detR,c:0},e:{r:detR,c:NC2-1}},{s:{r:diaR,c:0},e:{r:diaR,c:NC2-1}},
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, v.code.replace('/',''));
+    });
+
+    XLSX.writeFile(wb, `Reporte-Flota-${a.month}.xlsx`);
   };
 
   const downloadPDF = async (a) => {
