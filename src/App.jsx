@@ -8198,6 +8198,19 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
       totalDeliveries: mt.reduce((s,t)=>s+(t.deliveries||0),0),
       tripsSnapshot: mt, vehiclesSnapshot: vehicles, driversSnapshot: drivers, branchesSnapshot: branches,
     }]);
+    // Borrar viajes del mes de Supabase para que no vuelvan a aparecer
+    const ids = mt.map(t => t.id).join(',');
+    if (ids) {
+      fetch(`${SB_URL}/rest/v1/trips?id=in.(${ids})`, {
+        method: 'DELETE',
+        headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` },
+      }).catch(() => {});
+    }
+    // Limpiar del localStorage también
+    try {
+      const remaining = trips.filter(t => !t.startDate.startsWith(m));
+      localStorage.setItem(KEYS.TRIPS, JSON.stringify(remaining));
+    } catch(e) {}
     setShowModal(false);
   };
 
