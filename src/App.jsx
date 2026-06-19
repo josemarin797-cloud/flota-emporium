@@ -5668,31 +5668,47 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         // HOJA — DETALLE DE VIAJES (limpio)
         // ════════════════════════════════════════════════════════════════
         const detD = [];
-        detD.push(['DETALLE DE VIAJES DEL MES — TRANSPORTE EMPORIUM', ...Array(12).fill('')]);
-        detD.push([`Total: ${trips.length} viajes  ·  ${periodoStr}`, ...Array(12).fill('')]);
-        detD.push(Array(13).fill(''));
+        detD.push(['DETALLE DE VIAJES DEL MES — TRANSPORTE EMPORIUM', ...Array(15).fill('')]);
+        detD.push([`Total: ${trips.length} viajes  ·  ${periodoStr}`, ...Array(15).fill('')]);
+        detD.push(Array(16).fill(''));
         detD.push(['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje', 'T.Origen', 'T.Destino', 'H.Salida Suc.', 'KM', 'Litros', 'Costo $', 'Entregas', 'Combustible cargado']);
+        const headerRow = detD.length - 1;
 
-        let prevDate = '';
-        [...trips].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime)).forEach(t => {
-          const v = vehicles.find(x => x.id === t.vehicleId);
-          const d = drivers.find(x => x.id === t.driverId);
-          const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
-          const destLabel2 = resolveDestName(t, branches);
-          const fuelLoad2 = fuelRecords?.find(r => r.vehicleId === t.vehicleId && r.date === t.startDate);
-          const tDest = t.timeAtDestinationMinutes;
-          detD.push([
-            t.startDate, v?.code || '', d?.shortName || '',
-            o?.name || '', destLabel2,
-            t.startTime || '', t.endTime || '',
-            fmtMin(t.tripMinutes),
-            fmtMin(t.timeAtBranchPrevMinutes),
-            fmtMin(tDest),
-            addMin(t.endTime, tDest),
-            r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
-            t.deliveries || 0,
-            fuelLoad2 ? `${fuelLoad2.liters}L · ${fuelLoad2.notes}` : '',
-          ]);
+        const sortedTrips = [...trips].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime));
+        const byDateDet = {};
+        sortedTrips.forEach(t => { (byDateDet[t.startDate] = byDateDet[t.startDate] || []).push(t); });
+
+        const detDataStartR = detD.length;
+        const subtotalRows = [];
+        Object.entries(byDateDet).sort((a,b)=>a[0].localeCompare(b[0])).forEach(([date, dayTrips]) => {
+          dayTrips.forEach(t => {
+            const v = vehicles.find(x => x.id === t.vehicleId);
+            const d = drivers.find(x => x.id === t.driverId);
+            const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
+            const destLabel2 = resolveDestName(t, branches);
+            const fuelLoad2 = fuelRecords?.find(r => r.vehicleId === t.vehicleId && r.date === t.startDate);
+            const tDest = t.timeAtDestinationMinutes;
+            detD.push([
+              t.startDate, v?.code || '', d?.shortName || '',
+              o?.name || '', destLabel2,
+              t.startTime || '', t.endTime || '',
+              fmtMin(t.tripMinutes),
+              fmtMin(t.timeAtBranchPrevMinutes),
+              fmtMin(tDest),
+              addMin(t.endTime, tDest),
+              r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
+              t.deliveries || 0,
+              fuelLoad2 ? `${fuelLoad2.liters}L · ${fuelLoad2.notes}` : '',
+            ]);
+          });
+          // Subtotal por día
+          const stR = detD.length;
+          subtotalRows.push(stR);
+          const dKm = dayTrips.reduce((s,t)=>s+(t.kmTraveled||0),0);
+          const dLt = dayTrips.reduce((s,t)=>s+(t.liters||0),0);
+          const dCs = dayTrips.reduce((s,t)=>s+(t.cost||0),0);
+          const dEn = dayTrips.reduce((s,t)=>s+(t.deliveries||0),0);
+          detD.push([`SUBTOTAL ${date}`, '', `${dayTrips.length} viajes`, '', '', '', '', '', '', '', '', r2(dKm), r2(dLt), r2(dCs), dEn, '']);
         });
 
         const wsDet = XLSX.utils.aoa_to_sheet(detD);
@@ -5701,18 +5717,27 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           { s: { r: 0, c: 0 }, e: { r: 0, c: NCD - 1 } },
           { s: { r: 1, c: 0 }, e: { r: 1, c: NCD - 1 } },
         ];
+        // Activar filtros automáticos en el encabezado
+        wsDet['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: headerRow, c: 0 }, e: { r: headerRow, c: NCD - 1 } }) };
         sr(wsDet, 0, NCD, ST.title);
         sr(wsDet, 1, NCD, ST.subtitle);
         for (let c = 0; c < NCD; c++) sc(wsDet, 3, c, ST.colHeader);
-        trips.forEach((_, i) => {
-          const ri = 4 + i; const e = i % 2 === 0;
-          for (let c = 0; c < NCD; c++) {
-            if (c >= 5 && c <= 10) sc(wsDet, ri, c, ST.timeCell(e));
-            else if (c >= 11) sc(wsDet, ri, c, ST.dataRight(e));
-            else sc(wsDet, ri, c, e ? ST.dataEven : ST.dataOdd);
+        let dataIdx = 0;
+        for (let ri = detDataStartR; ri < detD.length; ri++) {
+          if (subtotalRows.includes(ri)) {
+            // Estilo subtotal
+            for (let c = 0; c < NCD; c++) sc(wsDet, ri, c, { font:{bold:true,color:{rgb:C.white},sz:9,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'166534'}}, border:bdr(), alignment:{horizontal:c>=11?'right':'left'} });
+          } else {
+            const e = dataIdx % 2 === 0;
+            for (let c = 0; c < NCD; c++) {
+              if (c >= 5 && c <= 10) sc(wsDet, ri, c, ST.timeCell(e));
+              else if (c >= 11) sc(wsDet, ri, c, ST.dataRight(e));
+              else sc(wsDet, ri, c, e ? ST.dataEven : ST.dataOdd);
+            }
+            dataIdx++;
           }
-        });
-        wsDet['!cols'] = [{ wch: 12 }, { wch: 9 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 9 }];
+        }
+        wsDet['!cols'] = [{ wch: 12 }, { wch: 9 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 20 }];
         wsDet['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsDet, 'Detalle de Viajes');
 
