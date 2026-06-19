@@ -8256,7 +8256,7 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
     // ════════════════════════════════════════════════════════════════════
     // HOJA 1: RESUMEN EJECUTIVO
     // ════════════════════════════════════════════════════════════════════
-    const NC = 8;
+    const NC = 9;
     const rs = [];
     rs.push([`REPORTE MENSUAL DE FLOTA — TRANSPORTE EMPORIUM`, ...Array(NC-1).fill('')]);
     rs.push([`${label.toUpperCase()}   ·   Generado: ${new Date().toLocaleString('es-VE')}   ·   Coordinador: José Marín`, ...Array(NC-1).fill('')]);
@@ -8320,8 +8320,8 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
     }
 
     const wsRes = XLSX.utils.aoa_to_sheet(rs);
-    wsRes['!cols'] = [{wch:18},{wch:22},{wch:22},{wch:10},{wch:12},{wch:10},{wch:14},{wch:14}];
-    wsRes['!rows'] = [{hpt:32},{hpt:16},{hpt:8},{hpt:18},{hpt:30},{hpt:14}];
+    wsRes['!cols'] = [{wch:12},{wch:12},{wch:20},{wch:8},{wch:8},{wch:10},{wch:10},{wch:10},{wch:12}];
+    wsRes['!rows'] = [{hpt:32},{hpt:16},{hpt:8},{hpt:20},{hpt:32},{hpt:14},{hpt:8}];
 
     // Estilos resumen
     sr(wsRes, 0, NC, ST.title);
@@ -8334,16 +8334,22 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
     ranked.forEach(({kml},i)=>{
       const ri=rankR+2+i; const e=i%2===0;
       for(let c=0;c<NC;c++) sc(wsRes,ri,c,c>=3?ST.dataRight(e):e?ST.dataEven:ST.dataOdd);
-      sc(wsRes,ri,7,{font:{bold:true,color:{rgb:kmLColor(kml)},sz:9,name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:e?C.offWhite:'FFFFFF'}},border:bdr(),alignment:{horizontal:'center'}});
+      sc(wsRes,ri,8,{font:{bold:true,color:{rgb:kmLColor(kml)},sz:9,name:'Calibri'},fill:{patternType:'solid',fgColor:{rgb:e?C.offWhite:'FFFFFF'}},border:bdr(),alignment:{horizontal:'center'}});
     });
     const totalRankR = rankR+2+ranked.length;
     for(let c=0;c<NC;c++) sc(wsRes,totalRankR,c,c>=3?ST.totalRight:ST.totalRow);
     sr(wsRes, barR, NC, ST.secHeader);
     for(let c=0;c<NC;c++) sc(wsRes,barR+1,c,ST.colHeader);
     vMetrics.forEach((_,i)=>{ const ri=barR+2+i; const e=i%2===0; for(let c=0;c<NC;c++) sc(wsRes,ri,c,e?ST.dataEven:ST.dataOdd); });
+    // Métricas avanzadas — fila después de barras
+    const advR = barR + 2 + vMetrics.length + 1;
+    sr(wsRes, advR, NC, ST.secHeader);
+    for(let c=0;c<NC;c++) sc(wsRes,advR+1,c,ST.colHeader);
+    vMetrics.forEach((_,i)=>{ const ri=advR+2+i; const e=i%2===0; for(let c=0;c<NC;c++) sc(wsRes,ri,c,c>=1?ST.dataRight(e):e?ST.dataEven:ST.dataOdd); });
     wsRes['!merges'] = [
       {s:{r:0,c:0},e:{r:0,c:NC-1}},{s:{r:1,c:0},e:{r:1,c:NC-1}},
       {s:{r:rankR,c:0},e:{r:rankR,c:NC-1}},{s:{r:barR,c:0},e:{r:barR,c:NC-1}},
+      {s:{r:advR,c:0},e:{r:advR,c:NC-1}},
     ];
     XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen Ejecutivo');
 
