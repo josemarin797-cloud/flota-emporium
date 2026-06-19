@@ -579,19 +579,19 @@ export default function App() {
           setBranches(merged);
           persist(KEYS.BRANCHES, merged);
         }
-        if (reads[3]) setTrips(reads[3]);
         if (reads[4]) setActiveTrips(reads[4]);
-        // Cargar viajes desde Supabase y mergear con localStorage
+        // Cargar viajes SOLO desde Supabase (ignora localStorage para evitar mezcla de datos viejos)
         try {
           const sbTrips = await loadSBTrips();
           if (sbTrips && sbTrips.length > 0) {
-            const local = reads[3] || [];
-            const sbIds = new Set(sbTrips.map(t => t.id));
-            const onlyLocal = local.filter(t => !sbIds.has(t.id));
-            const merged = [...sbTrips, ...onlyLocal].sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
-            setTrips(merged);
+            setTrips(sbTrips);
+            persist(KEYS.TRIPS, sbTrips);
+          } else if (reads[3]) {
+            setTrips(reads[3]); // fallback a localStorage si Supabase está vacío
           }
-        } catch(e) {}
+        } catch(e) {
+          if (reads[3]) setTrips(reads[3]);
+        }
         if (reads[5]) setArchivedMonths(reads[5]);
         if (reads[6]) setConfig(savedCfg);
         if (reads[7]) setPhotos(reads[7]);
@@ -1982,6 +1982,25 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
     saveTrips([...trips, completed]);
     saveActiveTrips(activeTrips.filter(t => t.id !== currentTrip.id));
+    // Subir viaje a Supabase inmediatamente
+    fetch(`${SB_URL}/rest/v1/trips`, {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({
+        id: completed.id, driver_id: completed.driverId, vehicle_id: completed.vehicleId,
+        origin_branch_id: completed.originBranchId || '', destination_branch_id: completed.destinationBranchId || '',
+        custom_dest_name: completed.customDestName || '', custom_dest_type: completed.customDestType || '',
+        km_start: completed.kmStart || 0, km_end: completed.kmEnd || 0, km_traveled: completed.kmTraveled || 0,
+        start_date: completed.startDate || '', start_time: completed.startTime || '',
+        end_date: completed.endDate || '', end_time: completed.endTime || '',
+        trip_minutes: completed.tripMinutes || 0, time_at_branch_prev_minutes: completed.timeAtBranchPrevMinutes || 0,
+        liters: completed.liters || 0, fuel_price: completed.fuelPrice || 0, cost: completed.cost || 0,
+        deliveries: completed.deliveries || 0, trips_count: completed.tripsCount || 1,
+        route: completed.route || 'LOCAL', fuel_loaded: completed.fuelLoaded || 0,
+        notes: completed.notes || '', arrival_notes: completed.arrivalNotes || '',
+        created_at: completed.createdAt || Date.now(),
+      }),
+    }).catch(() => {});
     const newKm = Number(data.kmEnd);
     saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, ...(newKm > x.currentKm ? { currentKm: newKm } : {}), fuelLevel: newFuelLevel } : x));
 
