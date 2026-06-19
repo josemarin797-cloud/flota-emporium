@@ -8282,20 +8282,10 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
     rs.push(['TOTAL FLOTA','','',mt.length,r2(totalKm),new Set(mt.map(t=>t.startDate)).size,mt.length>0?r2(totalKm/mt.length):0,totalKm>0?`$${r2(totalCs/totalKm)}`:'','']);
     rs.push(Array(NC).fill(''));
 
-    // Barras KM
-    const barR = rs.length;
-    rs.push(['KM RECORRIDOS POR UNIDAD', ...Array(NC-1).fill('')]);
-    rs.push(['Unidad','Gráfico','','KM','Eficiencia','','','']);
-    const maxKm = Math.max(...vMetrics.map(m=>m.km), 1);
-    vMetrics.sort((a,b)=>b.km-a.km).forEach(({v,km,kml}) => {
-      const bars = Math.round((km/maxKm)*30);
-      rs.push([v.code, '█'.repeat(bars), '', r2(km), kmLText(kml),'','','']);
-    });
-    rs.push(Array(NC).fill(''));
-
     // Métricas avanzadas
-    rs.push(['MÉTRICAS AVANZADAS', ...Array(NC-1).fill('')]);
-    rs.push(['Camión','Días trab.','KM/día','KM/viaje','$/km','T.prom.destino','Entregas','Taller $']);
+    const advR = rs.length;
+    rs.push(['MÉTRICAS AVANZADAS POR UNIDAD', ...Array(NC-1).fill('')]);
+    rs.push(['Camión','Placa','Días trab.','KM/día prom.','KM/viaje prom.','Costo/km','T.prom.destino','Entregas','Costo taller']);
     vMetrics.sort((a,b)=>b.km-a.km).forEach(({v,vt,km,cs,maintCost,en}) => {
       const dias = new Set(vt.map(t=>t.startDate)).size;
       const kmDia = dias>0 ? r2(km/dias) : 0;
@@ -8303,7 +8293,7 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
       const cxkm = km>0 ? `$${r2(cs/km)}` : '—';
       const tiempos = vt.filter(t=>t.timeAtBranchPrevMinutes>0).map(t=>t.timeAtBranchPrevMinutes);
       const tProm = tiempos.length>0 ? fmtMin(Math.round(tiempos.reduce((a,b)=>a+b,0)/tiempos.length)) : '—';
-      rs.push([v.code, dias, kmDia, kmViaje, cxkm, tProm, en, maintCost>0?`$${r2(maintCost)}`:'$0']);
+      rs.push([v.code, v.plate, dias, kmDia, kmViaje, cxkm, tProm, en, maintCost>0?`$${r2(maintCost)}`:'$0']);
     });
     rs.push(Array(NC).fill(''));
 
@@ -8320,7 +8310,7 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
     }
 
     const wsRes = XLSX.utils.aoa_to_sheet(rs);
-    wsRes['!cols'] = [{wch:12},{wch:12},{wch:20},{wch:8},{wch:8},{wch:10},{wch:10},{wch:10},{wch:12}];
+    wsRes['!cols'] = [{wch:12},{wch:12},{wch:20},{wch:10},{wch:10},{wch:10},{wch:14},{wch:12},{wch:12}];
     wsRes['!rows'] = [{hpt:32},{hpt:16},{hpt:8},{hpt:20},{hpt:32},{hpt:14},{hpt:8}];
 
     // Estilos resumen
@@ -8338,18 +8328,12 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
     });
     const totalRankR = rankR+2+ranked.length;
     for(let c=0;c<NC;c++) sc(wsRes,totalRankR,c,c>=3?ST.totalRight:ST.totalRow);
-    sr(wsRes, barR, NC, ST.secHeader);
-    for(let c=0;c<NC;c++) sc(wsRes,barR+1,c,ST.colHeader);
-    vMetrics.forEach((_,i)=>{ const ri=barR+2+i; const e=i%2===0; for(let c=0;c<NC;c++) sc(wsRes,ri,c,e?ST.dataEven:ST.dataOdd); });
-    // Métricas avanzadas — fila después de barras
-    const advR = barR + 2 + vMetrics.length + 1;
     sr(wsRes, advR, NC, ST.secHeader);
     for(let c=0;c<NC;c++) sc(wsRes,advR+1,c,ST.colHeader);
-    vMetrics.forEach((_,i)=>{ const ri=advR+2+i; const e=i%2===0; for(let c=0;c<NC;c++) sc(wsRes,ri,c,c>=1?ST.dataRight(e):e?ST.dataEven:ST.dataOdd); });
+    vMetrics.forEach((_,i)=>{ const ri=advR+2+i; const e=i%2===0; for(let c=0;c<NC;c++) sc(wsRes,ri,c,c>=2?ST.dataRight(e):e?ST.dataEven:ST.dataOdd); });
     wsRes['!merges'] = [
       {s:{r:0,c:0},e:{r:0,c:NC-1}},{s:{r:1,c:0},e:{r:1,c:NC-1}},
-      {s:{r:rankR,c:0},e:{r:rankR,c:NC-1}},{s:{r:barR,c:0},e:{r:barR,c:NC-1}},
-      {s:{r:advR,c:0},e:{r:advR,c:NC-1}},
+      {s:{r:rankR,c:0},e:{r:rankR,c:NC-1}},{s:{r:advR,c:0},e:{r:advR,c:NC-1}},
     ];
     XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen Ejecutivo');
 
