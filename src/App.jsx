@@ -1963,7 +1963,11 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const prevTrip = [...trips].filter(t => t.vehicleId === currentTrip.vehicleId && t.destinationBranchId === currentTrip.originBranchId)
       .sort((a, b) => parseDateTime(b.endDate, b.endTime) - parseDateTime(a.endDate, a.endTime))[0];
     let timeAtBranch = null;
-    if (prevTrip) timeAtBranch = Math.max(0, Math.round((startMs - parseDateTime(prevTrip.endDate, prevTrip.endTime)) / 60000));
+    if (prevTrip) {
+      const diff = Math.max(0, Math.round((startMs - parseDateTime(prevTrip.endDate, prevTrip.endTime)) / 60000));
+      // Solo contar si es menos de 4 horas — si hay más, probablemente hubo "Sin viajes" en medio
+      timeAtBranch = diff <= 240 ? diff : null;
+    }
 
     const completed = {
       id: `t_${Date.now()}`, driverId: currentTrip.driverId, vehicleId: currentTrip.vehicleId,
