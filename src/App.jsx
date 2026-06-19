@@ -8271,12 +8271,15 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
     // Ranking por camión
     const rankR = rs.length;
     rs.push(['RENDIMIENTO POR UNIDAD', ...Array(NC-1).fill('')]);
-    rs.push(['Camión','Placa','Chofer(es)','Viajes','KM','Litros','Costo $','Eficiencia']);
+    rs.push(['Camión','Placa','Chofer(es)','Viajes','KM','Días trab.','KM/viaje','$/km','Eficiencia']);
     const ranked = [...vMetrics].sort((a,b)=>b.km-a.km);
     ranked.forEach(({v,vt,km,lt,cs,kml,driverNames}) => {
-      rs.push([v.code, v.plate, driverNames, vt.length, r2(km), r2(lt), `$${r2(cs)}`, kmLText(kml)]);
+      const dias = new Set(vt.map(t=>t.startDate)).size;
+      const kmViaje = vt.length>0 ? r2(km/vt.length) : 0;
+      const cxkm = km>0 ? r2(cs/km) : 0;
+      rs.push([v.code, v.plate, driverNames, vt.length, r2(km), dias, kmViaje, `$${cxkm}`, kmLText(kml)]);
     });
-    rs.push(['TOTAL FLOTA','','',mt.length,r2(totalKm),r2(totalLt),`$${r2(totalCs)}`,'']);
+    rs.push(['TOTAL FLOTA','','',mt.length,r2(totalKm),new Set(mt.map(t=>t.startDate)).size,mt.length>0?r2(totalKm/mt.length):0,totalKm>0?`$${r2(totalCs/totalKm)}`:'','']);
     rs.push(Array(NC).fill(''));
 
     // Barras KM
@@ -8287,6 +8290,20 @@ function HistoryTab({ archivedMonths, trips, vehicles, drivers, branches, saveAr
     vMetrics.sort((a,b)=>b.km-a.km).forEach(({v,km,kml}) => {
       const bars = Math.round((km/maxKm)*30);
       rs.push([v.code, '█'.repeat(bars), '', r2(km), kmLText(kml),'','','']);
+    });
+    rs.push(Array(NC).fill(''));
+
+    // Métricas avanzadas
+    rs.push(['MÉTRICAS AVANZADAS', ...Array(NC-1).fill('')]);
+    rs.push(['Camión','Días trab.','KM/día','KM/viaje','$/km','T.prom.destino','Entregas','Taller $']);
+    vMetrics.sort((a,b)=>b.km-a.km).forEach(({v,vt,km,cs,maintCost,en}) => {
+      const dias = new Set(vt.map(t=>t.startDate)).size;
+      const kmDia = dias>0 ? r2(km/dias) : 0;
+      const kmViaje = vt.length>0 ? r2(km/vt.length) : 0;
+      const cxkm = km>0 ? `$${r2(cs/km)}` : '—';
+      const tiempos = vt.filter(t=>t.timeAtBranchPrevMinutes>0).map(t=>t.timeAtBranchPrevMinutes);
+      const tProm = tiempos.length>0 ? fmtMin(Math.round(tiempos.reduce((a,b)=>a+b,0)/tiempos.length)) : '—';
+      rs.push([v.code, dias, kmDia, kmViaje, cxkm, tProm, en, maintCost>0?`$${r2(maintCost)}`:'$0']);
     });
     rs.push(Array(NC).fill(''));
 
