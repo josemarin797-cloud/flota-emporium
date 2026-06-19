@@ -5532,7 +5532,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               t.startTime || '', t.endTime || '',
               t.kmStart || 0, t.kmEnd || 0,
               fmtMin(t.tripMinutes),
-              t.waitMinutes ? fmtMin(t.waitMinutes) : '',
+              (t.timeAtBranchPrevMinutes != null && t.timeAtBranchPrevMinutes > 0) ? fmtMin(t.timeAtBranchPrevMinutes) : '',
               r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
               t.deliveries || 0, t.notes || '',
               fuelLoad ? fuelLoad.liters : '',
