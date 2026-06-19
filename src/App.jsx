@@ -782,6 +782,24 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Polling de viajes desde Supabase cada 30s para el coordinador
+  useEffect(() => {
+    const pollTrips = async () => {
+      try {
+        const sbTrips = await loadSBTrips();
+        if (sbTrips && sbTrips.length > 0) {
+          setTrips(prev => {
+            const sbIds = new Set(sbTrips.map(t => t.id));
+            const onlyLocal = prev.filter(t => !sbIds.has(t.id));
+            return [...sbTrips, ...onlyLocal].sort((a,b) => (b.createdAt||0)-(a.createdAt||0));
+          });
+        }
+      } catch(e) {}
+    };
+    const interval = setInterval(pollTrips, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   // Polling de handoffs desde Supabase cada 15s para sincronizar entre dispositivos
   useEffect(() => {
     const pollHandoffs = async () => {
