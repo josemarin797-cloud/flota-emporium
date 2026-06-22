@@ -5616,13 +5616,14 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         rd.push([`Período: ${periodoStr}     ·     Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(9).fill('')]);
         rd.push(Array(10).fill(''));
         rd.push(['COMPARATIVO POR UNIDAD', ...Array(9).fill('')]);
-        rd.push(['Camión', 'Placa', 'Chofer(es)', 'Días op.', 'KM', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'km/L', 'Estado']);
+        rd.push(['Camión', 'Placa', 'Chofer(es)', 'Días op.', 'KM', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'km/L', 'Objetivo', 'Var %', 'Estado']);
         vMetrics.forEach(({ v, vt, dias, km, lt, cs, vj, en, kml }) => {
           const names = [...new Set(vt.map(t => drivers.find(d => d.id === t.driverId)?.shortName).filter(Boolean))].join(' / ');
-          rd.push([v.code, v.plate, names, dias, r2(km), r2(lt), r2(cs), vj, en, r2(kml), kmLText(kml)]);
+          const varPct = v.performance > 0 && kml > 0 ? r2(((kml - v.performance) / v.performance) * 100) : null;
+          rd.push([v.code, v.plate, names, dias, r2(km), r2(lt), r2(cs), vj, en, r2(kml), r2(v.performance), varPct !== null ? `${varPct}%` : '—', kmLText(kml)]);
         });
         const resTotR = rd.length;
-        rd.push(['TOTAL', '', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn, flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, '']);
+        rd.push(['TOTAL', '', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn, flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, '', '', '']);
         rd.push(Array(11).fill(''));
         const condR = rd.length;
         rd.push(['RESUMEN POR CONDUCTOR', ...Array(9).fill('')]);
@@ -5638,7 +5639,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         });
 
         const wsRes = XLSX.utils.aoa_to_sheet(rd);
-        const NCR = 11;
+        const NCR = 13;
         wsRes['!merges'] = [
           { s: { r: 0, c: 0 }, e: { r: 0, c: NCR - 1 } },
           { s: { r: 1, c: 0 }, e: { r: 1, c: NCR - 1 } },
@@ -5651,7 +5652,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         for (let c = 0; c < NCR; c++) sc(wsRes, 4, c, ST.colHeader);
         vMetrics.forEach(({ kml }, i) => {
           const ri = 5 + i; const e = i % 2 === 0;
-          for (let c = 0; c < NCR; c++) sc(wsRes, ri, c, c === NCR-1 ? kmLST(kml) : c >= 4 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
+          for (let c = 0; c < NCR; c++) sc(wsRes, ri, c, c === NCR-1 ? kmLST(kml) : c === NCR-2 ? (varPct !== null && varPct < 0 ? ST.statusRevisar : varPct !== null && varPct >= 0 ? ST.statusEficiente : ST.statusSinDatos) : c >= 4 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
         });
         for (let c = 0; c < NCR; c++) sc(wsRes, resTotR, c, c >= 4 ? ST.totalRight : ST.totalRow);
         sr(wsRes, condR, NCR, ST.secHeader);
@@ -5660,7 +5661,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           const ri = condR + 2 + i; const e = i % 2 === 0;
           for (let c = 0; c < 9; c++) sc(wsRes, ri, c, c >= 2 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
         });
-        wsRes['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 24 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 9 }, { wch: 14 }];
+        wsRes['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 24 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 9 }, { wch: 10 }, { wch: 9 }, { wch: 14 }];
         wsRes['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen Flota');
 
@@ -6236,11 +6237,11 @@ function VehicleForm({ v, onSave, onCancel, title }) {
       {/* KM y mantenimiento */}
       <div className="grid grid-cols-2 gap-3 mt-3">
         <DarkField label="Estado"><select value={f.status} onChange={e => s('status', e.target.value)} className="dark-input"><option>AL DIA</option><option>EN TALLER</option><option>OPERATIVO</option><option>FUERA DE SERVICIO</option></select></DarkField>
-        <DarkField label="KM Actual"><input type="number" value={f.currentKm} onChange={e => s('currentKm', Number(e.target.value))} className="dark-input" /></DarkField>
-        <DarkField label="Último Mant. KM"><input type="number" value={f.lastMaintKm} onChange={e => s('lastMaintKm', Number(e.target.value))} className="dark-input" /></DarkField>
-        <DarkField label="Frec. Mant. KM"><input type="number" value={f.maintFreq} onChange={e => s('maintFreq', Number(e.target.value))} className="dark-input" /></DarkField>
-        <DarkField label="Último Engrase KM"><input type="number" value={f.lastGreaseKm} onChange={e => s('lastGreaseKm', Number(e.target.value))} className="dark-input" /></DarkField>
-        <DarkField label="Frec. Engrase KM"><input type="number" value={f.greaseFreq||3000} onChange={e => s('greaseFreq', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="KM Actual"><input type="number" value={f.currentKm || ''} onChange={e => s('currentKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Último Mant. KM"><input type="number" value={f.lastMaintKm || ''} onChange={e => s('lastMaintKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Frec. Mant. KM"><input type="number" value={f.maintFreq || ''} onChange={e => s('maintFreq', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Último Engrase KM"><input type="number" value={f.lastGreaseKm || ''} onChange={e => s('lastGreaseKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Frec. Engrase KM"><input type="number" value={f.greaseFreq || ''} onChange={e => s('greaseFreq', Number(e.target.value))} className="dark-input" /></DarkField>
         <div className="col-span-2"><DarkField label="Observaciones"><input value={f.observations||''} onChange={e => s('observations', e.target.value)} className="dark-input" /></DarkField></div>
       </div>
       {/* Webhook Discord mantenimiento */}
@@ -6464,11 +6465,12 @@ function DriversTab({ drivers, saveDrivers, trips }) {
             </DarkField>
             <DarkField label="Fecha de ingreso"><input type="date" value={editing.ingresoDate||''} onChange={e => setEditing({ ...editing, ingresoDate: e.target.value })} className="dark-input" /></DarkField>
             <DarkField label="PIN (4 dígitos)"><input maxLength={4} value={editing.pin} onChange={e => setEditing({ ...editing, pin: e.target.value.replace(/\D/g, '') })} className="dark-input font-mono text-lg" placeholder="1234" /></DarkField>
+            <DarkField label="Foto del conductor">
               <div className="flex items-center gap-3">
                 {editing.photo && <img src={editing.photo} alt="foto" className="w-12 h-12 rounded-xl object-cover border-2 border-emerald-400" />}
                 <label className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
-                  📷 {editing.photo ? 'Cambiar foto' : 'Subir foto'}
-                  <input type="file" accept="image/*" className="hidden" onChange={e => {
+                  Subir foto
+                  <input type="file" accept="image/*"  className="hidden" onChange={e => {
                     const file = e.target.files[0];
                     if (!file) return;
                     const reader = new FileReader();
@@ -9232,7 +9234,7 @@ function EndShiftForm({ driver, vehicle, trips = [], kmInicial = '', onConfirm, 
             ) : (
               <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-indigo-300 rounded-xl cursor-pointer hover:bg-indigo-50">
                 <span className="text-2xl">🤳</span><span className="text-xs text-indigo-400 mt-1">Selfie (cámara frontal)</span>
-                <input type="file" accept="image/*" capture="user" className="hidden" onChange={handleFotoChofer} />
+                <input type="file" accept="image/*"  className="hidden" onChange={handleFotoChofer} />
               </label>
             )}
           </div>
