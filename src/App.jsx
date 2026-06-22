@@ -6236,11 +6236,11 @@ function VehicleForm({ v, onSave, onCancel, title }) {
       {/* KM y mantenimiento */}
       <div className="grid grid-cols-2 gap-3 mt-3">
         <DarkField label="Estado"><select value={f.status} onChange={e => s('status', e.target.value)} className="dark-input"><option>AL DIA</option><option>EN TALLER</option><option>OPERATIVO</option><option>FUERA DE SERVICIO</option></select></DarkField>
-        <DarkField label="KM Actual"><input type="number" value={f.currentKm || ''} onChange={e => s('currentKm', Number(e.target.value))} className="dark-input" /></DarkField>
-        <DarkField label="Último Mant. KM"><input type="number" value={f.lastMaintKm || ''} onChange={e => s('lastMaintKm', Number(e.target.value))} className="dark-input" /></DarkField>
-        <DarkField label="Frec. Mant. KM"><input type="number" value={f.maintFreq || ''} onChange={e => s('maintFreq', Number(e.target.value))} className="dark-input" /></DarkField>
-        <DarkField label="Último Engrase KM"><input type="number" value={f.lastGreaseKm || ''} onChange={e => s('lastGreaseKm', Number(e.target.value))} className="dark-input" /></DarkField>
-        <DarkField label="Frec. Engrase KM"><input type="number" value={f.greaseFreq || ''} onChange={e => s('greaseFreq', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="KM Actual"><input type="number" value={f.currentKm} onChange={e => s('currentKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Último Mant. KM"><input type="number" value={f.lastMaintKm} onChange={e => s('lastMaintKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Frec. Mant. KM"><input type="number" value={f.maintFreq} onChange={e => s('maintFreq', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Último Engrase KM"><input type="number" value={f.lastGreaseKm} onChange={e => s('lastGreaseKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Frec. Engrase KM"><input type="number" value={f.greaseFreq||3000} onChange={e => s('greaseFreq', Number(e.target.value))} className="dark-input" /></DarkField>
         <div className="col-span-2"><DarkField label="Observaciones"><input value={f.observations||''} onChange={e => s('observations', e.target.value)} className="dark-input" /></DarkField></div>
       </div>
       {/* Webhook Discord mantenimiento */}
@@ -6423,7 +6423,7 @@ function DriversTab({ drivers, saveDrivers, trips }) {
           <h2 className="text-xl font-black text-stone-900">Conductores</h2>
           <p className="text-sm text-stone-600">{drivers.filter(d => d.active).length} activos · {drivers.length} totales</p>
         </div>
-        <button onClick={() => setEditing({ name: '', shortName: '', phone: '', license: '', pin: '0000', active: true })}
+        <button onClick={() => setEditing({ name: '', shortName: '', phone: '', license: '', licenseType: '', cedula: '', ingresoDate: '', pin: '0000', active: true, photo: '' })}
           className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg flex items-center gap-1 text-sm font-bold shadow-md">
           <Plus className="w-4 h-4" /> Agregar
         </button>
@@ -6438,9 +6438,35 @@ function DriversTab({ drivers, saveDrivers, trips }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <DarkField label="Nombre completo"><input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} className="dark-input" placeholder="Daniel Subero" /></DarkField>
             <DarkField label="Nombre corto"><input value={editing.shortName} onChange={e => setEditing({ ...editing, shortName: e.target.value })} className="dark-input" placeholder="Daniel" /></DarkField>
+            <DarkField label="Cédula de identidad"><input value={editing.cedula||''} onChange={e => setEditing({ ...editing, cedula: e.target.value })} className="dark-input" placeholder="V-12345678" /></DarkField>
             <DarkField label="Teléfono (con +58)"><input value={editing.phone} onChange={e => setEditing({ ...editing, phone: e.target.value })} className="dark-input" placeholder="+584241234567" /></DarkField>
+            <DarkField label="Tipo de licencia">
+              <select value={editing.licenseType||''} onChange={e => setEditing({ ...editing, licenseType: e.target.value })} className="dark-input">
+                <option value="">Seleccionar...</option>
+                <option value="3ra">3ra Clase</option>
+                <option value="4ta">4ta Clase</option>
+                <option value="5ta">5ta Clase</option>
+              </select>
+            </DarkField>
             <DarkField label="N° de licencia"><input value={editing.license} onChange={e => setEditing({ ...editing, license: e.target.value })} className="dark-input" placeholder="Opcional" /></DarkField>
+            <DarkField label="Fecha de ingreso"><input type="date" value={editing.ingresoDate||''} onChange={e => setEditing({ ...editing, ingresoDate: e.target.value })} className="dark-input" /></DarkField>
             <DarkField label="PIN (4 dígitos)"><input maxLength={4} value={editing.pin} onChange={e => setEditing({ ...editing, pin: e.target.value.replace(/\D/g, '') })} className="dark-input font-mono text-lg" placeholder="1234" /></DarkField>
+            <DarkField label="Foto del conductor">
+              <div className="flex items-center gap-3">
+                {editing.photo && <img src={editing.photo} alt="foto" className="w-12 h-12 rounded-xl object-cover border-2 border-emerald-400" />}
+                <label className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
+                  📷 {editing.photo ? 'Cambiar foto' : 'Subir foto'}
+                  <input type="file" accept="image/*" capture="user" className="hidden" onChange={e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = ev => setEditing({ ...editing, photo: ev.target.result });
+                    reader.readAsDataURL(file);
+                  }} />
+                </label>
+                {editing.photo && <button onClick={() => setEditing({ ...editing, photo: '' })} className="text-red-500 text-xs hover:underline">Quitar</button>}
+              </div>
+            </DarkField>
             <DarkField label="Estado">
               <select value={editing.active ? 'true' : 'false'} onChange={e => setEditing({ ...editing, active: e.target.value === 'true' })} className="dark-input">
                 <option value="true">Activo</option>
@@ -6463,8 +6489,8 @@ function DriversTab({ drivers, saveDrivers, trips }) {
             <div key={d.id} className={`bg-white rounded-xl border-2 p-4 shadow-sm ${d.active ? 'border-stone-200' : 'border-stone-100 opacity-60'}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="bg-gradient-to-br from-amber-400 to-amber-600 w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md relative">
-                    {d.shortName.charAt(0)}
+                  <div className="bg-gradient-to-br from-amber-400 to-amber-600 w-12 h-12 rounded-xl flex items-center justify-center text-white font-black text-lg shadow-md relative overflow-hidden">
+                    {d.photo ? <img src={d.photo} alt={d.shortName} className="w-full h-full object-cover" onError={e => { e.target.style.display='none'; }} /> : d.shortName.charAt(0)}
                     {medal && <div className="absolute -top-2 -right-2 text-xl">{medal}</div>}
                   </div>
                   <div>
@@ -6486,10 +6512,22 @@ function DriversTab({ drivers, saveDrivers, trips }) {
                   </div>
                   {d.phone && <DarkContactButtons driver={d} />}
                 </div>
-                {d.license && (
+                {d.cedula && (
                   <div className="flex items-center gap-2 bg-stone-50 rounded-lg px-3 py-2">
                     <FileText className="w-4 h-4 text-stone-400" />
-                    <span className="text-sm text-stone-700">Licencia: <span className="font-mono">{d.license}</span></span>
+                    <span className="text-sm text-stone-700">C.I.: <span className="font-mono">{d.cedula}</span></span>
+                  </div>
+                )}
+                {d.licenseType && (
+                  <div className="flex items-center gap-2 bg-stone-50 rounded-lg px-3 py-2">
+                    <FileText className="w-4 h-4 text-stone-400" />
+                    <span className="text-sm text-stone-700">Licencia {d.licenseType}{d.license ? ` · ${d.license}` : ''}</span>
+                  </div>
+                )}
+                {d.ingresoDate && (
+                  <div className="flex items-center gap-2 bg-stone-50 rounded-lg px-3 py-2">
+                    <FileText className="w-4 h-4 text-stone-400" />
+                    <span className="text-sm text-stone-700">Ingreso: <span className="font-mono">{new Date(d.ingresoDate + 'T00:00:00').toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' })}</span></span>
                   </div>
                 )}
                 <div className="flex items-center justify-between bg-stone-50 rounded-lg px-3 py-2">
