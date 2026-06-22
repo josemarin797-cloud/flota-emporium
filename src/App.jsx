@@ -246,17 +246,26 @@ function speakText(text, options = {}) {
   // Cancelar mensajes previos
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'es-VE';
   utterance.rate = options.rate || 1.0;
   utterance.pitch = options.pitch || 1.0;
   utterance.volume = options.volume || 1.0;
-  // Voz preferida del usuario
+  // Seleccionar la mejor voz en español disponible
+  const allVoices = window.speechSynthesis.getVoices();
   const preferredVoice = localStorage.getItem('emp:voice_name');
+  const spanishVoices = allVoices.filter(v => v.lang.toLowerCase().startsWith('es'));
+  let selectedVoice = null;
   if (preferredVoice) {
-    const voices = getSpanishVoices();
-    const found = voices.find(v => v.name === preferredVoice);
-    if (found) utterance.voice = found;
+    selectedVoice = spanishVoices.find(v => v.name === preferredVoice);
   }
+  if (!selectedVoice) {
+    // Prioridad: es-US > es-ES > es-MX > cualquier español
+    selectedVoice = spanishVoices.find(v => v.lang === 'es-US') ||
+                    spanishVoices.find(v => v.lang === 'es-ES') ||
+                    spanishVoices.find(v => v.lang === 'es-MX') ||
+                    spanishVoices[0];
+  }
+  if (selectedVoice) utterance.voice = selectedVoice;
+  utterance.lang = selectedVoice ? selectedVoice.lang : 'es-US';
   window.speechSynthesis.speak(utterance);
 }
 
