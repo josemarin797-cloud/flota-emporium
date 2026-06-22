@@ -6464,12 +6464,11 @@ function DriversTab({ drivers, saveDrivers, trips }) {
             </DarkField>
             <DarkField label="Fecha de ingreso"><input type="date" value={editing.ingresoDate||''} onChange={e => setEditing({ ...editing, ingresoDate: e.target.value })} className="dark-input" /></DarkField>
             <DarkField label="PIN (4 dígitos)"><input maxLength={4} value={editing.pin} onChange={e => setEditing({ ...editing, pin: e.target.value.replace(/\D/g, '') })} className="dark-input font-mono text-lg" placeholder="1234" /></DarkField>
-            <DarkField label="Foto del conductor">
               <div className="flex items-center gap-3">
                 {editing.photo && <img src={editing.photo} alt="foto" className="w-12 h-12 rounded-xl object-cover border-2 border-emerald-400" />}
                 <label className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
                   📷 {editing.photo ? 'Cambiar foto' : 'Subir foto'}
-                  <input type="file" accept="image/*" capture="user" className="hidden" onChange={e => {
+                  <input type="file" accept="image/*" className="hidden" onChange={e => {
                     const file = e.target.files[0];
                     if (!file) return;
                     const reader = new FileReader();
