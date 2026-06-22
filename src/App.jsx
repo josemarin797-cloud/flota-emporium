@@ -6236,11 +6236,11 @@ function VehicleForm({ v, onSave, onCancel, title }) {
       {/* KM y mantenimiento */}
       <div className="grid grid-cols-2 gap-3 mt-3">
         <DarkField label="Estado"><select value={f.status} onChange={e => s('status', e.target.value)} className="dark-input"><option>AL DIA</option><option>EN TALLER</option><option>OPERATIVO</option><option>FUERA DE SERVICIO</option></select></DarkField>
-        <DarkField label="KM Actual"><input type="number" value={f.currentKm} onChange={e => s('currentKm', Number(e.target.value))} onFocus={e => e.target.select()} className="dark-input" /></DarkField>
-        <DarkField label="Último Mant. KM"><input type="number" value={f.lastMaintKm} onChange={e => s('lastMaintKm', Number(e.target.value))} onFocus={e => e.target.select()} className="dark-input" /></DarkField>
-        <DarkField label="Frec. Mant. KM"><input type="number" value={f.maintFreq} onChange={e => s('maintFreq', Number(e.target.value))} onFocus={e => e.target.select()} className="dark-input" /></DarkField>
-        <DarkField label="Último Engrase KM"><input type="number" value={f.lastGreaseKm} onChange={e => s('lastGreaseKm', Number(e.target.value))} onFocus={e => e.target.select()} className="dark-input" /></DarkField>
-        <DarkField label="Frec. Engrase KM"><input type="number" value={f.greaseFreq||3000} onChange={e => s('greaseFreq', Number(e.target.value))} onFocus={e => e.target.select()} className="dark-input" /></DarkField>
+        <DarkField label="KM Actual"><input type="number" value={f.currentKm || ''} onChange={e => s('currentKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Último Mant. KM"><input type="number" value={f.lastMaintKm || ''} onChange={e => s('lastMaintKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Frec. Mant. KM"><input type="number" value={f.maintFreq || ''} onChange={e => s('maintFreq', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Último Engrase KM"><input type="number" value={f.lastGreaseKm || ''} onChange={e => s('lastGreaseKm', Number(e.target.value))} className="dark-input" /></DarkField>
+        <DarkField label="Frec. Engrase KM"><input type="number" value={f.greaseFreq || ''} onChange={e => s('greaseFreq', Number(e.target.value))} className="dark-input" /></DarkField>
         <div className="col-span-2"><DarkField label="Observaciones"><input value={f.observations||''} onChange={e => s('observations', e.target.value)} className="dark-input" /></DarkField></div>
       </div>
       {/* Webhook Discord mantenimiento */}
