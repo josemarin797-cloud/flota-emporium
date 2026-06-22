@@ -6449,9 +6449,21 @@ function DriversTab({ drivers, saveDrivers, trips }) {
               </select>
             </DarkField>
             <DarkField label="N° de licencia"><input value={editing.license} onChange={e => setEditing({ ...editing, license: e.target.value })} className="dark-input" placeholder="Opcional" /></DarkField>
+            <DarkField label="Tipo de sangre">
+              <select value={editing.bloodType||''} onChange={e => setEditing({ ...editing, bloodType: e.target.value })} className="dark-input">
+                <option value="">Seleccionar...</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+              </select>
+            </DarkField>
             <DarkField label="Fecha de ingreso"><input type="date" value={editing.ingresoDate||''} onChange={e => setEditing({ ...editing, ingresoDate: e.target.value })} className="dark-input" /></DarkField>
             <DarkField label="PIN (4 dígitos)"><input maxLength={4} value={editing.pin} onChange={e => setEditing({ ...editing, pin: e.target.value.replace(/\D/g, '') })} className="dark-input font-mono text-lg" placeholder="1234" /></DarkField>
-            <DarkField label="Foto del conductor">
               <div className="flex items-center gap-3">
                 {editing.photo && <img src={editing.photo} alt="foto" className="w-12 h-12 rounded-xl object-cover border-2 border-emerald-400" />}
                 <label className="cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2">
@@ -6512,7 +6524,12 @@ function DriversTab({ drivers, saveDrivers, trips }) {
                   </div>
                   {d.phone && <DarkContactButtons driver={d} />}
                 </div>
-                {d.cedula && (
+                {d.bloodType && (
+                  <div className="flex items-center gap-2 bg-red-50 rounded-lg px-3 py-2">
+                    <span className="text-red-500 font-bold text-sm">🩸</span>
+                    <span className="text-sm text-stone-700">Tipo de sangre: <span className="font-bold text-red-600">{d.bloodType}</span></span>
+                  </div>
+                )}
                   <div className="flex items-center gap-2 bg-stone-50 rounded-lg px-3 py-2">
                     <FileText className="w-4 h-4 text-stone-400" />
                     <span className="text-sm text-stone-700">C.I.: <span className="font-mono">{d.cedula}</span></span>
