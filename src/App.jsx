@@ -246,26 +246,17 @@ function speakText(text, options = {}) {
   // Cancelar mensajes previos
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'es-VE';
   utterance.rate = options.rate || 1.0;
   utterance.pitch = options.pitch || 1.0;
   utterance.volume = options.volume || 1.0;
-  // Seleccionar la mejor voz en español disponible
-  const allVoices = window.speechSynthesis.getVoices();
+  // Voz preferida del usuario
   const preferredVoice = localStorage.getItem('emp:voice_name');
-  const spanishVoices = allVoices.filter(v => v.lang.toLowerCase().startsWith('es'));
-  let selectedVoice = null;
   if (preferredVoice) {
-    selectedVoice = spanishVoices.find(v => v.name === preferredVoice);
+    const voices = getSpanishVoices();
+    const found = voices.find(v => v.name === preferredVoice);
+    if (found) utterance.voice = found;
   }
-  if (!selectedVoice) {
-    // Prioridad: es-US > es-ES > es-MX > cualquier español
-    selectedVoice = spanishVoices.find(v => v.lang === 'es-US') ||
-                    spanishVoices.find(v => v.lang === 'es-ES') ||
-                    spanishVoices.find(v => v.lang === 'es-MX') ||
-                    spanishVoices[0];
-  }
-  if (selectedVoice) utterance.voice = selectedVoice;
-  utterance.lang = selectedVoice ? selectedVoice.lang : 'es-US';
   window.speechSynthesis.speak(utterance);
 }
 
@@ -2274,7 +2265,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       saveVehicles(vehicles.map(v => v.id === vehPrincipal.id ? {
         ...v, currentKm: Number(kmFinal),
         lastParkedKm: Number(kmFinal), lastParkedDate: hoy, lastParkedTime: hora,
-        status: v.status === 'EN TALLER' ? 'EN TALLER' : 'GUARDADO',
+        status: v.status === 'EN TALLER' ? 'EN TALLER' : 'AL DIA',
       } : v));
     }
 
@@ -2621,16 +2612,6 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
 function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep, appointments = [], onContinueWithVoice, onEntregarUnidad }) {
   // Cargar active_trips frescos desde Supabase para bloqueo en tiempo real
   const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
-
-  // Auto-desbloquear vehículos GUARDADO del día anterior
-  React.useEffect(() => {
-    if (!saveVehicles) return;
-    const today = new Date().toISOString().slice(0,10);
-    const toUnlock = vehicles.filter(v => v.status === 'GUARDADO' && v.lastParkedDate && v.lastParkedDate < today);
-    if (toUnlock.length > 0) {
-      saveVehicles(vehicles.map(v => toUnlock.find(u => u.id === v.id) ? { ...v, status: 'AL DIA' } : v));
-    }
-  }, []);
  React.useEffect(() => {
     const fetchTrips = () => sbFetch('active_trips?select=*').then(data => {
       if (Array.isArray(data)) setLiveActiveTrips(data.map(r => ({ ...r, vehicleId: r.vehicleId || r.vehicle_id, driverId: r.driverId || r.driver_id })));
@@ -2716,7 +2697,6 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
       <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
         <div className="space-y-2">
           {[...vehicles].sort((a, b) => a.id.localeCompare(b.id)).map(v => {
-            const today = new Date().toISOString().slice(0,10);
             const enTaller = v.status === 'EN TALLER';
             const retirarAutorizado = v.status === 'RETIRO AUTORIZADO';
             const isSelected = selectedVehicle?.id === v.id;
@@ -2732,8 +2712,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
             // Tiene viaje activo de otro chofer
             const occupiedByOther = !!activeByOther && !waitingForOther && !waitingForMe;
 
-            const isGuardado = v.status === 'GUARDADO' && v.lastParkedDate === today;
-            const isBlocked = waitingForOther || occupiedByOther || enTaller || isGuardado;
+            const isBlocked = waitingForOther || occupiedByOther || enTaller;
 
             return (
               <button key={v.id} onClick={() => {
@@ -2760,7 +2739,6 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                     <div className="font-bold text-stone-900 text-base flex items-center gap-2 flex-wrap">
                       {v.code}
                       {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EN TALLER</span>}
-                      {isGuardado && <span className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🌙 Guardado</span>}
                       {retirarAutorizado && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">🔧 Listo para retirar</span>}
                       {waitingForMe && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">⏳ Para ti</span>}
                       {waitingForOther && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera por {pendingForV.toDriverNameExpected}</span>}
@@ -6370,7 +6348,7 @@ function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig })
                     <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Días</div><div className="font-bold text-stone-900">{new Set(vt.map(t=>t.startDate)).size}</div></div>
                   </div>
                   {v.observations && <div className="mt-2 text-xs bg-amber-950/30 border border-amber-700/30 rounded p-2 text-amber-700">{v.observations}</div>}
-                  {(v.status === 'EN TALLER' || v.status === 'GUARDADO') && (
+                  {v.status === 'EN TALLER' && (
                     <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
                       <div className="text-xs font-bold text-amber-800 uppercase tracking-wider">🔧 EN TALLER</div>
                       <div className="text-xs text-amber-700">{v.tallerMotivo || 'Sin motivo registrado'}</div>
