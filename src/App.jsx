@@ -841,12 +841,12 @@ export default function App() {
     if (role === 'driver') {
       // Saludo + recordatorio de seguridad al chofer
       setTimeout(() => {
-        speakText(`${greeting} Sr. ${user.shortName}. Recuerda verificar neumáticos, aceite y agua. Límite ochenta kilómetros por hora. Maneja con precaución.`);
+        speakText(`${greeting} Señor ${user.shortName}. Recuerda verificar neumáticos, aceite y agua. Límite ochenta kilómetros por hora. Maneja con precaución.`);
       }, 500);
     } else {
       // Saludo cordial al coordinador
       setTimeout(() => {
-        speakText(`${greeting} Sr. Marín. Bienvenido al Sistema de Control de Flota Emporium.`);
+        speakText(`${greeting} Señor Marín. Bienvenido al Sistema de Control de Flota Emporium.`);
       }, 500);
     }
   };
@@ -1102,7 +1102,7 @@ function WelcomeScreen({ onOk }) {
       localStorage.setItem('emp:access:ts', String(Date.now()));
       localStorage.removeItem('emp:login:attempts');
       const greeting = getGreetingByTime();
-      setTimeout(() => speakText(`${greeting} Sr. Marín. Bienvenido al Sistema de Control de Flota Emporium.`), 300);
+      setTimeout(() => speakText(`${greeting} Señor Marín. Bienvenido al Sistema de Control de Flota Emporium.`), 300);
       onOk();
     } else {
       const attempts = Number(localStorage.getItem('emp:login:attempts') || 0) + 1;
@@ -1142,7 +1142,7 @@ function WelcomeScreen({ onOk }) {
       await navigator.credentials.get({ publicKey: { challenge, rpId: location.hostname, allowCredentials: [{ type: 'public-key', id: credIdBytes }], userVerification: 'required', timeout: 30000 } });
       localStorage.setItem('emp:access:ts', String(Date.now()));
       const greeting = getGreetingByTime();
-      setTimeout(() => speakText(greeting + ' Sr. Marín. Bienvenido al Sistema de Control de Flota Emporium.'), 300);
+      setTimeout(() => speakText(greeting + ' Señor Marín. Bienvenido al Sistema de Control de Flota Emporium.'), 300);
       onOk();
     } catch (e) { setError('Huella no reconocida. Usa tu contraseña.'); }
     setBiometricLoading(false);
