@@ -2487,7 +2487,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
                   setTimeout(() => { try { speakText(msg); localStorage.setItem(key, '1'); } catch(e){} }, 3500);
                 }
               }
-            }} onEntregarUnidad={() => setShowEntregarModal(true)} />
+            }} onEntregarUnidad={() => setShowEntregarModal(true)} saveVehicles={saveVehicles} />
           </>}
           {step === 'retirar' && selectedVehicle && <RetirarTallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onRetiro={() => { setStep('start'); }} onBack={() => setStep('select')} />}
           {step === 'taller' && selectedVehicle && <TallerView vehicle={vehicles.find(v=>v.id===selectedVehicle.id)||selectedVehicle} driver={currentDriver} vehicles={vehicles} saveVehicles={saveVehicles} config={config} onSalir={() => { setSelectedVehicle(null); setStep('select'); }} />}
@@ -2609,9 +2609,19 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
   );
 }
 
-function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep, appointments = [], onContinueWithVoice, onEntregarUnidad }) {
+function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, saveVehicles, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep, appointments = [], onContinueWithVoice, onEntregarUnidad }) {
   // Cargar active_trips frescos desde Supabase para bloqueo en tiempo real
   const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
+
+  // Auto-desbloquear vehiculos GUARDADO del dia anterior
+  React.useEffect(() => {
+    if (!saveVehicles) return;
+    const today = new Date().toISOString().slice(0,10);
+    const toUnlock = vehicles.filter(v => v.status === 'GUARDADO' && v.lastParkedDate && v.lastParkedDate < today);
+    if (toUnlock.length > 0) {
+      saveVehicles(vehicles.map(v => toUnlock.find(u => u.id === v.id) ? { ...v, status: 'AL DIA' } : v));
+    }
+  }, []);
 
  React.useEffect(() => {
     const fetchTrips = () => sbFetch('active_trips?select=*').then(data => {
@@ -2713,7 +2723,9 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
             // Tiene viaje activo de otro chofer
             const occupiedByOther = !!activeByOther && !waitingForOther && !waitingForMe;
 
-            const isBlocked = waitingForOther || occupiedByOther || enTaller;
+            const todayStr = new Date().toISOString().slice(0,10);
+            const isGuardado = v.status === 'GUARDADO' && v.lastParkedDate === todayStr;
+            const isBlocked = waitingForOther || occupiedByOther || enTaller || isGuardado;
 
             return (
               <button key={v.id} onClick={() => {
@@ -2740,6 +2752,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                     <div className="font-bold text-stone-900 text-base flex items-center gap-2 flex-wrap">
                       {v.code}
                       {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EN TALLER</span>}
+                      {isGuardado && <span className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Guardado</span>}
 
                       {retirarAutorizado && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">🔧 Listo para retirar</span>}
                       {waitingForMe && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">⏳ Para ti</span>}
@@ -8980,8 +8993,8 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
     saveGpsTracks([]);
     saveArchived([]);
     // Resetear estado de vehículos
-    saveVehicles(vehicles.map(v => ({ ...v, status: v.status === 'EN TALLER' ? 'EN TALLER' : 'AL DIA' })));
-    alert('✅ App limpia. Puedes empezar a registrar viajes reales.');
+    saveVehicles(vehicles.map(v => ({ ...v, status: v.status === 'EN TALLER' ? 'EN TALLER' : 'AL DIA', lastParkedDate: null, lastParkedTime: null })));
+    alert('App limpia. Puedes empezar a registrar viajes reales.');
   };
 
   const cancelarViajesActivos = async () => {
@@ -9248,7 +9261,7 @@ function EndShiftForm({ driver, vehicle, trips = [], kmInicial = '', onConfirm, 
             ) : (
               <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-indigo-300 rounded-xl cursor-pointer hover:bg-indigo-50">
                 <span className="text-2xl">🤳</span><span className="text-xs text-indigo-400 mt-1">Selfie (cámara frontal)</span>
-                <input type="file" accept="image/*"  className="hidden" onChange={handleFotoChofer} />
+                <input type="file" accept="image/*" capture="user" className="hidden" onChange={handleFotoChofer} />
               </label>
             )}
           </div>
