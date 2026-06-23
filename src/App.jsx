@@ -2723,9 +2723,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
             // Tiene viaje activo de otro chofer
             const occupiedByOther = !!activeByOther && !waitingForOther && !waitingForMe;
 
-            const today2 = new Date().toISOString().slice(0,10);
-            const isGuardado = v.status === 'GUARDADO' && v.lastParkedDate === today2;
-            const isBlocked = waitingForOther || occupiedByOther || enTaller || isGuardado;
+            const isBlocked = waitingForOther || occupiedByOther || enTaller;
 
             return (
               <button key={v.id} onClick={() => {
@@ -2752,7 +2750,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                     <div className="font-bold text-stone-900 text-base flex items-center gap-2 flex-wrap">
                       {v.code}
                       {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EN TALLER</span>}
-                      {isGuardado && <span className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Guardado</span>}
+
                       {retirarAutorizado && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">🔧 Listo para retirar</span>}
                       {waitingForMe && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">⏳ Para ti</span>}
                       {waitingForOther && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera por {pendingForV.toDriverNameExpected}</span>}
