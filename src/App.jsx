@@ -2236,7 +2236,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setSelectedVehicle(null);
     setStep('select');
   };
- // 🌙 Finalizar Jornada del día — calcula stats + voz + Discord
+ //  Finalizar Jornada del día — calcula stats + voz + Discord
   const finalizarJornada = async () => {
     const hoy = new Date().toISOString().slice(0, 10);
     const viajesHoy = trips.filter(t => t.driverId === currentDriver.id && t.startDate === hoy);
@@ -2283,7 +2283,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     if (wh) {
       const kmDiff = vehPrincipal ? Number(kmFinal) - (vehPrincipal.currentKm||0) : 0;
       sendDiscordNotification(wh, {
-        title: `🌙 Cierre de jornada — ${nombre}${hayAlerta?' 🚨':''}`,
+        title: ` Cierre de jornada — ${nombre}${hayAlerta?' 🚨':''}`,
         description: `📅 ${hoy} ${hora}\n🚛 ${vehPrincipal?.code||'—'} · KM final: **${Number(kmFinal).toLocaleString()}**\n⛽ Combustible: **${combustibleRestante||'—'}**\n🔵 Cauchos: ${items?.cauchos==='bien'?'✅ Bien':items?.cauchos==='revisar'?'⚠️ Revisar':'🔴 Mal estado'}${cauchoNota?' — '+cauchoNota:''}\n🔍 Daños: ${items?.danos==='ninguno'?'✅ Ninguno':items?.danos==='menor'?'⚠️ Menor':'🔴 Grave'}${danosNota?' — '+danosNota:''}\n✅ ${viajesHoy.length} viajes · ${totalKm} km · $${totalCosto.toFixed(2)}\n${novedades ? '📝 '+novedades : '✅ Sin novedades'}`,
         color: hayAlerta ? 0xef4444 : novedades ? 0xf59e0b : 0x10b981,
       }).catch(()=>{});
@@ -2760,7 +2760,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                     <div className="font-bold text-stone-900 text-base flex items-center gap-2 flex-wrap">
                       {v.code}
                       {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EN TALLER</span>}
-                      {isGuardado && <span className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded-full font-bold">🌙 Guardado</span>}
+                      {isGuardado && <span className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Guardado</span>}
                       {retirarAutorizado && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">🔧 Listo para retirar</span>}
                       {waitingForMe && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">⏳ Para ti</span>}
                       {waitingForOther && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera por {pendingForV.toDriverNameExpected}</span>}
@@ -2778,7 +2778,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                   <div className="text-[10px] text-stone-500 uppercase tracking-wider">KM Actual</div>
                   <div className="text-sm font-bold text-stone-700">{v.currentKm.toLocaleString()}</div>
                   {v.lastParkedDate === new Date().toISOString().slice(0,10) && (
-                    <div className="text-[9px] text-indigo-500 font-bold mt-0.5">🌙 Cerrado hoy</div>
+                    <div className="text-[9px] text-indigo-500 font-bold mt-0.5"> Cerrado hoy</div>
                   )}
                 </div>
               </button>
@@ -3731,7 +3731,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
             </button>
             <button onClick={() => endWaiting(false)}
               className="w-full py-3 bg-white/20 hover:bg-white/30 rounded-xl font-bold flex items-center justify-center gap-2">
-              🌙 Finalizar Jornada de hoy
+               Finalizar Jornada de hoy
             </button>
           </div>
         </div>
@@ -3847,7 +3847,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
 
 
           <button onClick={() => onFinishJornada && onFinishJornada()} className="w-full mt-2 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 shadow-lg shadow-purple-700/30 flex items-center justify-center gap-2">
-            🌙 Finalizar Jornada de hoy
+             Finalizar Jornada de hoy
           </button>
         </div>
       )}
@@ -9300,7 +9300,7 @@ function EndShiftForm({ driver, vehicle, trips = [], kmInicial = '', onConfirm, 
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 to-stone-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
         <div className="bg-indigo-700 px-5 py-4 text-white">
-          <div className="text-xs font-mono uppercase tracking-wider opacity-80 mb-1">🌙 Cierre de jornada</div>
+          <div className="text-xs font-mono uppercase tracking-wider opacity-80 mb-1"> Cierre de jornada</div>
           <div className="font-black text-lg">{driver.name}</div>
           <div className="text-indigo-200 text-sm">{hora} · {vehicle?.code || '—'} · {trips.length} viajes · {totalKm} km</div>
         </div>
@@ -9390,7 +9390,7 @@ function EndShiftForm({ driver, vehicle, trips = [], kmInicial = '', onConfirm, 
           )}
           <button onClick={submit} disabled={!canSubmit || submitting}
             className={`w-full py-3 rounded-xl font-black text-white text-base transition ${canSubmit && !submitting ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-stone-300 cursor-not-allowed'}`}>
-            {submitting ? '⏳ Guardando...' : '🌙 Confirmar cierre de jornada'}
+            {submitting ? '⏳ Guardando...' : ' Confirmar cierre de jornada'}
           </button>
           <button onClick={onBack} className="w-full py-2 text-xs text-stone-400 hover:text-stone-600">Cancelar</button>
         </div>
@@ -9708,7 +9708,7 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
             <div>
               <div className="font-black text-red-800 text-sm">¡El camión fue movido!</div>
               <div className="text-xs text-red-700 mt-1 space-y-0.5">
-                <div>🌙 Guardado ayer ({kmAlert.lastDate} {kmAlert.lastTime}): <strong>{kmAlert.lastKm.toLocaleString()} km</strong></div>
+                <div>Guardado ayer ({kmAlert.lastDate} {kmAlert.lastTime}): <strong>{kmAlert.lastKm.toLocaleString()} km</strong></div>
                 <div>🌅 KM actual: <strong>{(kmAlert.currentKm||0).toLocaleString()} km</strong></div>
                 <div className="font-bold text-red-800">⚠️ Diferencia: +{((kmAlert.currentKm||0) - kmAlert.lastKm).toLocaleString()} km SIN AUTORIZACIÓN</div>
               </div>
@@ -9719,7 +9719,7 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
       {/* CIERRE DE JORNADA ANTERIOR */}
       {lastEndShift && (
         <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4">
-          <div className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-2">🌙 Cierre jornada anterior — {lastEndShift.driverName}</div>
+          <div className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-2"> Cierre jornada anterior — {lastEndShift.driverName}</div>
           <div className="grid grid-cols-2 gap-2 text-xs mb-2">
             <div className="bg-white rounded-lg p-2 border border-indigo-100">
               <div className="text-indigo-400 font-mono">📅 Fecha</div>
