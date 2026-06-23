@@ -1752,7 +1752,11 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   useEffect(() => {
     if (selectedVehicle) {
       const active = myActiveTrips.find(t => t.vehicleId === selectedVehicle.id);
-      if (active && step === 'select') { setCurrentTrip(active); setStep('active'); }
+      if (active && step === 'select') {
+        setCurrentTrip(active);
+        const savedStep = active.id ? localStorage.getItem('emp:trip_step_' + active.id) : null;
+        setStep(savedStep === 'finish' ? 'finish' : 'active');
+      }
     }
   }, [selectedVehicle, myActiveTrips]);
 
@@ -2053,6 +2057,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     // Si el destino es bomba/surtir → mostrar pantalla de carga antes de la morada
     const _esBomba = completed.destinationBranchId === 'surtir' ||
       (completed.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(completed.customDestName || ''));
+    if (!_esBomba && completed?.id) localStorage.setItem('emp:trip_step_' + completed.id, 'finish');
     setStep(_esBomba ? 'surtir' : 'finish');
     // 🎙️ Voz al cerrar el viaje
         const mensajesCierre = [
@@ -2131,6 +2136,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     } else {
       sessionStorage.removeItem('emp:preOrigin');
     }
+    if (currentTrip?.id) localStorage.removeItem('emp:trip_step_' + currentTrip.id);
     setCurrentTrip(null); setTripFormKey(k => k + 1); setStep('start');
     // Sync viajes a Supabase — 3 segundos después para no interferir con React
     window.setTimeout(() => {
@@ -2519,6 +2525,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
               const vid = currentTrip?.vehicleId;
               if (vid) localStorage.setItem('emp:salio_bomba_' + vid, '1');
               setCurrentTrip(t => ({ ...t, isBombaTrip: undefined }));
+              if (currentTrip?.id) localStorage.setItem('emp:trip_step_' + currentTrip.id, 'finish');
               setStep('finish');
             }}
           />}
