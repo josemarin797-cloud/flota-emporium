@@ -2260,12 +2260,12 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     };
     saveEndShifts && saveEndShifts([record, ...(endShifts||[])]);
 
-    // Actualizar KM y estado del camión → "GUARDADO"
+    // Actualizar KM y estado del camion -> "GUARDADO"
     if (vehPrincipal && kmFinal) {
       saveVehicles(vehicles.map(v => v.id === vehPrincipal.id ? {
         ...v, currentKm: Number(kmFinal),
         lastParkedKm: Number(kmFinal), lastParkedDate: hoy, lastParkedTime: hora,
-        status: v.status === 'EN TALLER' ? 'EN TALLER' : 'AL DIA',
+        status: v.status === 'EN TALLER' ? 'EN TALLER' : 'GUARDADO',
       } : v));
     }
 
@@ -2612,6 +2612,17 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
 function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep, appointments = [], onContinueWithVoice, onEntregarUnidad }) {
   // Cargar active_trips frescos desde Supabase para bloqueo en tiempo real
   const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
+
+  // Auto-desbloquear vehiculos GUARDADO del dia anterior
+  React.useEffect(() => {
+    if (!saveVehicles) return;
+    const today = new Date().toISOString().slice(0,10);
+    const toUnlock = vehicles.filter(v => v.status === 'GUARDADO' && v.lastParkedDate && v.lastParkedDate < today);
+    if (toUnlock.length > 0) {
+      saveVehicles(vehicles.map(v => toUnlock.find(u => u.id === v.id) ? { ...v, status: 'AL DIA' } : v));
+    }
+  }, []);
+
  React.useEffect(() => {
     const fetchTrips = () => sbFetch('active_trips?select=*').then(data => {
       if (Array.isArray(data)) setLiveActiveTrips(data.map(r => ({ ...r, vehicleId: r.vehicleId || r.vehicle_id, driverId: r.driverId || r.driver_id })));
@@ -2712,7 +2723,9 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
             // Tiene viaje activo de otro chofer
             const occupiedByOther = !!activeByOther && !waitingForOther && !waitingForMe;
 
-            const isBlocked = waitingForOther || occupiedByOther || enTaller;
+            const today2 = new Date().toISOString().slice(0,10);
+            const isGuardado = v.status === 'GUARDADO' && v.lastParkedDate === today2;
+            const isBlocked = waitingForOther || occupiedByOther || enTaller || isGuardado;
 
             return (
               <button key={v.id} onClick={() => {
@@ -2739,6 +2752,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                     <div className="font-bold text-stone-900 text-base flex items-center gap-2 flex-wrap">
                       {v.code}
                       {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EN TALLER</span>}
+                      {isGuardado && <span className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Guardado</span>}
                       {retirarAutorizado && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">🔧 Listo para retirar</span>}
                       {waitingForMe && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">⏳ Para ti</span>}
                       {waitingForOther && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera por {pendingForV.toDriverNameExpected}</span>}
@@ -6324,6 +6338,12 @@ function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig })
                     </div>
                     <div className="flex gap-2 items-center flex-shrink-0">
                       <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${v.status==='AL DIA'?'bg-emerald-500/20 text-stone-700 border border-emerald-500/40':'bg-rose-100 text-rose-800 border border-rose-300'}`}>{v.status}</span>
+                      {v.status === 'GUARDADO' && (
+                        <button onClick={() => saveVehicles(vehicles.map(x => x.id === v.id ? { ...x, status: 'AL DIA' } : x))}
+                          className="text-[10px] px-2 py-1 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 font-bold">
+                          Liberar
+                        </button>
+                      )}
                       <button onClick={() => setEditing({...v})} className="p-1.5 rounded-lg bg-stone-100 hover:bg-emerald-100 text-stone-600 hover:text-emerald-700 transition">
                         <Edit className="w-4 h-4" />
                       </button>
