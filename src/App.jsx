@@ -1754,8 +1754,16 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       const active = myActiveTrips.find(t => t.vehicleId === selectedVehicle.id);
       if (active && step === 'select') {
         setCurrentTrip(active);
-        const savedStep = active.vehicleId ? localStorage.getItem('emp:trip_step_' + active.vehicleId) : null;
+        const savedStep = localStorage.getItem('emp:trip_step_' + selectedVehicle.id);
         setStep(savedStep === 'finish' ? 'finish' : 'active');
+      } else if (!active && step === 'select') {
+        // No hay viaje activo pero puede estar en pantalla morada (finish)
+        const savedStep = localStorage.getItem('emp:trip_step_' + selectedVehicle.id);
+        if (savedStep === 'finish') {
+          // Buscar el viaje completado mas reciente de este vehiculo
+          const lastTrip = trips && trips.filter(t => t.vehicleId === selectedVehicle.id).sort((a,b) => (b.startTime||'').localeCompare(a.startTime||''))[0];
+          if (lastTrip) { setCurrentTrip(lastTrip); setStep('finish'); }
+        }
       }
     }
   }, [selectedVehicle, myActiveTrips]);
@@ -2062,7 +2070,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       localStorage.setItem('emp:trip_arrived_' + completed.vehicleId, new Date().toTimeString().slice(0,5));
     }
     setStep(_esBomba ? 'surtir' : 'finish');
-    // 🎙️ Voz al cerrar el viaje
+    // Voz al cerrar el viaje
         const mensajesCierre = [
           'Viaje completado.',
           'Excelente recorrido.',
@@ -4399,7 +4407,12 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
   const [liveTrips, setLiveTrips] = React.useState(activeTrips);
   React.useEffect(() => {
     const fetch = () => sbFetch && sbFetch('active_trips?select=*').then(data => {
-      if (Array.isArray(data)) setLiveTrips(data.map(r => ({ ...r, vehicleId: r.vehicleId || r.vehicle_id, driverId: r.driverId || r.driver_id })));
+      if (Array.isArray(data)) setLiveTrips(data.map(r => ({
+        ...r,
+        vehicleId: r.vehicleId || r.vehicle_id,
+        driverId: r.driverId || r.driver_id,
+        arrivedAtSite: !!localStorage.getItem('emp:trip_arrived_' + (r.vehicleId || r.vehicle_id))
+      })));
     }).catch(() => {});
     fetch();
     const iv = setInterval(fetch, 8000);
@@ -4514,7 +4527,7 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
                         <div className="text-sm font-semibold text-stone-800 flex items-center gap-2">
                           {v.code}
                           <span className="text-xs px-1.5 py-0.5 rounded font-normal" style={{background: borderColor + '15', color: borderColor}}>
-                            {isAlert ? 'Alerta +4h' : isEnRuta ? (localStorage.getItem('emp:trip_arrived_' + v.id) ? 'En sitio' : 'En camino') : v.status}
+                            {isAlert ? 'Alerta +4h' : isEnRuta ? (trip.arrivedAtSite ? 'En sitio' : 'En camino') : v.status}
                           </span>
                         </div>
                         <div className="text-xs text-stone-500 mt-0.5">{isEnRuta && drv ? drv.name : v.plate}</div>
