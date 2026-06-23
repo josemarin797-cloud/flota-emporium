@@ -4383,6 +4383,16 @@ function DarkMonthSelector({ selectedMonth, setSelectedMonth }) {
 
 function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selectedMonth, gpsTracks, config, checklists = [], handoffs = [], incidents = [], saveHandoffs, sbFetch }) {
   const [selectedChecklist, setSelectedChecklist] = React.useState(null);
+  const [liveTrips, setLiveTrips] = React.useState(activeTrips);
+  React.useEffect(() => {
+    const fetch = () => sbFetch && sbFetch('active_trips?select=*').then(data => {
+      if (Array.isArray(data)) setLiveTrips(data.map(r => ({ ...r, vehicleId: r.vehicleId || r.vehicle_id, driverId: r.driverId || r.driver_id })));
+    }).catch(() => {});
+    fetch();
+    const iv = setInterval(fetch, 8000);
+    return () => clearInterval(iv);
+  }, []);
+  const activeTripsLive = liveTrips.length > 0 ? liveTrips : activeTrips;
   const kpis = useMemo(() => {
     const totalKm = trips.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
     const totalLiters = trips.reduce((s, t) => s + (Number(t.liters) || 0), 0);
@@ -4434,7 +4444,7 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
       </div>
 
       {/* FLOTA EN TIEMPO REAL */}
-      {activeTrips.length > 0 && (() => {
+      {activeTripsLive.length > 0 && (() => {
         const now = Date.now();
         const ALERT_MS = 4 * 60 * 60 * 1000;
         const guardados = vehicles.filter(v => v.status === 'GUARDADO').length;
@@ -4459,7 +4469,7 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
           const m = parseInt(parts[1], 10);
           return now - new Date().setHours(h, m, 0, 0);
         };
-        const alertCount = activeTrips.filter(t => getElapsedMs(t.startTime) > ALERT_MS).length;
+        const alertCount = activeTripsLive.filter(t => getElapsedMs(t.startTime) > ALERT_MS).length;
         return (
           <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
@@ -4470,7 +4480,7 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
               <span className="text-xs text-emerald-600 font-bold">{activeTrips.length} en ruta</span>
             </div>
             <div className="p-3 space-y-2">
-              {activeTrips.map(trip => {
+              {activeTripsLive.map(trip => {
                 const veh = vehicles.find(v => v.id === trip.vehicleId);
                 const drv = drivers.find(d => d.id === trip.driverId);
                 const orig = branches ? branches.find(b => b.id === trip.originBranchId) : null;
@@ -4531,7 +4541,7 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
               })}
             </div>
             <div className="px-4 py-2 border-t border-stone-100 grid text-center" style={{gridTemplateColumns:'repeat(4,1fr)'}}>
-              <div><div className="text-stone-400" style={{fontSize:'10px'}}>EN RUTA</div><div className="text-lg font-semibold text-emerald-600">{activeTrips.length}</div></div>
+              <div><div className="text-stone-400" style={{fontSize:'10px'}}>EN RUTA</div><div className="text-lg font-semibold text-emerald-600">{activeTripsLive.length}</div></div>
               <div><div className="text-stone-400" style={{fontSize:'10px'}}>GUARDADOS</div><div className="text-lg font-semibold text-stone-500">{guardados}</div></div>
               <div><div className="text-stone-400" style={{fontSize:'10px'}}>LIBRES</div><div className="text-lg font-semibold text-stone-400">{libres}</div></div>
               <div><div className="text-stone-400" style={{fontSize:'10px'}}>ALERTAS</div><div className="text-lg font-semibold text-red-500">{alertCount}</div></div>
