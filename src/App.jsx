@@ -1754,7 +1754,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       const active = myActiveTrips.find(t => t.vehicleId === selectedVehicle.id);
       if (active && step === 'select') {
         setCurrentTrip(active);
-        const savedStep = active.id ? localStorage.getItem('emp:trip_step_' + active.id) : null;
+        const savedStep = active.vehicleId ? localStorage.getItem('emp:trip_step_' + active.vehicleId) : null;
         setStep(savedStep === 'finish' ? 'finish' : 'active');
       }
     }
@@ -2057,7 +2057,10 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     // Si el destino es bomba/surtir → mostrar pantalla de carga antes de la morada
     const _esBomba = completed.destinationBranchId === 'surtir' ||
       (completed.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(completed.customDestName || ''));
-    if (!_esBomba && completed?.id) localStorage.setItem('emp:trip_step_' + completed.id, 'finish');
+    if (!_esBomba && completed?.vehicleId) {
+      localStorage.setItem('emp:trip_step_' + completed.vehicleId, 'finish');
+      localStorage.setItem('emp:trip_arrived_' + completed.vehicleId, new Date().toTimeString().slice(0,5));
+    }
     setStep(_esBomba ? 'surtir' : 'finish');
     // 🎙️ Voz al cerrar el viaje
         const mensajesCierre = [
@@ -2136,7 +2139,10 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     } else {
       sessionStorage.removeItem('emp:preOrigin');
     }
-    if (currentTrip?.id) localStorage.removeItem('emp:trip_step_' + currentTrip.id);
+    if (currentTrip?.vehicleId) {
+      localStorage.removeItem('emp:trip_step_' + currentTrip.vehicleId);
+      localStorage.removeItem('emp:trip_arrived_' + currentTrip.vehicleId);
+    }
     setCurrentTrip(null); setTripFormKey(k => k + 1); setStep('start');
     // Sync viajes a Supabase — 3 segundos después para no interferir con React
     window.setTimeout(() => {
@@ -2525,7 +2531,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
               const vid = currentTrip?.vehicleId;
               if (vid) localStorage.setItem('emp:salio_bomba_' + vid, '1');
               setCurrentTrip(t => ({ ...t, isBombaTrip: undefined }));
-              if (currentTrip?.id) localStorage.setItem('emp:trip_step_' + currentTrip.id, 'finish');
+              if (currentTrip?.vehicleId) localStorage.setItem('emp:trip_step_' + currentTrip.vehicleId, 'finish');
               setStep('finish');
             }}
           />}
@@ -4451,7 +4457,7 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
       </div>
 
       {/* FLOTA EN TIEMPO REAL */}
-      {activeTripsLive.length > 0 && (() => {
+      {(() => {
         const now = Date.now();
         const ALERT_MS = 4 * 60 * 60 * 1000;
         const guardados = vehicles.filter(v => v.status === 'GUARDADO').length;
@@ -4487,7 +4493,71 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
               <span className="text-xs text-emerald-600 font-bold">{activeTrips.length} en ruta</span>
             </div>
             <div className="p-3 space-y-2">
-              {activeTripsLive.map(trip => {
+              {vehicles.map(v => {
+                const trip = activeTripsLive.find(t => t.vehicleId === v.id);
+                const drv = trip ? drivers.find(d => d.id === trip.driverId) : null;
+                const orig = trip && branches ? branches.find(b => b.id === trip.originBranchId) : null;
+                const dest = trip && branches ? branches.find(b => b.id === trip.destinationBranchId) : null;
+                const elapsed = trip ? getElapsed(trip.startTime) : null;
+                const elapsedMs = trip ? getElapsedMs(trip.startTime) : 0;
+                const isAlert = elapsedMs > ALERT_MS;
+                const isEnRuta = !!trip;
+                const statusColor = v.status === 'AL DIA' ? '#10b981' : v.status === 'EN RUTA' || isEnRuta ? '#3b82f6' : v.status === 'GUARDADO' ? '#6b7280' : v.status === 'EN TALLER' ? '#f59e0b' : '#10b981';
+                const borderColor = isAlert ? '#ef4444' : statusColor;
+                return (
+                  <div key={v.id} className="rounded-lg border overflow-hidden" style={{borderColor: isAlert ? '#ef444430' : '#e7e5e4'}}>
+                    <div className="grid items-center gap-3 px-3 py-2.5" style={{gridTemplateColumns:'auto 1fr auto', borderLeft:'3px solid ' + borderColor, background: isAlert ? '#ef444405' : '#fafaf9'}}>
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{background: borderColor + '20'}}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke={borderColor} strokeWidth="2" className="w-5 h-5"><path d="M1 3h15l3 6 3 2v5h-3m-9 0H5m9 0a2 2 0 11-4 0m4 0a2 2 0 01-4 0M1 3l2 12h2M1 3h0"/></svg>
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-stone-800 flex items-center gap-2">
+                          {v.code}
+                          <span className="text-xs px-1.5 py-0.5 rounded font-normal" style={{background: borderColor + '15', color: borderColor}}>
+                            {isAlert ? 'Alerta +4h' : isEnRuta ? (localStorage.getItem('emp:trip_arrived_' + v.id) ? 'En sitio' : 'En camino') : v.status}
+                          </span>
+                        </div>
+                        <div className="text-xs text-stone-500 mt-0.5">{isEnRuta && drv ? drv.name : v.plate}</div>
+                      </div>
+                      <div className="flex gap-1.5">
+                        {isEnRuta && drv && drv.phone && (
+                          <>
+                            <a href={'https://wa.me/' + drv.phone.replace(/[^0-9]/g, '')} target="_blank" rel="noreferrer"
+                              className="w-7 h-7 rounded-full flex items-center justify-center" style={{background:'#25d36615', border:'0.5px solid #25d366'}}>
+                              <svg viewBox="0 0 24 24" fill="#25d366" className="w-3.5 h-3.5"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                            </a>
+                            <a href={'tel:' + drv.phone}
+                              className="w-7 h-7 rounded-full flex items-center justify-center" style={{background:'#3b82f615', border:'0.5px solid #3b82f6'}}>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" className="w-3.5 h-3.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.67A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                            </a>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {isAlert && (
+                      <div className="px-3 py-1.5 text-xs text-red-600 flex items-center gap-1.5" style={{background:'#ef444410', borderTop:'0.5px solid #ef444425'}}>
+                        Lleva mas de 4 horas en ruta - verifica con el chofer
+                      </div>
+                    )}
+                    {isEnRuta && (
+                      <div className="grid border-t border-stone-100" style={{gridTemplateColumns:'1fr 1fr 1fr'}}>
+                        <div className="px-3 py-2 border-r border-stone-100">
+                          <div className="text-stone-400 uppercase tracking-wide" style={{fontSize:'10px'}}>Ruta</div>
+                          <div className="text-xs font-medium text-stone-700 mt-0.5">{orig ? orig.name : '-'} - {dest ? dest.name : '-'}</div>
+                        </div>
+                        <div className="px-3 py-2 border-r border-stone-100">
+                          <div className="text-stone-400 uppercase tracking-wide" style={{fontSize:'10px'}}>Tiempo en ruta</div>
+                          <div className="text-xs font-medium mt-0.5" style={{color: isAlert ? '#dc2626' : '#374151'}}>{elapsed}</div>
+                        </div>
+                        <div className="px-3 py-2">
+                          <div className="text-stone-400 uppercase tracking-wide" style={{fontSize:'10px'}}>Salio</div>
+                          <div className="text-xs font-medium text-stone-700 mt-0.5">{trip ? trip.startTime : '-'}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
                 const veh = vehicles.find(v => v.id === trip.vehicleId);
                 const drv = drivers.find(d => d.id === trip.driverId);
                 const orig = branches ? branches.find(b => b.id === trip.originBranchId) : null;
@@ -4545,7 +4615,6 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
                     </div>
                   </div>
                 );
-              })}
             </div>
             <div className="px-4 py-2 border-t border-stone-100 grid text-center" style={{gridTemplateColumns:'repeat(4,1fr)'}}>
               <div><div className="text-stone-400" style={{fontSize:'10px'}}>EN RUTA</div><div className="text-lg font-semibold text-emerald-600">{activeTripsLive.length}</div></div>
