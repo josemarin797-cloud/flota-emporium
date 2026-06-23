@@ -246,26 +246,17 @@ function speakText(text, options = {}) {
   // Cancelar mensajes previos
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'es-VE';
   utterance.rate = options.rate || 1.0;
   utterance.pitch = options.pitch || 1.0;
   utterance.volume = options.volume || 1.0;
-  // Seleccionar la mejor voz en español disponible
-  const allVoices = window.speechSynthesis.getVoices();
+  // Voz preferida del usuario
   const preferredVoice = localStorage.getItem('emp:voice_name');
-  const spanishVoices = allVoices.filter(v => v.lang.toLowerCase().startsWith('es'));
-  let selectedVoice = null;
   if (preferredVoice) {
-    selectedVoice = spanishVoices.find(v => v.name === preferredVoice);
+    const voices = getSpanishVoices();
+    const found = voices.find(v => v.name === preferredVoice);
+    if (found) utterance.voice = found;
   }
-  if (!selectedVoice) {
-    // Prioridad: es-US > es-ES > es-MX > cualquier español
-    selectedVoice = spanishVoices.find(v => v.lang === 'es-US') ||
-                    spanishVoices.find(v => v.lang === 'es-ES') ||
-                    spanishVoices.find(v => v.lang === 'es-MX') ||
-                    spanishVoices[0];
-  }
-  if (selectedVoice) utterance.voice = selectedVoice;
-  utterance.lang = selectedVoice ? selectedVoice.lang : 'es-US';
   window.speechSynthesis.speak(utterance);
 }
 
@@ -850,12 +841,12 @@ export default function App() {
     if (role === 'driver') {
       // Saludo + recordatorio de seguridad al chofer
       setTimeout(() => {
-        speakText(`${greeting} Sr. ${user.shortName}. Recuerda verificar neumáticos, aceite y agua. Límite ochenta kilómetros por hora. Maneja con precaución.`);
+        speakText(`${greeting} ${user.shortName}. Recuerda verificar neumáticos, aceite y agua. Límite ochenta kilómetros por hora. Maneja con precaución.`);
       }, 500);
     } else {
       // Saludo cordial al coordinador
       setTimeout(() => {
-        speakText(`${greeting} Sr. Marín. Bienvenido al Sistema de Control de Flota Emporium.`);
+        speakText(`${greeting} ${user.shortName}. Bienvenido al Sistema de Control de Flota Emporium.`);
       }, 500);
     }
   };
@@ -1111,7 +1102,7 @@ function WelcomeScreen({ onOk }) {
       localStorage.setItem('emp:access:ts', String(Date.now()));
       localStorage.removeItem('emp:login:attempts');
       const greeting = getGreetingByTime();
-      setTimeout(() => speakText(`${greeting} Sr. Marín. Bienvenido al Sistema de Control de Flota Emporium.`), 300);
+      setTimeout(() => speakText(`${greeting}. Bienvenido al Sistema de Control de Flota Emporium.`), 300);
       onOk();
     } else {
       const attempts = Number(localStorage.getItem('emp:login:attempts') || 0) + 1;
@@ -1151,7 +1142,7 @@ function WelcomeScreen({ onOk }) {
       await navigator.credentials.get({ publicKey: { challenge, rpId: location.hostname, allowCredentials: [{ type: 'public-key', id: credIdBytes }], userVerification: 'required', timeout: 30000 } });
       localStorage.setItem('emp:access:ts', String(Date.now()));
       const greeting = getGreetingByTime();
-      setTimeout(() => speakText(greeting + ' Sr. Marín. Bienvenido al Sistema de Control de Flota Emporium.'), 300);
+      setTimeout(() => speakText(greeting + '. Bienvenido al Sistema de Control de Flota Emporium.'), 300);
       onOk();
     } catch (e) { setError('Huella no reconocida. Usa tu contraseña.'); }
     setBiometricLoading(false);
@@ -2236,7 +2227,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setSelectedVehicle(null);
     setStep('select');
   };
- //  Finalizar Jornada del día — calcula stats + voz + Discord
+ // 🌙 Finalizar Jornada del día — calcula stats + voz + Discord
   const finalizarJornada = async () => {
     const hoy = new Date().toISOString().slice(0, 10);
     const viajesHoy = trips.filter(t => t.driverId === currentDriver.id && t.startDate === hoy);
@@ -2274,7 +2265,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       saveVehicles(vehicles.map(v => v.id === vehPrincipal.id ? {
         ...v, currentKm: Number(kmFinal),
         lastParkedKm: Number(kmFinal), lastParkedDate: hoy, lastParkedTime: hora,
-        status: v.status === 'EN TALLER' ? 'EN TALLER' : 'GUARDADO',
+        status: v.status === 'EN TALLER' ? 'EN TALLER' : 'AL DIA',
       } : v));
     }
 
@@ -2283,7 +2274,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     if (wh) {
       const kmDiff = vehPrincipal ? Number(kmFinal) - (vehPrincipal.currentKm||0) : 0;
       sendDiscordNotification(wh, {
-        title: ` Cierre de jornada — ${nombre}${hayAlerta?' 🚨':''}`,
+        title: `🌙 Cierre de jornada — ${nombre}${hayAlerta?' 🚨':''}`,
         description: `📅 ${hoy} ${hora}\n🚛 ${vehPrincipal?.code||'—'} · KM final: **${Number(kmFinal).toLocaleString()}**\n⛽ Combustible: **${combustibleRestante||'—'}**\n🔵 Cauchos: ${items?.cauchos==='bien'?'✅ Bien':items?.cauchos==='revisar'?'⚠️ Revisar':'🔴 Mal estado'}${cauchoNota?' — '+cauchoNota:''}\n🔍 Daños: ${items?.danos==='ninguno'?'✅ Ninguno':items?.danos==='menor'?'⚠️ Menor':'🔴 Grave'}${danosNota?' — '+danosNota:''}\n✅ ${viajesHoy.length} viajes · ${totalKm} km · $${totalCosto.toFixed(2)}\n${novedades ? '📝 '+novedades : '✅ Sin novedades'}`,
         color: hayAlerta ? 0xef4444 : novedades ? 0xf59e0b : 0x10b981,
       }).catch(()=>{});
@@ -2621,16 +2612,6 @@ function DriverTabBtn({ active, onClick, icon: Icon, label }) {
 function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onContinue, handoffs = [], saveHandoffs, currentDriver, activeTrips = [], branches = [], config = {}, setChecklistKm, setStep, appointments = [], onContinueWithVoice, onEntregarUnidad }) {
   // Cargar active_trips frescos desde Supabase para bloqueo en tiempo real
   const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
-
-  // Auto-desbloquear vehículos GUARDADO del día anterior
-  React.useEffect(() => {
-    if (!saveVehicles) return;
-    const today = new Date().toISOString().slice(0,10);
-    const toUnlock = vehicles.filter(v => v.status === 'GUARDADO' && v.lastParkedDate && v.lastParkedDate < today);
-    if (toUnlock.length > 0) {
-      saveVehicles(vehicles.map(v => toUnlock.find(u => u.id === v.id) ? { ...v, status: 'AL DIA' } : v));
-    }
-  }, []);
  React.useEffect(() => {
     const fetchTrips = () => sbFetch('active_trips?select=*').then(data => {
       if (Array.isArray(data)) setLiveActiveTrips(data.map(r => ({ ...r, vehicleId: r.vehicleId || r.vehicle_id, driverId: r.driverId || r.driver_id })));
@@ -2716,7 +2697,6 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
       <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm">
         <div className="space-y-2">
           {[...vehicles].sort((a, b) => a.id.localeCompare(b.id)).map(v => {
-            const today = new Date().toISOString().slice(0,10);
             const enTaller = v.status === 'EN TALLER';
             const retirarAutorizado = v.status === 'RETIRO AUTORIZADO';
             const isSelected = selectedVehicle?.id === v.id;
@@ -2732,8 +2712,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
             // Tiene viaje activo de otro chofer
             const occupiedByOther = !!activeByOther && !waitingForOther && !waitingForMe;
 
-            const isGuardado = v.status === 'GUARDADO' && v.lastParkedDate === today;
-            const isBlocked = waitingForOther || occupiedByOther || enTaller || isGuardado;
+            const isBlocked = waitingForOther || occupiedByOther || enTaller;
 
             return (
               <button key={v.id} onClick={() => {
@@ -2760,7 +2739,6 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                     <div className="font-bold text-stone-900 text-base flex items-center gap-2 flex-wrap">
                       {v.code}
                       {enTaller && <span className="bg-rose-100 text-rose-700 text-[10px] px-2 py-0.5 rounded-full font-bold">EN TALLER</span>}
-                      {isGuardado && <span className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded-full font-bold">Guardado</span>}
                       {retirarAutorizado && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">🔧 Listo para retirar</span>}
                       {waitingForMe && <span className="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold animate-pulse">⏳ Para ti</span>}
                       {waitingForOther && <span className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold">⏳ En espera por {pendingForV.toDriverNameExpected}</span>}
@@ -2778,7 +2756,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
                   <div className="text-[10px] text-stone-500 uppercase tracking-wider">KM Actual</div>
                   <div className="text-sm font-bold text-stone-700">{v.currentKm.toLocaleString()}</div>
                   {v.lastParkedDate === new Date().toISOString().slice(0,10) && (
-                    <div className="text-[9px] text-indigo-500 font-bold mt-0.5"> Cerrado hoy</div>
+                    <div className="text-[9px] text-indigo-500 font-bold mt-0.5">🌙 Cerrado hoy</div>
                   )}
                 </div>
               </button>
@@ -3731,7 +3709,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
             </button>
             <button onClick={() => endWaiting(false)}
               className="w-full py-3 bg-white/20 hover:bg-white/30 rounded-xl font-bold flex items-center justify-center gap-2">
-               Finalizar Jornada de hoy
+              🌙 Finalizar Jornada de hoy
             </button>
           </div>
         </div>
@@ -3847,7 +3825,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
 
 
           <button onClick={() => onFinishJornada && onFinishJornada()} className="w-full mt-2 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 shadow-lg shadow-purple-700/30 flex items-center justify-center gap-2">
-             Finalizar Jornada de hoy
+            🌙 Finalizar Jornada de hoy
           </button>
         </div>
       )}
@@ -4440,109 +4418,7 @@ function CoordDashboard({ trips, activeTrips, vehicles, drivers, branches, selec
         <DarkKpi icon={Activity} label="km/L" value={kpis.avgPerf.toFixed(2)} accent="emerald" />
       </div>
 
-      {/* FLOTA EN TIEMPO REAL */}
-      {activeTrips.length > 0 && (() => {
-        const now = Date.now();
-        const guardados = vehicles.filter(v => v.status === 'GUARDADO').length;
-        const libres = vehicles.filter(v => v.status === 'AL DIA').length;
-        const ALERT_MS = 4 * 60 * 60 * 1000;
-        const getElapsed = (startTime) => {
-          if (!startTime) return '-';
-          const [h, m] = startTime.split(':').map(Number);
-          const startMs = new Date().setHours(h, m, 0, 0);
-          const mins = Math.floor((now - startMs) / 60000);
-          if (mins < 0) return '-';
-          if (mins < 60) return mins + 'min';
-          return Math.floor(mins/60) + 'h ' + (mins%60) + 'min';
-        };
-        const getElapsedMs = (startTime) => {
-          if (!startTime) return 0;
-          const [h, m] = startTime.split(':').map(Number);
-          return now - new Date().setHours(h, m, 0, 0);
-        };
-        return (
-          <div className="bg-white rounded-xl border border-stone-200 shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span className="text-xs font-bold text-stone-700 uppercase tracking-wider">Flota en tiempo real</span>
-              </div>
-              <span className="text-xs text-emerald-600 font-bold">{activeTrips.length} en ruta</span>
-            </div>
-            <div className="p-3 space-y-2">
-              {activeTrips.map(trip => {
-                const veh = vehicles.find(v => v.id === trip.vehicleId);
-                const drv = drivers.find(d => d.id === trip.driverId);
-                const orig = branches ? branches.find(b => b.id === trip.originBranchId) : null;
-                const dest = branches ? branches.find(b => b.id === trip.destinationBranchId) : null;
-                const elapsed = getElapsed(trip.startTime);
-                const elapsedMs = getElapsedMs(trip.startTime);
-                const isAlert = elapsedMs > ALERT_MS;
-                const vColor = veh?.color || '#10b981';
-                const borderColor = isAlert ? '#ef4444' : vColor;
-                return (
-                  <div key={trip.id} className="rounded-lg border overflow-hidden" style={{borderColor: isAlert ? '#ef444430' : '#e7e5e4'}}>
-                    <div className="grid items-center gap-3 px-3 py-2.5" style={{gridTemplateColumns:'auto 1fr auto', borderLeft:'3px solid ' + borderColor, background: isAlert ? '#ef444405' : '#fafaf9'}}>
-                      <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{background: borderColor + '20'}}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke={borderColor} strokeWidth="2" className="w-5 h-5"><path d="M1 3h15l3 6 3 2v5h-3m-9 0H5m9 0a2 2 0 11-4 0m4 0a2 2 0 01-4 0M1 3l2 12h2M1 3h0"/></svg>
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-stone-800 flex items-center gap-2">
-                          {veh?.code || trip.vehicleId}
-                          {isAlert && <span className="text-xs px-1.5 py-0.5 rounded font-normal" style={{background:'#ef444415', color:'#dc2626'}}>! alerta</span>}
-                        </div>
-                        <div className="text-xs text-stone-500 mt-0.5">{drv?.name || trip.driverId}</div>
-                      </div>
-                      <div className="flex gap-1.5">
-                        {drv?.phone && (
-                          <>
-                            <a href={'https://wa.me/' + drv.phone.replace(/[^0-9]/g,'')} target="_blank" rel="noreferrer"
-                              className="w-7 h-7 rounded-full flex items-center justify-center" style={{background:'#25d36615', border:'0.5px solid #25d366'}}>
-                              <svg viewBox="0 0 24 24" fill="#25d366" className="w-3.5 h-3.5"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                            </a>
-                            <a href={'tel:' + drv.phone}
-                              className="w-7 h-7 rounded-full flex items-center justify-center" style={{background:'#3b82f615', border:'0.5px solid #3b82f6'}}>
-                              <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" className="w-3.5 h-3.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.67A2 2 0 012 .82h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
-                            </a>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    {isAlert && (
-                      <div className="px-3 py-1.5 text-xs text-red-600 flex items-center gap-1.5" style={{background:'#ef444410', borderTop:'0.5px solid #ef444425'}}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg>
-                        Lleva mas de 4 horas en ruta - verifica con el chofer
-                      </div>
-                    )}
-                    <div className="grid border-t border-stone-100" style={{gridTemplateColumns:'1fr 1fr 1fr'}}>
-                      <div className="px-3 py-2 border-r border-stone-100">
-                        <div className="text-stone-400 uppercase tracking-wide" style={{fontSize:'10px'}}>Ruta</div>
-                        <div className="text-xs font-medium text-stone-700 mt-0.5">{orig ? orig.name : '-'} - {dest ? dest.name : '-'}</div>
-                      </div>
-                      <div className="px-3 py-2 border-r border-stone-100">
-                        <div className="text-stone-400 uppercase tracking-wide" style={{fontSize:'10px'}}>Tiempo en ruta</div>
-                        <div className="text-xs font-medium mt-0.5" style={{color: isAlert ? '#dc2626' : '#374151'}}>{elapsed}</div>
-                      </div>
-                      <div className="px-3 py-2">
-                        <div className="text-stone-400 uppercase tracking-wide" style={{fontSize:'10px'}}>Salio</div>
-                        <div className="text-xs font-medium text-stone-700 mt-0.5">{trip.startTime || '-'}</div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="px-4 py-2 border-t border-stone-100 grid text-center" style={{gridTemplateColumns:'repeat(4,1fr)'}}>
-              <div><div className="text-stone-400" style={{fontSize:'10px'}}>EN RUTA</div><div className="text-lg font-semibold text-emerald-600">{activeTrips.length}</div></div>
-              <div><div className="text-stone-400" style={{fontSize:'10px'}}>GUARDADOS</div><div className="text-lg font-semibold text-stone-500">{guardados}</div></div>
-              <div><div className="text-stone-400" style={{fontSize:'10px'}}>LIBRES</div><div className="text-lg font-semibold text-stone-400">{libres}</div></div>
-              <div><div className="text-stone-400" style={{fontSize:'10px'}}>ALERTAS</div><div className="text-lg font-semibold text-red-500">{activeTrips.filter(t => getElapsedMs(t.startTime) > ALERT_MS).length}</div></div>
-            </div>
-          </div>
-        );
-      })()}
-
-            {/* SEMÁFORO DE CHEQUEOS HOY */}
+      {/* SEMÁFORO DE CHEQUEOS HOY */}
       <FleetChecklistWidget vehicles={vehicles} checklists={checklists} drivers={drivers} onSelect={setSelectedChecklist} />
       {selectedChecklist && <ChecklistDetailModal checklist={selectedChecklist} vehicles={vehicles} onClose={() => setSelectedChecklist(null)} />}
 
@@ -6472,7 +6348,7 @@ function VehiclesTab({ vehicles, saveVehicles, trips, config = {}, saveConfig })
                     <div className="bg-stone-100 rounded p-2 border border-stone-200"><div className="text-stone-500 font-mono uppercase tracking-wider text-[9px]">Días</div><div className="font-bold text-stone-900">{new Set(vt.map(t=>t.startDate)).size}</div></div>
                   </div>
                   {v.observations && <div className="mt-2 text-xs bg-amber-950/30 border border-amber-700/30 rounded p-2 text-amber-700">{v.observations}</div>}
-                  {(v.status === 'EN TALLER' || v.status === 'GUARDADO') && (
+                  {v.status === 'EN TALLER' && (
                     <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
                       <div className="text-xs font-bold text-amber-800 uppercase tracking-wider">🔧 EN TALLER</div>
                       <div className="text-xs text-amber-700">{v.tallerMotivo || 'Sin motivo registrado'}</div>
@@ -9081,15 +8957,9 @@ function SettingsTab({ config, saveConfig, saveTrips, saveActiveTrips, savePhoto
     localStorage.setItem('emp:voice_muted', newMuted ? 'true' : 'false');
   };
 
-  const limpiarViajesPrueba = async () => {
+  const limpiarViajesPrueba = () => {
     if (!confirm('¿Borrar TODOS los viajes, fotos y recorridos GPS?\n\nEsto deja la app limpia para empezar de cero.\nLos vehículos, choferes y sucursales se mantienen.')) return;
     if (!confirm('Confirma una segunda vez: ¿Estás seguro?')) return;
-    // Limpiar Supabase: active_trips y trips
-    try {
-      const { supabase } = await import('./lib/syncStorage.js');
-      await supabase.from('active_trips').delete().neq('id', '');
-      await supabase.from('trips').delete().neq('id', '');
-    } catch(e) { console.warn('Supabase cleanup error:', e); }
     saveTrips([]);
     saveActiveTrips([]);
     savePhotos([]);
@@ -9300,7 +9170,7 @@ function EndShiftForm({ driver, vehicle, trips = [], kmInicial = '', onConfirm, 
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 to-stone-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
         <div className="bg-indigo-700 px-5 py-4 text-white">
-          <div className="text-xs font-mono uppercase tracking-wider opacity-80 mb-1"> Cierre de jornada</div>
+          <div className="text-xs font-mono uppercase tracking-wider opacity-80 mb-1">🌙 Cierre de jornada</div>
           <div className="font-black text-lg">{driver.name}</div>
           <div className="text-indigo-200 text-sm">{hora} · {vehicle?.code || '—'} · {trips.length} viajes · {totalKm} km</div>
         </div>
@@ -9390,7 +9260,7 @@ function EndShiftForm({ driver, vehicle, trips = [], kmInicial = '', onConfirm, 
           )}
           <button onClick={submit} disabled={!canSubmit || submitting}
             className={`w-full py-3 rounded-xl font-black text-white text-base transition ${canSubmit && !submitting ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-stone-300 cursor-not-allowed'}`}>
-            {submitting ? '⏳ Guardando...' : ' Confirmar cierre de jornada'}
+            {submitting ? '⏳ Guardando...' : '🌙 Confirmar cierre de jornada'}
           </button>
           <button onClick={onBack} className="w-full py-2 text-xs text-stone-400 hover:text-stone-600">Cancelar</button>
         </div>
@@ -9708,7 +9578,7 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
             <div>
               <div className="font-black text-red-800 text-sm">¡El camión fue movido!</div>
               <div className="text-xs text-red-700 mt-1 space-y-0.5">
-                <div>Guardado ayer ({kmAlert.lastDate} {kmAlert.lastTime}): <strong>{kmAlert.lastKm.toLocaleString()} km</strong></div>
+                <div>🌙 Guardado ayer ({kmAlert.lastDate} {kmAlert.lastTime}): <strong>{kmAlert.lastKm.toLocaleString()} km</strong></div>
                 <div>🌅 KM actual: <strong>{(kmAlert.currentKm||0).toLocaleString()} km</strong></div>
                 <div className="font-bold text-red-800">⚠️ Diferencia: +{((kmAlert.currentKm||0) - kmAlert.lastKm).toLocaleString()} km SIN AUTORIZACIÓN</div>
               </div>
@@ -9719,7 +9589,7 @@ function ChecklistForm({ vehicle, driver, saveChecklists, checklists, onDone, on
       {/* CIERRE DE JORNADA ANTERIOR */}
       {lastEndShift && (
         <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-4">
-          <div className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-2"> Cierre jornada anterior — {lastEndShift.driverName}</div>
+          <div className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-2">🌙 Cierre jornada anterior — {lastEndShift.driverName}</div>
           <div className="grid grid-cols-2 gap-2 text-xs mb-2">
             <div className="bg-white rounded-lg p-2 border border-indigo-100">
               <div className="text-indigo-400 font-mono">📅 Fecha</div>
