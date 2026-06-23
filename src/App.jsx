@@ -1752,7 +1752,16 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
   useEffect(() => {
     if (selectedVehicle) {
       const active = myActiveTrips.find(t => t.vehicleId === selectedVehicle.id);
-      if (active && step === 'select') { setCurrentTrip(active); setStep('active'); }
+      if (active && step === 'select') {
+        setCurrentTrip(active);
+        setStep('active');
+      } else if (!active && step === 'select' && selectedVehicle) {
+        const atFinish = localStorage.getItem('emp:at_finish_' + selectedVehicle.id);
+        if (atFinish) {
+          const lastTrip = trips.filter(t => t.vehicleId === selectedVehicle.id).sort((a, b) => (b.endTime || '').localeCompare(a.endTime || ''))[0];
+          if (lastTrip) { setCurrentTrip(lastTrip); setStep('finish'); }
+        }
+      }
     }
   }, [selectedVehicle, myActiveTrips]);
 
@@ -2053,8 +2062,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     // Si el destino es bomba/surtir → mostrar pantalla de carga antes de la morada
     const _esBomba = completed.destinationBranchId === 'surtir' ||
       (completed.destinationBranchId === 'otro' && /bomba|gasolina|gasolinera|surtir/i.test(completed.customDestName || ''));
+    if (!_esBomba && completed && completed.vehicleId) localStorage.setItem('emp:at_finish_' + completed.vehicleId, '1');
     setStep(_esBomba ? 'surtir' : 'finish');
-    // 🎙️ Voz al cerrar el viaje
+    // Voz al cerrar el viaje
         const mensajesCierre = [
           'Viaje completado.',
           'Excelente recorrido.',
@@ -2131,6 +2141,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     } else {
       sessionStorage.removeItem('emp:preOrigin');
     }
+    if (currentTrip && currentTrip.vehicleId) localStorage.removeItem('emp:at_finish_' + currentTrip.vehicleId);
     setCurrentTrip(null); setTripFormKey(k => k + 1); setStep('start');
     // Sync viajes a Supabase — 3 segundos después para no interferir con React
     window.setTimeout(() => {
