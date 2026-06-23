@@ -2613,16 +2613,6 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
   // Cargar active_trips frescos desde Supabase para bloqueo en tiempo real
   const [liveActiveTrips, setLiveActiveTrips] = React.useState(activeTrips);
 
-  // Auto-desbloquear vehiculos GUARDADO del dia anterior
-  React.useEffect(() => {
-    if (!saveVehicles) return;
-    const today = new Date().toISOString().slice(0,10);
-    const toUnlock = vehicles.filter(v => v.status === 'GUARDADO' && v.lastParkedDate && v.lastParkedDate < today);
-    if (toUnlock.length > 0) {
-      saveVehicles(vehicles.map(v => toUnlock.find(u => u.id === v.id) ? { ...v, status: 'AL DIA' } : v));
-    }
-  }, []);
-
  React.useEffect(() => {
     const fetchTrips = () => sbFetch('active_trips?select=*').then(data => {
       if (Array.isArray(data)) setLiveActiveTrips(data.map(r => ({ ...r, vehicleId: r.vehicleId || r.vehicle_id, driverId: r.driverId || r.driver_id })));
