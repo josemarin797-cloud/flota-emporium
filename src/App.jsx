@@ -836,6 +836,16 @@ export default function App() {
   const handleLogin = (role, user) => {
     setCurrentUser(user);
     setView(role);
+    // Register user with OneSignal for push notifications
+    try {
+      if (window.OneSignalDeferred && role === 'driver') {
+        window.OneSignalDeferred.push(async function(OneSignal) {
+          await OneSignal.login(user.id || user.name);
+          await OneSignal.User.addTag('driver_name', user.name);
+          await OneSignal.User.addTag('vehicle_id', '');
+        });
+      }
+    } catch(e) { console.log('OneSignal login error:', e); }
     // Saludo de voz al hacer login
     const greeting = getGreetingByTime();
     if (role === 'driver') {
@@ -1857,6 +1867,26 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setGpsEnabled(false);
   };
   useEffect(() => () => stopGpsTracking(), []);
+
+  // OneSignal push notifications init
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const script = document.createElement('script');
+    script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
+    script.async = true;
+    script.onload = () => {
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      window.OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: '4b7c6ad7-ef30-44eb-8847-c42f1529a48f',
+          safari_web_id: '',
+          notifyButton: { enable: false },
+          allowLocalhostAsSecureOrigin: true,
+        });
+      });
+    };
+    document.head.appendChild(script);
+  }, []);
 
   const startTrip = async (data) => {
     setChecklistKm(null); // limpiar para que el siguiente viaje use kmEnd del anterior
