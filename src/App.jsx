@@ -1881,6 +1881,20 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           appId: '4b7c6ad7-ef30-44eb-8847-c42f1529a48f',
           safari_web_id: '',
           notifyButton: { enable: false },
+          promptOptions: {
+            slidedown: {
+              prompts: [{
+                type: 'push',
+                autoPrompt: true,
+                text: {
+                  actionMessage: 'Flota Emporium necesita enviarte notificaciones de ordenes y alertas.',
+                  acceptButton: 'Permitir',
+                  cancelButton: 'Ahora no',
+                },
+                delay: { pageViews: 1, timeDelay: 3 },
+              }],
+            },
+          },
           allowLocalhostAsSecureOrigin: true,
         });
       });
