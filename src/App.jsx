@@ -2752,8 +2752,33 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
     return null;
   };
 
+  const [notifDismissed, setNotifDismissed] = React.useState(() => localStorage.getItem('emp:notif_activated') === '1');
+  const handleActivateNotif = async () => {
+    try {
+      if (window.OneSignal) {
+        await window.OneSignal.Notifications.requestPermission();
+      } else if (Notification && Notification.permission !== 'granted') {
+        await Notification.requestPermission();
+      }
+    } catch(e) {}
+    localStorage.setItem('emp:notif_activated', '1');
+    setNotifDismissed(true);
+  };
+
   return (
     <div className="space-y-4">
+      {!notifDismissed && (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span style={{fontSize:'20px'}}>🔔</span>
+            <div>
+              <div className="font-bold text-amber-900 text-sm">Activa las notificaciones</div>
+              <div className="text-xs text-amber-700">Para recibir ordenes de despacho</div>
+            </div>
+          </div>
+          <button onClick={handleActivateNotif} className="bg-amber-500 text-white text-xs font-bold px-3 py-2 rounded-lg">Activar</button>
+        </div>
+      )}
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center gap-3">
         <div className="bg-emerald-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm">1</div>
         <div>
