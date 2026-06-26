@@ -2752,7 +2752,8 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
     return null;
   };
 
-  const [notifDismissed, setNotifDismissed] = React.useState(() => localStorage.getItem('emp:notif_activated') === '1');
+  const notifKey = 'emp:notif_activated_' + (currentDriver?.id || 'x');
+  const [notifDismissed, setNotifDismissed] = React.useState(() => localStorage.getItem('emp:notif_activated_' + (currentDriver?.id || 'x')) === '1');
   const handleActivateNotif = async () => {
     try {
       if (window.OneSignal) {
@@ -2761,7 +2762,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
         await Notification.requestPermission();
       }
     } catch(e) {}
-    localStorage.setItem('emp:notif_activated', '1');
+    localStorage.setItem(notifKey, '1');
     setNotifDismissed(true);
   };
 
