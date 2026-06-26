@@ -2756,10 +2756,13 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
   const [notifDismissed, setNotifDismissed] = React.useState(() => localStorage.getItem('emp:notif_activated_' + (currentDriver?.id || 'x')) === '1');
   const handleActivateNotif = async () => {
     try {
-      if (window.OneSignal) {
+      if (Notification && Notification.permission !== 'granted') {
+        const result = await Notification.requestPermission();
+        if (result === 'granted' && window.OneSignal) {
+          await window.OneSignal.Notifications.requestPermission();
+        }
+      } else if (window.OneSignal) {
         await window.OneSignal.Notifications.requestPermission();
-      } else if (Notification && Notification.permission !== 'granted') {
-        await Notification.requestPermission();
       }
     } catch(e) {}
     localStorage.setItem(notifKey, '1');
