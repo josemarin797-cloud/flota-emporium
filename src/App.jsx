@@ -1897,6 +1897,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           },
           allowLocalhostAsSecureOrigin: true,
         });
+        // Registrar dispositivo y pedir permiso explícitamente
+        await OneSignal.Notifications.requestPermission();
       });
     };
     document.head.appendChild(script);
