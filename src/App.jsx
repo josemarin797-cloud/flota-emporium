@@ -166,6 +166,7 @@ const INITIAL_DRIVERS = [
   { id: 'd3', name: 'Willmer Fernandez', shortName: 'Willmer', phone: '+584141603681', license: '', pin: '3333', active: true, licenseExpiry: '', medicalExpiry: '' },
   { id: 'd4', name: 'Richard Hernandez', shortName: 'Richard H.', phone: '+584143246359', license: '', pin: '4444', active: true, licenseExpiry: '', medicalExpiry: '' },
   { id: 'd5', name: 'Darwin Serrano', shortName: 'Darwin', phone: '+584122095715', license: '', pin: '5555', active: true, licenseExpiry: '', medicalExpiry: '' },
+  { id: 'd6', name: 'Jose Marin', shortName: 'Jose', phone: '', license: '', pin: '6666', active: true, licenseExpiry: '', medicalExpiry: '' },
 ];
 
 // Coordenadas aproximadas de las sucursales (Caracas/Miranda, Venezuela)
