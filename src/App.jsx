@@ -1522,6 +1522,81 @@ function LeafletMap({ markers = [], polylines = [], height = '400px', center = [
 // APP DEL CHOFER
 // ============================================================
 // ============================================================
+// TAB ORDENES -- Bandeja de ordenes asignadas al chofer
+const SB_URL_O = 'https://sieadibkcqnvbwlwlmds.supabase.co';
+const SB_KEY_O = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpZWFkaWJrY3FudmJ3bHdsbWRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYxMzM2NTQsImV4cCI6MjA2MTcwOTY1NH0.LKW_0LsqAppOv23ORV3GY4r7bCvHYSl-J0SY2kQjIpE';
+function DriverOrdersTab({ currentDriver, onOrdersCount }) {
+  const [orders, setOrders] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const loadOrders = async () => {
+    if (!currentDriver) return;
+    setLoading(true);
+    const today = new Date().toISOString().slice(0, 10);
+    const driverId = currentDriver.name || currentDriver.id;
+    try {
+      const res = await fetch(SB_URL_O + '/rest/v1/orders?date=eq.' + today + '&driver_id=eq.' + encodeURIComponent(driverId) + '&order=created_at.asc', {
+        headers: { 'apikey': SB_KEY_O, 'Authorization': 'Bearer ' + SB_KEY_O }
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setOrders(data);
+        const pending = data.filter(o => o.status === 'Pendiente').length;
+        if (onOrdersCount) onOrdersCount(pending);
+      }
+    } catch(e) {}
+    setLoading(false);
+  };
+  React.useEffect(() => { loadOrders(); const iv = setInterval(loadOrders, 30000); return () => clearInterval(iv); }, [currentDriver]);
+  const acceptOrder = async (id) => {
+    try {
+      await fetch(SB_URL_O + '/rest/v1/orders?id=eq.' + id, {
+        method: 'PATCH',
+        headers: { 'apikey': SB_KEY_O, 'Authorization': 'Bearer ' + SB_KEY_O, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ status: 'Recogida' })
+      });
+      loadOrders();
+    } catch(e) {}
+  };
+  const statusColor = { 'Pendiente': 'bg-amber-100 text-amber-800', 'Recogida': 'bg-blue-100 text-blue-800', 'En transito': 'bg-purple-100 text-purple-800', 'Entregada': 'bg-green-100 text-green-800' };
+  const borderColor = { 'Pendiente': 'border-amber-400', 'Recogida': 'border-blue-400', 'En transito': 'border-purple-400', 'Entregada': 'border-green-400' };
+  if (loading) return <div className="flex items-center justify-center py-16 text-stone-400">Cargando ordenes...</div>;
+  return (
+    <div className="space-y-3 py-2">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="font-bold text-stone-800 text-base">Ordenes del dia</h2>
+        <button onClick={loadOrders} className="text-xs text-blue-600">Actualizar</button>
+      </div>
+      {orders.length === 0 && (
+        <div className="text-center py-12 text-stone-400">
+          <div className="text-sm">No tienes ordenes asignadas hoy</div>
+        </div>
+      )}
+      {orders.map(o => (
+        <div key={o.id} className={'bg-white rounded-xl border-l-4 ' + (borderColor[o.status] || 'border-stone-300') + ' shadow-sm p-4'}>
+          <div className="flex items-start justify-between mb-2">
+            <div>
+              <span className="font-bold text-stone-800 text-sm">{o.type || 'Transferencia'}</span>
+              {o.department && <span className="ml-2 text-xs text-amber-700 font-medium">{o.department}</span>}
+            </div>
+            <span className={'text-xs px-2 py-0.5 rounded-full font-medium ' + (statusColor[o.status] || 'bg-stone-100 text-stone-600')}>{o.status}</span>
+          </div>
+          <div className="text-xs text-stone-600 mb-1"><span className="font-medium">De:</span> {o.origin || '-'}</div>
+          {o.destinations && o.destinations.length > 0 && (
+            <div className="text-xs text-stone-600 mb-2"><span className="font-medium">A:</span> {Array.isArray(o.destinations) ? o.destinations.join(', ') : o.destinations}</div>
+          )}
+          {o.vehicle_id && <div className="text-xs text-stone-500 mb-2">{o.vehicle_id}</div>}
+          {o.notes && <div className="text-xs text-stone-500 italic mb-2">{o.notes}</div>}
+          {o.status === 'Pendiente' && (
+            <button onClick={() => acceptOrder(o.id)} className="w-full bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold py-2 rounded-lg transition">Aceptar orden</button>
+          )}
+          {o.status === 'Recogida' && (
+            <div className="text-center text-xs text-blue-600 font-medium py-1">Orden aceptada</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
 // TAB SURTIR — Registro de combustible por el chofer
 // ============================================================
 function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords, config }) {
@@ -1739,6 +1814,7 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
 }
 function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips, activeTrips, photos, gpsTracks, saveTrips, saveActiveTrips, saveVehicles, savePhotos, saveGpsTracks, checklists, saveChecklists, config, handoffs = [], saveHandoffs, incidents = [], saveIncidents, fuelRecords = [], saveFuelRecords, endShifts = [], saveEndShifts, appointments = [], saveAppointments }) {
   const [tab, setTab] = useState('trip');
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
   const [showIncidentForm, setShowIncidentForm] = useState(false);
   const [step, setStep] = useState('select');
   const [selectedVehicle, setSelectedVehicle] = useState(null);
@@ -1881,24 +1957,12 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           appId: '4b7c6ad7-ef30-44eb-8847-c42f1529a48f',
           safari_web_id: '',
           notifyButton: { enable: false },
-          promptOptions: {
-            slidedown: {
-              prompts: [{
-                type: 'push',
-                autoPrompt: true,
-                text: {
-                  actionMessage: 'Flota Emporium necesita enviarte notificaciones de ordenes y alertas.',
-                  acceptButton: 'Permitir',
-                  cancelButton: 'Ahora no',
-                },
-                delay: { pageViews: 1, timeDelay: 3 },
-              }],
-            },
-          },
+          promptOptions: { slidedown: { prompts: [{ type: 'push', autoPrompt: true, text: { actionMessage: 'Flota Emporium necesita enviarte notificaciones.', acceptButton: 'Permitir', cancelButton: 'Ahora no' }, delay: { pageViews: 1, timeDelay: 3 } }] } },
           allowLocalhostAsSecureOrigin: true,
         });
-        // Registrar dispositivo y pedir permiso explícitamente
-        await OneSignal.Notifications.requestPermission();
+        if (Notification && Notification.permission !== 'granted') {
+          await Notification.requestPermission();
+        }
       });
     };
     document.head.appendChild(script);
@@ -2498,6 +2562,10 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
           <DriverTabBtn active={tab === 'history'} onClick={() => setTab('history')} icon={History} label="Historial" />
           <DriverTabBtn active={tab === 'contacts'} onClick={() => setTab('contacts')} icon={Phone} label="Contactos" />
           <DriverTabBtn active={tab === 'surtir'} onClick={() => setTab('surtir')} icon={Fuel} label="Surtir" customClass={tab === 'surtir' ? 'text-amber-600 border-b-2 border-amber-500' : ''} />
+          <div className="relative flex-1">
+            <DriverTabBtn active={tab === 'orders'} onClick={() => setTab('orders')} icon={Send} label="Ordenes" customClass={tab === 'orders' ? 'text-blue-600 border-b-2 border-blue-500' : ''} />
+            {pendingOrdersCount > 0 && <span className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center z-10">{pendingOrdersCount}</span>}
+          </div>
           <button onClick={() => setShowIncidentForm(true)}
             className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 bg-rose-600 hover:bg-rose-700 text-white transition">
             <AlertTriangle className="w-5 h-5" />
@@ -2508,6 +2576,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
 
       <main className="max-w-lg mx-auto p-4 pb-24">
         {tab === 'surtir' && <DriverSurtirTab vehicles={vehicles} currentDriver={currentDriver} fuelRecords={fuelRecords} saveFuelRecords={saveFuelRecords} config={config} />}
+        {tab === 'orders' && <DriverOrdersTab currentDriver={currentDriver} onOrdersCount={setPendingOrdersCount} />}
         {tab === 'trip' && <>
           {step === 'select' && <>
             <SelectVehicleOnly vehicles={vehicles} selectedVehicle={selectedVehicle} setSelectedVehicle={setSelectedVehicle} activeTrips={activeTrips} onContinue={(accion, motivo, km) => {
@@ -2752,8 +2821,8 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
     return null;
   };
 
-  const notifKey = 'emp:notif_activated_' + (currentDriver?.id || 'x');
-  const [notifDismissed, setNotifDismissed] = React.useState(() => localStorage.getItem('emp:notif_activated_' + (currentDriver?.id || 'x')) === '1');
+  const notifKey = 'emp:notif_activated_' + (currentDriver ? (currentDriver.id || currentDriver.name || 'x') : 'x');
+  const [notifDismissed, setNotifDismissed] = React.useState(() => localStorage.getItem('emp:notif_activated_' + (currentDriver ? (currentDriver.id || currentDriver.name || 'x') : 'x')) === '1');
   const handleActivateNotif = async () => {
     try {
       if (Notification && Notification.permission !== 'granted') {
@@ -2774,7 +2843,7 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
       {!notifDismissed && (
         <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span style={{fontSize:'20px'}}>🔔</span>
+            <span style={{fontSize:'18px'}}>&#128276;</span>
             <div>
               <div className="font-bold text-amber-900 text-sm">Activa las notificaciones</div>
               <div className="text-xs text-amber-700">Para recibir ordenes de despacho</div>
