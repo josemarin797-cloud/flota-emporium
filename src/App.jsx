@@ -1558,6 +1558,16 @@ function DriverOrdersTab({ currentDriver, onOrdersCount }) {
       loadOrders();
     } catch(e) {}
   };
+  const deliverOrder = async (id) => {
+    try {
+      await fetch(SB_URL_O + '/rest/v1/orders?id=eq.' + id, {
+        method: 'PATCH',
+        headers: { 'apikey': SB_KEY_O, 'Authorization': 'Bearer ' + SB_KEY_O, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ status: 'Entregada' })
+      });
+      loadOrders();
+    } catch(e) {}
+  };
   const statusColor = { 'Pendiente': 'bg-amber-100 text-amber-800', 'Recogida': 'bg-blue-100 text-blue-800', 'En transito': 'bg-purple-100 text-purple-800', 'Entregada': 'bg-green-100 text-green-800' };
   const borderColor = { 'Pendiente': 'border-amber-400', 'Recogida': 'border-blue-400', 'En transito': 'border-purple-400', 'Entregada': 'border-green-400' };
   if (loading) return <div className="flex items-center justify-center py-16 text-stone-400">Cargando ordenes...</div>;
@@ -1591,7 +1601,10 @@ function DriverOrdersTab({ currentDriver, onOrdersCount }) {
             <button onClick={() => acceptOrder(o.id)} className="w-full bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold py-2 rounded-lg transition">Aceptar orden</button>
           )}
           {o.status === 'Recogida' && (
-            <div className="text-center text-xs text-blue-600 font-medium py-1">Orden aceptada</div>
+            <button onClick={() => deliverOrder(o.id)} className="w-full bg-green-500 hover:bg-green-600 text-white text-sm font-bold py-2 rounded-lg transition">Marcar entregada</button>
+          )}
+          {o.status === 'Entregada' && (
+            <div className="text-center text-xs text-green-600 font-medium py-1">Orden entregada</div>
           )}
         </div>
       ))}
