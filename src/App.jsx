@@ -1525,7 +1525,7 @@ function LeafletMap({ markers = [], polylines = [], height = '400px', center = [
 // ============================================================
 // TAB ORDENES -- Bandeja de ordenes asignadas al chofer
 const SB_URL_O = 'https://sieadibkcqnvbwlwlmds.supabase.co';
-const SB_KEY_O = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpZWFkaWJrY3FudmJ3bHdsbWRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYxMzM2NTQsImV4cCI6MjA2MTcwOTY1NH0.LKW_0LsqAppOv23ORV3GY4r7bCvHYSl-J0SY2kQjIpE';
+const SB_KEY_O = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNpZWFkaWJrY3FudmJ3bHdsbWRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2MDAwMDgsImV4cCI6MjA5NDE3NjAwOH0.ce9c28wht4rR7YtBdh0BFVMhTv-9CfbsuZDNPX6lBZY';
 function DriverOrdersTab({ currentDriver, onOrdersCount }) {
   const [orders, setOrders] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
