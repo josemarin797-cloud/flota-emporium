@@ -6019,8 +6019,9 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         sr(wsRes, 1, NCR, ST.subtitle);
         sr(wsRes, 3, NCR, ST.secHeader);
         for (let c = 0; c < NCR; c++) sc(wsRes, 4, c, ST.colHeader);
-        vMetrics.forEach(({ kml }, i) => {
+        vMetrics.forEach(({ v, kml }, i) => {
           const ri = 5 + i; const e = i % 2 === 0;
+          const varPct = v.performance > 0 && kml > 0 ? r2(((kml - v.performance) / v.performance) * 100) : null;
           for (let c = 0; c < NCR; c++) sc(wsRes, ri, c, c === NCR-1 ? kmLST(kml) : c === NCR-2 ? (varPct !== null && varPct < 0 ? ST.statusRevisar : varPct !== null && varPct >= 0 ? ST.statusEficiente : ST.statusSinDatos) : c >= 4 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
         });
         for (let c = 0; c < NCR; c++) sc(wsRes, resTotR, c, c >= 4 ? ST.totalRight : ST.totalRow);
