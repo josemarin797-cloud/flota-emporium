@@ -6421,6 +6421,18 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       setExporting(false);
     }
   };
+  const exportResumenEjecutivo = () => {
+    try {
+      const html = generarExcelHTML();
+      const fileName = `resumen_ejecutivo_emporium_${new Date().toISOString().slice(0, 10)}.xls`;
+      descargarArchivo(html, fileName, 'application/vnd.ms-excel;charset=utf-8');
+      setExportMsg({ type: 'success', msg: `✅ ${fileName} descargado` });
+      setTimeout(() => setExportMsg(null), 5000);
+    } catch (e) {
+      console.error('Resumen ejecutivo failed:', e);
+      setExportMsg({ type: 'error', msg: `❌ Error: ${e.message}` });
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -6434,6 +6446,10 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           className={`text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition ${exporting ? 'bg-stone-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-700/30'}`}>
           <FileSpreadsheet className="w-4 h-4" /> {exporting ? 'GENERANDO...' : 'REPORTE MENSUAL'}
         </button>
+        <button onClick={exportResumenEjecutivo}
+              className="text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition bg-sky-600 hover:bg-sky-700 shadow-sky-700/30">
+              <FileSpreadsheet className="w-4 h-4" /> RESUMEN EJECUTIVO
+            </button>
       </div>
       <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
           <input type="date" value={deleteUntil} onChange={e => setDeleteUntil(e.target.value)}
