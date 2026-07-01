@@ -4551,7 +4551,7 @@ function DarkMonthSelector({ selectedMonth, setSelectedMonth }) {
 }
 
 function FlotaStatusPanel({ vehicles, drivers, activeTrips, branches }) {
-  const enRuta = vehicles.filter(v => activeTrips.find(t => t.vehicleId === v.id)).length;
+  const enRuta = vehicles.filter(v => { const t = activeTrips.find(at => at.vehicleId === v.id); return t && !t.endTime; }).length;   const enSitio = vehicles.filter(v => { const t = activeTrips.find(at => at.vehicleId === v.id); return t && !!t.endTime; }).length;
   const libres = vehicles.filter(v => v.status === 'AL DIA' && !activeTrips.find(t => t.vehicleId === v.id)).length;
   const guardados = vehicles.filter(v => v.status === 'GUARDADO').length;
   const enTaller = vehicles.filter(v => v.status === 'EN TALLER').length;
@@ -4569,9 +4569,9 @@ function FlotaStatusPanel({ vehicles, drivers, activeTrips, branches }) {
           const drv = trip ? drivers.find(d => d.id === trip.driverId) : null;
           const orig = trip && branches ? branches.find(b => b.id === trip.originBranchId) : null;
           const dest = trip && branches ? branches.find(b => b.id === trip.destinationBranchId) : null;
-          const isEnRuta = !!trip;
-          const sc = isEnRuta ? '#3b82f6' : v.status === 'GUARDADO' ? '#6b7280' : v.status === 'EN TALLER' ? '#f59e0b' : '#10b981';
-          const sl = isEnRuta ? 'En ruta' : v.status === 'GUARDADO' ? 'Guardado' : v.status === 'EN TALLER' ? 'En taller' : 'Libre';
+          const isEnRuta = !!trip && !trip.endTime;           const isEnSitio = !!trip && !!trip.endTime;
+          const sc = isEnRuta ? '#3b82f6' : isEnSitio ? '#8b5cf6' : v.status === 'GUARDADO' ? '#6b7280' : v.status === 'EN TALLER' ? '#f59e0b' : '#10b981';
+          const sl = isEnRuta ? 'En camino' : isEnSitio ? 'En sitio' : v.status === 'GUARDADO' ? 'Guardado' : v.status === 'EN TALLER' ? 'En taller' : 'Libre';
           return (
             <div key={v.id} style={{borderRadius:'var(--border-radius-md)', border:'0.5px solid #e7e5e4', overflow:'hidden', borderLeft:'3px solid ' + sc}}>
               <div style={{display:'grid', gridTemplateColumns:'auto 1fr auto', gap:'12px', alignItems:'center', padding:'10px 12px', background:'#fafaf9'}}>
@@ -4584,7 +4584,7 @@ function FlotaStatusPanel({ vehicles, drivers, activeTrips, branches }) {
                     <span style={{fontSize:'10px', background: sc + '15', color: sc, padding:'1px 6px', borderRadius:'4px'}}>{sl}</span>
                   </div>
                   <div style={{fontSize:'11px', color:'var(--color-text-secondary)', marginTop:'1px'}}>
-                    {isEnRuta && drv ? drv.name + (orig && dest ? ' - ' + orig.name + ' a ' + dest.name : '') : v.plate}
+                    {isEnRuta && drv ? drv.name + (orig && dest ? ' - ' + orig.name + ' → ' + dest.name : '') : isEnSitio && drv ? drv.name + ' · en ' + (dest ? dest.name : 'destino') : v.status === 'EN TALLER' ? (v.tallerMotivo || 'En servicio') : v.plate}
                   </div>
                 </div>
                 <div style={{display:'flex', gap:'5px'}}>
@@ -4604,8 +4604,8 @@ function FlotaStatusPanel({ vehicles, drivers, activeTrips, branches }) {
           );
         })}
       </div>
-      <div style={{padding:'8px 16px', borderTop:'0.5px solid #f0eeec', display:'grid', gridTemplateColumns:'repeat(4,1fr)', textAlign:'center', gap:'4px'}}>
-        <div><div style={{fontSize:'10px', color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.04em'}}>En ruta</div><div style={{fontSize:'18px', fontWeight:'500', color:'#3b82f6'}}>{enRuta}</div></div>
+      <div style={{padding:'8px 16px', borderTop:'0.5px solid #f0eeec', display:'grid', gridTemplateColumns:'repeat(5,1fr)', textAlign:'center', gap:'4px'}}>
+        <div><div style={{fontSize:'10px', color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.04em'}}>En camino</div><div style={{fontSize:'18px', fontWeight:'500', color:'#3b82f6'}}>{enRuta}</div></div><div><div style={{fontSize:'10px', color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.04em'}}>En sitio</div><div style={{fontSize:'18px', fontWeight:'500', color:'#8b5cf6'}}>{enSitio}</div></div>
         <div><div style={{fontSize:'10px', color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.04em'}}>Libres</div><div style={{fontSize:'18px', fontWeight:'500', color:'#10b981'}}>{libres}</div></div>
         <div><div style={{fontSize:'10px', color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.04em'}}>Guardados</div><div style={{fontSize:'18px', fontWeight:'500', color:'#6b7280'}}>{guardados}</div></div>
         <div><div style={{fontSize:'10px', color:'var(--color-text-tertiary)', textTransform:'uppercase', letterSpacing:'0.04em'}}>En taller</div><div style={{fontSize:'18px', fontWeight:'500', color:'#f59e0b'}}>{enTaller}</div></div>
