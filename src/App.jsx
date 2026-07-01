@@ -5475,7 +5475,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 
   // Genera Excel HTML/XLS multi-hoja (formato que Excel y LibreOffice abren)
   const generarExcelHTML = () => {
-    const mesActual = selectedMonth || new Date().toISOString().slice(0, 7);
+    const mesActual = (trips[0]?.startDate || new Date().toISOString()).slice(0, 7);
     const [anio, mes] = mesActual.split('-').map(Number);
     const nombreMes = new Date(anio, mes - 1, 1).toLocaleString('es-VE', { month: 'long', year: 'numeric' });
     const fmtMin = (m) => {
