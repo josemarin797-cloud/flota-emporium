@@ -5619,15 +5619,15 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 <head><meta charset="UTF-8">${estilos}</head>
 <body>
 
-<h1 class="main-title">TRANSPORTE EMPORIUM — RESUMEN EJECUTIVO DE FLOTA</h1>
-<div class="periodo-bar">
-  Período: ${periodoStr} &nbsp;·&nbsp; Generado: ${new Date().toLocaleString('es-VE')} &nbsp;·&nbsp; Responsable: José Marín — Jefe de Transporte
-</div>
+<table style="width:100%;border-collapse:collapse;margin-bottom:0">
+  <tr><td style="background:#064e3b;color:#ffffff;padding:14px 20px;font-size:16px;font-weight:bold;letter-spacing:1px">TRANSPORTE EMPORIUM — RESUMEN EJECUTIVO DE FLOTA</td></tr>
+  <tr><td style="background:#065f46;color:#a7f3d0;padding:5px 20px;font-size:10px">Período: ${periodoStr} &nbsp;·&nbsp; Generado: ${new Date().toLocaleString('es-VE')} &nbsp;·&nbsp; Responsable: José Marín — Jefe de Transporte</td></tr>
+</table>
 
 <!-- ═══════════════════════════════════════════ -->
 <!-- KPIs PRINCIPALES -->
 <!-- ═══════════════════════════════════════════ -->
-<div class="seccion-titulo">INDICADORES CLAVE DEL MES</div>
+<table style="width:100%;border-collapse:collapse;margin-top:16px;margin-bottom:0"><tr><td style="background:#047857;color:#ffffff;padding:7px 14px;font-size:12px;font-weight:bold;border-left:5px solid #10b981">INDICADORES CLAVE DEL MES</td></tr></table>
 <table class="kpi-table">
   <tr>
     <td>
@@ -5661,7 +5661,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 <!-- ═══════════════════════════════════════════ -->
 <!-- RESUMEN POR UNIDAD -->
 <!-- ═══════════════════════════════════════════ -->
-<div class="seccion-titulo">RESUMEN POR UNIDAD</div>
+<table style="width:100%;border-collapse:collapse;margin-top:16px;margin-bottom:0"><tr><td style="background:#047857;color:#ffffff;padding:7px 14px;font-size:12px;font-weight:bold;border-left:5px solid #10b981">RESUMEN POR UNIDAD</td></tr></table>
 <table>
   <tr>
     <th>Unidad</th><th>Placa</th><th>Días op.</th>
@@ -5705,7 +5705,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 <!-- ═══════════════════════════════════════════ -->
 <!-- RESUMEN POR CONDUCTOR -->
 <!-- ═══════════════════════════════════════════ -->
-<div class="seccion-titulo">RESUMEN POR CONDUCTOR</div>
+<table style="width:100%;border-collapse:collapse;margin-top:16px;margin-bottom:0"><tr><td style="background:#047857;color:#ffffff;padding:7px 14px;font-size:12px;font-weight:bold;border-left:5px solid #10b981">RESUMEN POR CONDUCTOR</td></tr></table>
 <table>
   <tr>
     <th>#</th><th>Conductor</th><th>Viajes</th><th>KM</th>
@@ -5733,7 +5733,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 <!-- ═══════════════════════════════════════════ -->
 <!-- ENTREGAS POR SUCURSAL -->
 <!-- ═══════════════════════════════════════════ -->
-<div class="seccion-titulo">ENTREGAS POR SUCURSAL</div>
+<table style="width:100%;border-collapse:collapse;margin-top:16px;margin-bottom:0"><tr><td style="background:#047857;color:#ffffff;padding:7px 14px;font-size:12px;font-weight:bold;border-left:5px solid #10b981">ENTREGAS POR SUCURSAL</td></tr></table>
 <table>
   <tr><th>Sucursal</th><th>Visitas</th><th>Entregas</th><th>KM hacia destino</th></tr>`;
 
@@ -5761,7 +5761,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 <!-- ═══════════════════════════════════════════ -->
 <!-- TIEMPOS EN SUCURSAL -->
 <!-- ═══════════════════════════════════════════ -->
-<div class="seccion-titulo">TIEMPOS DE ESPERA EN SUCURSAL</div>
+<table style="width:100%;border-collapse:collapse;margin-top:16px;margin-bottom:0"><tr><td style="background:#047857;color:#ffffff;padding:7px 14px;font-size:12px;font-weight:bold;border-left:5px solid #10b981">TIEMPOS DE ESPERA EN SUCURSAL</td></tr></table>
 <table>
   <tr>
     <th>Sucursal</th><th>Visitas con registro</th>
@@ -5812,7 +5812,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 <!-- ═══════════════════════════════════════════ -->
 <!-- ALERTAS -->
 <!-- ═══════════════════════════════════════════ -->
-<div class="seccion-titulo">ALERTAS Y OBSERVACIONES</div>
+<table style="width:100%;border-collapse:collapse;margin-top:16px;margin-bottom:0"><tr><td style="background:#047857;color:#ffffff;padding:7px 14px;font-size:12px;font-weight:bold;border-left:5px solid #10b981">ALERTAS Y OBSERVACIONES</td></tr></table>
 <table>
   <tr><th style="width:100%">Alerta</th></tr>`;
 
@@ -5826,7 +5826,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 <!-- ═══════════════════════════════════════════ -->
 <!-- DETALLE DE VIAJES -->
 <!-- ═══════════════════════════════════════════ -->
-<div class="seccion-titulo">DETALLE COMPLETO DE VIAJES</div>
+<table style="width:100%;border-collapse:collapse;margin-top:16px;margin-bottom:0"><tr><td style="background:#047857;color:#ffffff;padding:7px 14px;font-size:12px;font-weight:bold;border-left:5px solid #10b981">DETALLE COMPLETO DE VIAJES</td></tr></table>
 <table>
   <tr>
     <th>Fecha</th><th>Unidad</th><th>Chofer</th><th>Ruta</th>
