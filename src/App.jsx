@@ -5475,182 +5475,414 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 
   // Genera Excel HTML/XLS multi-hoja (formato que Excel y LibreOffice abren)
   const generarExcelHTML = () => {
-    const stylesHead = `
-      <style>
-        table { border-collapse: collapse; font-family: Arial; font-size: 11px; margin-bottom: 24px; }
-        th, td { border: 1px solid #999; padding: 5px 8px; }
-        th { background: #10b981; color: white; font-weight: bold; font-size: 10px; }
-        .title { font-size: 16px; font-weight: bold; background: #064e3b; color: white; padding: 8px; }
-        .vehicle-title { font-size: 14px; font-weight: bold; background: #047857; color: white; }
-        .subtitle { background: #d1fae5; font-weight: bold; }
-        .total { background: #fef3c7; font-weight: bold; }
-        .dashboard { background: #ecfdf5; }
-        .num { mso-number-format: '#,##0.00'; text-align: right; }
-        .int { mso-number-format: '0'; text-align: right; }
-        .money { mso-number-format: '$#,##0.00'; text-align: right; color: #047857; font-weight: bold; }
-        .header-info { background: #f0fdf4; font-weight: bold; }
-        h2 { color: #047857; margin-top: 30px; border-bottom: 2px solid #10b981; padding-bottom: 4px; }
-        h3 { color: #065f46; margin-top: 20px; }
-      </style>`;
+    const mesActual = selectedMonth || new Date().toISOString().slice(0, 7);
+    const [anio, mes] = mesActual.split('-').map(Number);
+    const nombreMes = new Date(anio, mes - 1, 1).toLocaleString('es-VE', { month: 'long', year: 'numeric' });
+    const fmtMin = (m) => {
+      if (!m || m <= 0) return '—';
+      if (m > 2880) return '—';
+      return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m} min`;
+    };
+    const fmtDate = (d) => d ? d.split('-').reverse().join('/') : '';
 
-    let sheets = '';
-    const fmtMin = (m) => m == null ? '' : (m < 60 ? `${m} min` : `${Math.floor(m / 60)}h ${m % 60}m`);
+    // Pre-cálculos globales
+    const grandKm = trips.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
+    const grandL  = trips.reduce((s, t) => s + (Number(t.liters)     || 0), 0);
+    const grandC  = trips.reduce((s, t) => s + (Number(t.cost)       || 0), 0);
+    const grandD  = trips.reduce((s, t) => s + (Number(t.deliveries) || 0), 0);
+    const grandT  = trips.length;
+    const kmLFlota = grandL > 0 ? (grandKm / grandL).toFixed(2) : '—';
+    const costoPorEntrega = grandD > 0 ? (grandC / grandD).toFixed(2) : '—';
+    const fechas = trips.map(t => t.startDate).filter(Boolean).sort();
+    const periodoStr = fechas.length >= 2 ? `${fmtDate(fechas[0])} al ${fmtDate(fechas[fechas.length - 1])}` : nombreMes;
 
-    // 1) HOJA POR CADA VEHÍCULO con todas las columnas pedidas
-    vehicles.forEach(v => {
-      const vTrips = [...trips.filter(t => t.vehicleId === v.id)].sort((a, b) => a.createdAt - b.createdAt);
-      sheets += `<h2>🚛 ${esc(v.code)} · ${esc(v.plate)} (${esc(v.type)})</h2>`;
-      
-      // Tabla detallada de viajes
-      sheets += `<table>`;
-      sheets += `<tr><td class="vehicle-title" colspan="13">DETALLE DE VIAJES - ${esc(v.code)}</td></tr>`;
-      sheets += `<tr class="subtitle">
-        <th>Fecha</th>
-        <th>Chofer</th>
-        <th>Hora Salida</th>
-        <th>Hora Llegada</th>
-        <th>KM Salida</th>
-        <th>KM Llegada</th>
-        <th>KM Recorridos</th>
-        <th>Tiempo Trayecto</th>
-        <th>Combustible (L)</th>
-        <th>Costo $</th>
-        <th>Transferencias</th>
-        <th>Ruta</th>
-        <th>T. en Destino</th>
-      </tr>`;
-
-      let totKm = 0, totL = 0, totC = 0, totD = 0;
-      vTrips.forEach(t => {
-        const d = drivers.find(x => x.id === t.driverId);
-        const o = branches.find(x => x.id === t.originBranchId) || (t.originBranchId === 'taller' ? { name: '🔧 Taller' } : null);
-        const dest = branches.find(x => x.id === t.destinationBranchId);
-        totKm += Number(t.kmTraveled) || 0;
-        totL += Number(t.liters) || 0;
-        totC += Number(t.cost) || 0;
-        totD += Number(t.deliveries) || 0;
-        sheets += `<tr>`;
-        sheets += `<td>${esc(t.startDate)}</td>`;
-        sheets += `<td>${esc(d?.shortName)}</td>`;
-        sheets += `<td>${esc(t.startTime)}</td>`;
-        sheets += `<td>${esc(t.endTime)}</td>`;
-        sheets += `<td class="int">${t.kmStart}</td>`;
-        sheets += `<td class="int">${t.kmEnd}</td>`;
-        sheets += `<td class="int">${t.kmTraveled}</td>`;
-        sheets += `<td>${fmtMin(t.tripMinutes)}</td>`;
-        sheets += `<td class="num">${Number(t.liters || 0).toFixed(2)}</td>`;
-        sheets += `<td class="money">${Number(t.cost || 0).toFixed(2)}</td>`;
-        sheets += `<td class="int">${t.deliveries || 0}</td>`;
-        sheets += `<td>${esc(o?.name)} → ${esc(dest?.name)}</td>`;
-        sheets += `<td>${t.timeAtDestinationMinutes != null ? fmtMin(t.timeAtDestinationMinutes) : '<span style="color:#888">en curso</span>'}</td>`;
-        sheets += `</tr>`;
-      });
-
-      // Fila de totales
-      sheets += `<tr class="total">`;
-      sheets += `<td colspan="6">TOTAL</td>`;
-      sheets += `<td class="int">${totKm}</td>`;
-      sheets += `<td></td>`;
-      sheets += `<td class="num">${totL.toFixed(2)}</td>`;
-      sheets += `<td class="money">${totC.toFixed(2)}</td>`;
-      sheets += `<td class="int">${totD}</td>`;
-      sheets += `<td colspan="2"></td>`;
-      sheets += `</tr>`;
-      sheets += `</table>`;
-
-      // Dashboard pequeño del vehículo
-      const kmL = totL > 0 ? (totKm / totL).toFixed(2) : '0';
-      const costoPorKm = totKm > 0 ? (totC / totKm).toFixed(3) : '0';
-      sheets += `<table style="width:auto">`;
-      sheets += `<tr><td class="vehicle-title" colspan="2">DASHBOARD ${esc(v.code)}</td></tr>`;
-      sheets += `<tr class="dashboard"><td class="header-info">Total Viajes</td><td class="int">${vTrips.length}</td></tr>`;
-      sheets += `<tr class="dashboard"><td class="header-info">Total KM</td><td class="int">${totKm}</td></tr>`;
-      sheets += `<tr class="dashboard"><td class="header-info">Total Combustible</td><td class="num">${totL.toFixed(2)} L</td></tr>`;
-      sheets += `<tr class="dashboard"><td class="header-info">Total Gasto</td><td class="money">${totC.toFixed(2)}</td></tr>`;
-      sheets += `<tr class="dashboard"><td class="header-info">Total Entregas</td><td class="int">${totD}</td></tr>`;
-      sheets += `<tr class="dashboard"><td class="header-info">Promedio km/L</td><td class="num">${kmL}</td></tr>`;
-      sheets += `<tr class="dashboard"><td class="header-info">Costo por km</td><td class="money">${costoPorKm}</td></tr>`;
-      sheets += `<tr class="dashboard"><td class="header-info">Consumo nominal</td><td class="num">${v.litersPer100km} L/100km</td></tr>`;
-      sheets += `</table>`;
-    });
-
-    // 2) RESUMEN GENERAL POR VEHÍCULO (tipo dashboard)
-    sheets += `<h2>📊 Dashboard - Comparativo de Flota</h2>`;
-    sheets += `<table>`;
-    sheets += `<tr class="subtitle">
-      <th>Unidad</th><th>Placa</th>
-      <th>Viajes</th><th>KM Total</th>
-      <th>Litros</th><th>Costo Total $</th>
-      <th>Entregas</th><th>km/L Prom.</th>
-      <th>$/km</th><th>Eficiencia</th>
-    </tr>`;
-    let grandKm = 0, grandL = 0, grandC = 0, grandD = 0, grandT = 0;
-    vehicles.forEach(v => {
+    // Stats por vehículo
+    const vStats = vehicles.map(v => {
       const vt = trips.filter(t => t.vehicleId === v.id);
       const km = vt.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
-      const lt = vt.reduce((s, t) => s + (Number(t.liters) || 0), 0);
-      const cs = vt.reduce((s, t) => s + (Number(t.cost) || 0), 0);
+      const lt = vt.reduce((s, t) => s + (Number(t.liters)     || 0), 0);
+      const cs = vt.reduce((s, t) => s + (Number(t.cost)       || 0), 0);
       const dl = vt.reduce((s, t) => s + (Number(t.deliveries) || 0), 0);
+      const diasOp = new Set(vt.map(t => t.startDate)).size;
       const kmL = lt > 0 ? (km / lt).toFixed(2) : '0';
-      const costoKm = km > 0 ? (cs / km).toFixed(3) : '0';
-      const efic = km > 0 ? (dl / km * 100).toFixed(2) : '0';
-      grandKm += km; grandL += lt; grandC += cs; grandD += dl; grandT += vt.length;
-      sheets += `<tr>`;
-      sheets += `<td><b>${esc(v.code)}</b></td>`;
-      sheets += `<td>${esc(v.plate)}</td>`;
-      sheets += `<td class="int">${vt.length}</td>`;
-      sheets += `<td class="int">${km}</td>`;
-      sheets += `<td class="num">${lt.toFixed(2)}</td>`;
-      sheets += `<td class="money">${cs.toFixed(2)}</td>`;
-      sheets += `<td class="int">${dl}</td>`;
-      sheets += `<td class="num">${kmL}</td>`;
-      sheets += `<td class="money">${costoKm}</td>`;
-      sheets += `<td class="num">${efic}%</td>`;
-      sheets += `</tr>`;
+      const estadoEfic = lt === 0 ? 'SIN DATOS' : Number(kmL) >= 5 ? 'EFICIENTE' : Number(kmL) >= 3 ? 'NORMAL' : 'REVISAR';
+      const cpEntrega = dl > 0 ? (cs / dl).toFixed(2) : '—';
+      return { v, vt, km, lt, cs, dl, diasOp, kmL, estadoEfic, cpEntrega };
     });
-    sheets += `<tr class="total">`;
-    sheets += `<td colspan="2">TOTAL FLOTA</td>`;
-    sheets += `<td class="int">${grandT}</td>`;
-    sheets += `<td class="int">${grandKm}</td>`;
-    sheets += `<td class="num">${grandL.toFixed(2)}</td>`;
-    sheets += `<td class="money">${grandC.toFixed(2)}</td>`;
-    sheets += `<td class="int">${grandD}</td>`;
-    sheets += `<td colspan="3"></td>`;
-    sheets += `</tr>`;
-    sheets += `</table>`;
 
-    // 3) Ranking de conductores
-    sheets += `<h2>👤 Ranking de Conductores</h2>`;
-    sheets += `<table>`;
-    sheets += `<tr class="subtitle"><th>Conductor</th><th>Viajes</th><th>KM Total</th><th>Litros</th><th>Costo $</th><th>Entregas</th><th>km/L Prom.</th><th>Éxito</th></tr>`;
-    const driverStats = drivers.map(d => {
+    // Stats por conductor
+    const dStats = drivers.map(d => {
       const dt = trips.filter(t => t.driverId === d.id);
       const km = dt.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
-      const lt = dt.reduce((s, t) => s + (Number(t.liters) || 0), 0);
-      const cs = dt.reduce((s, t) => s + (Number(t.cost) || 0), 0);
+      const lt = dt.reduce((s, t) => s + (Number(t.liters)     || 0), 0);
+      const cs = dt.reduce((s, t) => s + (Number(t.cost)       || 0), 0);
       const dl = dt.reduce((s, t) => s + (Number(t.deliveries) || 0), 0);
-      return { ...d, count: dt.length, km, lt, cs, dl };
+      const kmL = lt > 0 ? (km / lt).toFixed(2) : '—';
+      return { ...d, count: dt.length, km, lt, cs, dl, kmL };
     }).filter(d => d.count > 0).sort((a, b) => b.dl - a.dl);
-    driverStats.forEach((d, i) => {
-      const medal = i === 0 ? '🥇 ' : i === 1 ? '🥈 ' : i === 2 ? '🥉 ' : '';
-      const kmL = d.lt > 0 ? (d.km / d.lt).toFixed(2) : '0';
-      const succ = d.count > 0 ? (d.dl / d.count * 100).toFixed(1) : '0';
-      sheets += `<tr>`;
-      sheets += `<td><b>${medal}${esc(d.name)}</b></td>`;
-      sheets += `<td class="int">${d.count}</td>`;
-      sheets += `<td class="int">${d.km}</td>`;
-      sheets += `<td class="num">${d.lt.toFixed(2)}</td>`;
-      sheets += `<td class="money">${d.cs.toFixed(2)}</td>`;
-      sheets += `<td class="int">${d.dl}</td>`;
-      sheets += `<td class="num">${kmL}</td>`;
-      sheets += `<td class="num">${succ}%</td>`;
-      sheets += `</tr>`;
+
+    // Stats por sucursal destino
+    const sucMap = {};
+    trips.forEach(t => {
+      const dest = branches.find(x => x.id === t.destinationBranchId);
+      const nombre = dest?.name || (t.destinationBranchId === 'taller' ? 'Taller' : null);
+      if (!nombre) return;
+      if (!sucMap[nombre]) sucMap[nombre] = { visitas: 0, entregas: 0, km: 0 };
+      sucMap[nombre].visitas++;
+      sucMap[nombre].entregas += (t.deliveries || 0);
+      sucMap[nombre].km += (t.kmTraveled || 0);
     });
-    sheets += `</table>`;
+    const sucEntries = Object.entries(sucMap).sort((a, b) => b[1].entregas - a[1].entregas);
 
-    sheets += `<p style="color:#666;font-size:10px;margin-top:30px;font-family:Arial">📋 Reporte generado el ${new Date().toLocaleString('es-VE')} · Transporte Emporium</p>`;
+    // Alertas
+    const alertas = [];
+    vStats.forEach(({ v, vt, lt, kmL, estadoEfic }) => {
+      const sinKM = vt.filter(t => !t.kmTraveled || t.kmTraveled === 0);
+      if (sinKM.length === vt.length && vt.length > 0) alertas.push(`🔴 ${v.code}: ${sinKM.length} viaje(s) sin KM registrado`);
+      else if (sinKM.length > 0) alertas.push(`🟡 ${v.code}: ${sinKM.length} viaje(s) con KM incompleto`);
+      if (estadoEfic === 'EFICIENTE') alertas.push(`🟢 ${v.code}: Rendimiento excelente — ${kmL} km/L`);
+    });
+    if (alertas.length === 0) alertas.push('🟢 Sin alertas activas este mes');
 
-    const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8">${stylesHead}</head><body><h1 style="color:#047857;font-family:Arial">🚛 TRANSPORTE EMPORIUM - REPORTE DE FLOTA</h1>${sheets}</body></html>`;
+    // Colores
+    const C = {
+      verde1: '#064e3b', verde2: '#065f46', verde3: '#047857',
+      verdeClaro: '#d1fae5', verdeUltra: '#ecfdf5',
+      grisOsc: '#1f2937', grisMed: '#6b7280', grisClaro: '#f3f4f6',
+      amarillo: '#fef3c7', rojo: '#fee2e2', azul: '#eff6ff',
+      blanco: '#ffffff',
+    };
+
+    const estilos = `
+      <style>
+        * { font-family: Arial, sans-serif; }
+        body { background: #f8fafc; padding: 24px; }
+        h1.main-title {
+          background: ${C.verde1}; color: ${C.blanco};
+          padding: 16px 24px; margin: 0 0 4px 0;
+          font-size: 18px; letter-spacing: 1px;
+        }
+        .periodo-bar {
+          background: ${C.verde2}; color: #a7f3d0;
+          padding: 6px 24px; font-size: 11px; margin-bottom: 20px;
+        }
+        .seccion-titulo {
+          background: ${C.verde3}; color: ${C.blanco};
+          padding: 7px 14px; font-size: 13px; font-weight: bold;
+          margin: 24px 0 0 0; border-left: 5px solid #10b981;
+        }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 0; }
+        th {
+          background: ${C.grisOsc}; color: ${C.blanco};
+          padding: 6px 10px; font-size: 10px; text-align: center;
+          border: 1px solid #374151;
+        }
+        td { padding: 5px 10px; font-size: 10px; border: 1px solid #d1d5db; }
+        tr:nth-child(even) td { background: #f9fafb; }
+        tr:nth-child(odd) td { background: ${C.blanco}; }
+        .tr-total td {
+          background: ${C.verdeClaro} !important; font-weight: bold;
+          color: ${C.verde2}; border-top: 2px solid #10b981;
+        }
+        .num { text-align: right; }
+        .cen { text-align: center; }
+        .bold { font-weight: bold; }
+        .verde { color: ${C.verde3}; font-weight: bold; }
+        .rojo { color: #b91c1c; font-weight: bold; }
+        .amarillo-bg td { background: ${C.amarillo} !important; color: #92400e; font-weight: bold; }
+        .rojo-bg td { background: ${C.rojo} !important; color: #991b1b; font-weight: bold; }
+        .verde-bg td { background: ${C.verdeClaro} !important; color: ${C.verde2}; }
+        .badge {
+          display: inline-block; padding: 2px 8px; border-radius: 4px;
+          font-size: 9px; font-weight: bold;
+        }
+        .badge-verde { background: ${C.verdeClaro}; color: ${C.verde2}; }
+        .badge-amarillo { background: ${C.amarillo}; color: #92400e; }
+        .badge-rojo { background: ${C.rojo}; color: #991b1b; }
+        .badge-gris { background: ${C.grisClaro}; color: ${C.grisMed}; }
+        /* KPI cards simulados en tabla */
+        .kpi-table { border: none; margin-bottom: 20px; }
+        .kpi-table td {
+          border: 1px solid #e5e7eb; border-radius: 0;
+          padding: 10px 16px; background: ${C.blanco};
+          vertical-align: top; width: 20%;
+        }
+        .kpi-label { font-size: 9px; color: ${C.grisMed}; text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 4px; }
+        .kpi-valor { font-size: 20px; font-weight: bold; color: ${C.verde2}; display: block; }
+        .kpi-sub { font-size: 9px; color: ${C.grisMed}; display: block; margin-top: 2px; }
+        .footer { color: #9ca3af; font-size: 9px; margin-top: 30px; padding-top: 10px; border-top: 1px solid #e5e7eb; }
+        .sin-datos td { background: ${C.grisClaro} !important; color: ${C.grisMed}; }
+      </style>`;
+
+    let html = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8">${estilos}</head>
+<body>
+
+<h1 class="main-title">TRANSPORTE EMPORIUM — RESUMEN EJECUTIVO DE FLOTA</h1>
+<div class="periodo-bar">
+  Período: ${periodoStr} &nbsp;·&nbsp; Generado: ${new Date().toLocaleString('es-VE')} &nbsp;·&nbsp; Responsable: José Marín — Jefe de Transporte
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- KPIs PRINCIPALES -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="seccion-titulo">INDICADORES CLAVE DEL MES</div>
+<table class="kpi-table">
+  <tr>
+    <td>
+      <span class="kpi-label">KM totales</span>
+      <span class="kpi-valor">${grandKm.toLocaleString()}</span>
+      <span class="kpi-sub">kilómetros recorridos</span>
+    </td>
+    <td>
+      <span class="kpi-label">Combustible</span>
+      <span class="kpi-valor">${grandL.toFixed(1)} L</span>
+      <span class="kpi-sub">litros consumidos</span>
+    </td>
+    <td>
+      <span class="kpi-label">Costo total</span>
+      <span class="kpi-valor">$${grandC.toFixed(2)}</span>
+      <span class="kpi-sub">en combustible</span>
+    </td>
+    <td>
+      <span class="kpi-label">Entregas</span>
+      <span class="kpi-valor">${grandD}</span>
+      <span class="kpi-sub">${grandT} viajes realizados</span>
+    </td>
+    <td>
+      <span class="kpi-label">Costo por entrega</span>
+      <span class="kpi-valor">$${costoPorEntrega}</span>
+      <span class="kpi-sub">${kmLFlota} km/L promedio flota</span>
+    </td>
+  </tr>
+</table>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- RESUMEN POR UNIDAD -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="seccion-titulo">RESUMEN POR UNIDAD</div>
+<table>
+  <tr>
+    <th>Unidad</th><th>Placa</th><th>Días op.</th>
+    <th>Viajes</th><th>KM</th><th>Litros</th>
+    <th>Costo $</th><th>Entregas</th><th>$ / Entrega</th>
+    <th>km/L</th><th>Estado</th>
+  </tr>`;
+
+    vStats.forEach(({ v, vt, km, lt, cs, dl, diasOp, kmL, estadoEfic, cpEntrega }) => {
+      const sinDatos = vt.length === 0;
+      const rowClass = sinDatos ? 'sin-datos' : estadoEfic === 'REVISAR' ? 'rojo-bg' : '';
+      const badgeClass = estadoEfic === 'EFICIENTE' ? 'badge-verde' : estadoEfic === 'NORMAL' ? 'badge-amarillo' : estadoEfic === 'REVISAR' ? 'badge-rojo' : 'badge-gris';
+      html += `<tr class="${rowClass}">
+        <td class="bold">${esc(v.code)}</td>
+        <td>${esc(v.plate)}</td>
+        <td class="cen">${diasOp}</td>
+        <td class="cen">${vt.length}</td>
+        <td class="num">${km}</td>
+        <td class="num">${lt.toFixed(2)}</td>
+        <td class="num verde">$${cs.toFixed(2)}</td>
+        <td class="cen">${dl}</td>
+        <td class="num">${dl > 0 ? '$' + cpEntrega : '—'}</td>
+        <td class="num">${lt > 0 ? kmL : '—'}</td>
+        <td class="cen"><span class="badge ${badgeClass}">${estadoEfic}</span></td>
+      </tr>`;
+    });
+
+    html += `<tr class="tr-total">
+      <td colspan="3" class="bold">TOTAL FLOTA</td>
+      <td class="cen bold">${grandT}</td>
+      <td class="num bold">${grandKm}</td>
+      <td class="num bold">${grandL.toFixed(2)}</td>
+      <td class="num bold verde">$${grandC.toFixed(2)}</td>
+      <td class="cen bold">${grandD}</td>
+      <td class="num bold">$${costoPorEntrega}</td>
+      <td class="num bold">${kmLFlota}</td>
+      <td></td>
+    </tr>
+  </table>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- RESUMEN POR CONDUCTOR -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="seccion-titulo">RESUMEN POR CONDUCTOR</div>
+<table>
+  <tr>
+    <th>#</th><th>Conductor</th><th>Viajes</th><th>KM</th>
+    <th>Litros</th><th>Costo $</th><th>Entregas</th><th>km/L</th>
+  </tr>`;
+
+    dStats.forEach((d, i) => {
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}°`;
+      html += `<tr>
+        <td class="cen">${medal}</td>
+        <td class="bold">${esc(d.name)}</td>
+        <td class="cen">${d.count}</td>
+        <td class="num">${d.km}</td>
+        <td class="num">${d.lt.toFixed(2)}</td>
+        <td class="num verde">$${d.cs.toFixed(2)}</td>
+        <td class="cen">${d.dl}</td>
+        <td class="num">${d.kmL}</td>
+      </tr>`;
+    });
+
+    if (dStats.length === 0) html += `<tr><td colspan="8" class="cen" style="color:#9ca3af">Sin datos de conductores este mes</td></tr>`;
+
+    html += `</table>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- ENTREGAS POR SUCURSAL -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="seccion-titulo">ENTREGAS POR SUCURSAL</div>
+<table>
+  <tr><th>Sucursal</th><th>Visitas</th><th>Entregas</th><th>KM hacia destino</th></tr>`;
+
+    sucEntries.forEach(([nombre, d]) => {
+      html += `<tr>
+        <td class="bold">${esc(nombre)}</td>
+        <td class="cen">${d.visitas}</td>
+        <td class="cen">${d.entregas}</td>
+        <td class="num">${d.km}</td>
+      </tr>`;
+    });
+
+    if (sucEntries.length === 0) html += `<tr><td colspan="4" class="cen" style="color:#9ca3af">Sin datos de sucursales este mes</td></tr>`;
+
+    const totSucVisitas = sucEntries.reduce((s,[,d])=>s+d.visitas,0);
+    const totSucEntregas = sucEntries.reduce((s,[,d])=>s+d.entregas,0);
+    const totSucKm = sucEntries.reduce((s,[,d])=>s+d.km,0);
+    html += `<tr class="tr-total">
+      <td class="bold">TOTAL</td>
+      <td class="cen bold">${totSucVisitas}</td>
+      <td class="cen bold">${totSucEntregas}</td>
+      <td class="num bold">${totSucKm}</td>
+    </tr></table>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- TIEMPOS EN SUCURSAL -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="seccion-titulo">TIEMPOS DE ESPERA EN SUCURSAL</div>
+<table>
+  <tr>
+    <th>Sucursal</th><th>Visitas con registro</th>
+    <th>Espera total acumulada</th><th>Promedio por visita</th>
+    <th>Esperas &gt; 30 min</th><th>Estado</th>
+  </tr>`;
+
+    // Calcular tiempos por sucursal destino
+    const tiemposSuc = {};
+    trips.forEach(t => {
+      const dest = branches.find(x => x.id === t.destinationBranchId);
+      const nombre = dest?.name || (t.destinationBranchId === 'taller' ? 'Taller' : null);
+      if (!nombre) return;
+      const min = (t.timeAtDestinationMinutes && t.timeAtDestinationMinutes > 0 && t.timeAtDestinationMinutes < 2880)
+        ? t.timeAtDestinationMinutes : 0;
+      if (!tiemposSuc[nombre]) tiemposSuc[nombre] = { visitas: 0, conRegistro: 0, totalMin: 0, largas: 0 };
+      tiemposSuc[nombre].visitas++;
+      if (min > 0) { tiemposSuc[nombre].conRegistro++; tiemposSuc[nombre].totalMin += min; }
+      if (min > 30) tiemposSuc[nombre].largas++;
+    });
+
+    const tiemposEntries = Object.entries(tiemposSuc).sort((a, b) => b[1].totalMin - a[1].totalMin);
+    tiemposEntries.forEach(([nombre, d]) => {
+      const promedio = d.conRegistro > 0 ? Math.round(d.totalMin / d.conRegistro) : 0;
+      const estado = d.largas >= 3 ? 'REVISAR' : d.largas >= 1 ? 'ATENCIÓN' : 'NORMAL';
+      const estadoStyle = d.largas >= 3
+        ? 'background:#fee2e2;color:#991b1b'
+        : d.largas >= 1
+          ? 'background:#fef3c7;color:#92400e'
+          : 'background:#d1fae5;color:#065f46';
+      html += `<tr>
+        <td class="bold">${esc(nombre)}</td>
+        <td class="cen">${d.conRegistro} / ${d.visitas}</td>
+        <td class="cen">${d.totalMin > 0 ? fmtMin(d.totalMin) : '—'}</td>
+        <td class="cen">${promedio > 0 ? fmtMin(promedio) : '—'}</td>
+        <td class="cen">${d.largas > 0 ? `<b style="color:#991b1b">${d.largas}</b>` : '0'}</td>
+        <td class="cen"><span class="badge" style="${estadoStyle}">${estado}</span></td>
+      </tr>`;
+    });
+
+    if (tiemposEntries.length === 0) html += `<tr><td colspan="6" class="cen" style="color:#9ca3af">Sin datos de tiempos este mes</td></tr>`;
+
+    html += `</table>
+<p style="font-size:9px;color:#9ca3af;padding:4px 8px;background:#f9fafb;border:0.5px solid #e5e7eb;margin:0">
+  Nota: Solo se contabilizan visitas donde el conductor cerró el tramo en destino. "Aún ahí" no se incluye en el cálculo.
+</p>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- ALERTAS -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="seccion-titulo">ALERTAS Y OBSERVACIONES</div>
+<table>
+  <tr><th style="width:100%">Alerta</th></tr>`;
+
+    alertas.forEach(a => {
+      const rowClass = a.startsWith('🔴') ? 'rojo-bg' : a.startsWith('🟡') ? 'amarillo-bg' : 'verde-bg';
+      html += `<tr class="${rowClass}"><td>${a}</td></tr>`;
+    });
+
+    html += `</table>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- DETALLE DE VIAJES -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="seccion-titulo">DETALLE COMPLETO DE VIAJES</div>
+<table>
+  <tr>
+    <th>Fecha</th><th>Unidad</th><th>Chofer</th><th>Ruta</th>
+    <th>H.Salida</th><th>H.Llegada</th><th>T.Viaje</th><th>T.Origen</th><th>T.Destino</th>
+    <th>KM</th><th>Litros</th><th>Costo $</th><th>Entregas</th>
+  </tr>`;
+
+    const sortedTrips = [...trips].sort((a, b) => (a.startDate||'').localeCompare(b.startDate||'') || (a.startTime||'').localeCompare(b.startTime||''));
+    let lastDate = '';
+    sortedTrips.forEach(t => {
+      const v = vehicles.find(x => x.id === t.vehicleId);
+      const d = drivers.find(x => x.id === t.driverId);
+      const o = branches.find(x => x.id === t.originBranchId);
+      const dest = branches.find(x => x.id === t.destinationBranchId);
+      const ruta = `${o?.name || '—'} → ${dest?.name || esc(t.destinationBranchId) || '—'}`;
+      const tDest = t.timeAtDestinationMinutes;
+      const tOrig = t.timeAtBranchPrevMinutes;
+      // Fila separadora de fecha
+      if (t.startDate !== lastDate) {
+        lastDate = t.startDate;
+        html += `<tr style="background:#e5e7eb"><td colspan="13" style="font-size:9px;font-weight:bold;color:#374151;padding:3px 10px">${fmtDate(t.startDate)}</td></tr>`;
+      }
+      html += `<tr>
+        <td>${fmtDate(t.startDate)}</td>
+        <td class="bold" style="color:${v?.color||'#047857'}">${esc(v?.code)}</td>
+        <td>${esc(d?.shortName)}</td>
+        <td>${ruta}</td>
+        <td class="cen">${t.startTime||'—'}</td>
+        <td class="cen">${t.endTime||'—'}</td>
+        <td class="cen">${fmtMin(t.tripMinutes)}</td>
+        <td class="cen" style="color:#1d4ed8">${tOrig != null && tOrig > 0 && tOrig < 2880 ? fmtMin(tOrig) : '—'}</td>
+        <td class="cen" style="color:#7c3aed">${tDest != null && tDest > 0 && tDest < 2880 ? fmtMin(tDest) : '—'}</td>
+        <td class="num">${t.kmTraveled||0}</td>
+        <td class="num">${Number(t.liters||0).toFixed(2)}</td>
+        <td class="num verde">$${Number(t.cost||0).toFixed(2)}</td>
+        <td class="cen">${t.deliveries||0}</td>
+      </tr>`;
+    });
+
+    const grandCostoKm = grandKm > 0 ? (grandC / grandKm).toFixed(3) : '—';
+    html += `<tr class="tr-total">
+      <td colspan="9" class="bold">TOTAL FLOTA</td>
+      <td class="num bold">${grandKm}</td>
+      <td class="num bold">${grandL.toFixed(2)}</td>
+      <td class="num bold verde">$${grandC.toFixed(2)}</td>
+      <td class="cen bold">${grandD}</td>
+    </tr></table>
+
+<p class="footer">
+  Reporte generado el ${new Date().toLocaleString('es-VE')} &nbsp;·&nbsp;
+  Transporte Emporium &nbsp;·&nbsp; José Marín — Jefe de Transporte &nbsp;·&nbsp;
+  ${grandT} viajes · ${grandKm} km · $${grandC.toFixed(2)} en combustible · ${grandD} entregas
+</p>
+
+</body></html>`;
+
     return html;
   };
 
