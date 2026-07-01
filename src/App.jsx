@@ -5548,7 +5548,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
     const C = {
       verde1: '#064e3b', verde2: '#065f46', verde3: '#047857',
       verdeClaro: '#d1fae5', verdeUltra: '#ecfdf5',
-      grisOsc: '#1f2937', grisMed: '#6b7280', grisClaro: '#f3f4f6',
+      grisOsc: '#1f2937', grisMed: '#374151', grisClaro: '#f3f4f6',
       amarillo: '#fef3c7', rojo: '#fee2e2', azul: '#eff6ff',
       blanco: '#ffffff',
     };
@@ -5610,7 +5610,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         .kpi-label { font-size: 9px; color: ${C.grisMed}; text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 4px; }
         .kpi-valor { font-size: 20px; font-weight: bold; color: ${C.verde2}; display: block; }
         .kpi-sub { font-size: 9px; color: ${C.grisMed}; display: block; margin-top: 2px; }
-        .footer { color: #9ca3af; font-size: 9px; margin-top: 30px; padding-top: 10px; border-top: 1px solid #e5e7eb; }
+        .footer { color: #374151; font-size: 9px; margin-top: 30px; padding-top: 10px; border-top: 1px solid #e5e7eb; }
         .sin-datos td { background: ${C.grisClaro} !important; color: ${C.grisMed}; }
       </style>`;
 
