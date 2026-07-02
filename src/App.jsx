@@ -6653,7 +6653,21 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       setExporting(false);
     }
   };
-  const exportResumenEjecutivo = () => {
+ const enviarDiscord = async () => {
+    try {
+      const cfg = JSON.parse(localStorage.getItem('emp:v4:config') || '{}');
+      const wh = cfg.discordWebhookGeneral || vehicles[0]?.maintenanceWebhook || '';
+      if (!wh) { setExportMsg({ type: 'error', msg: '❌ Configura el webhook general en Ajustes' }); return; }
+      const km = trips.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
+      const cs = trips.reduce((s,t)=>s+(Number(t.cost)||0),0);
+      const dl = trips.reduce((s,t)=>s+(Number(t.deliveries)||0),0);
+      const lineas = vehicles.map(v => { const vt=trips.filter(t=>t.vehicleId===v.id); if(!vt.length) return `⬛ **${v.code}** — Sin actividad`; const vkm=vt.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0); const vcs=vt.reduce((s,t)=>s+(Number(t.cost)||0),0); const vdl=vt.reduce((s,t)=>s+(Number(t.deliveries)||0),0); const d=drivers.find(x=>x.id===vt[vt.length-1]?.driverId); return `🚛 **${v.code}** — ${d?.shortName||'—'}\n• ${vt.length} viajes · ${vkm} km · ${vdl} entregas · $${vcs.toFixed(2)}`; }).join('\n\n');
+      const fecha = new Date().toLocaleDateString('es-VE',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+      await fetch(wh,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:'Flota Emporium',embeds:[{title:`📊 Resumen de Flota — ${fecha}`,color:0x047857,description:lineas,fields:[{name:'📦 Viajes',value:String(trips.length),inline:true},{name:'🛣️ KM',value:String(km),inline:true},{name:'🚚 Entregas',value:String(dl),inline:true},{name:'⛽ Costo',value:`$${cs.toFixed(2)}`,inline:true},{name:'💰 Costo/entrega',value:dl>0?`$${(cs/dl).toFixed(2)}`:'—',inline:true}],footer:{text:`Transporte Emporium · José Marín — Jefe de Transporte`},timestamp:new Date().toISOString()}]})});
+      setExportMsg({ type: 'success', msg: '✅ Resumen enviado a Discord' });
+      setTimeout(() => setExportMsg(null), 5000);
+    } catch(e) { setExportMsg({ type: 'error', msg: `❌ Error Discord: ${e.message}` }); }
+  }; const exportResumenEjecutivo = () => {
     try {
       const html = generarExcelHTML();
       const fileName = `resumen_ejecutivo_emporium_${new Date().toISOString().slice(0, 10)}.xls`;
@@ -6681,6 +6695,10 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         <button onClick={exportResumenEjecutivo}
               className="text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition bg-sky-600 hover:bg-sky-700 shadow-sky-700/30">
               <FileSpreadsheet className="w-4 h-4" /> RESUMEN EJECUTIVO
+            </button>
+        <button onClick={enviarDiscord}
+              className="text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition bg-indigo-600 hover:bg-indigo-700">
+              📊 DISCORD
             </button>
       </div>
       <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
