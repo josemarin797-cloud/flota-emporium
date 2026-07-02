@@ -6667,7 +6667,8 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
   };
 
   const enviarResumenDiscord = React.useCallback(async (automatico = false) => {
-    const webhook = config?.discordWebhookGeneral || vehicles[0]?.maintenanceWebhook || '';
+    const cfg = (() => { try { return JSON.parse(localStorage.getItem('emp:v4:config') || '{}'); } catch { return {}; } })();
+    const webhook = cfg?.discordWebhookGeneral || vehicles[0]?.maintenanceWebhook || '';
     if (!webhook) {
       if (!automatico) setExportMsg({ type: 'error', msg: '❌ No hay webhook de Discord configurado en Ajustes' });
       return;
