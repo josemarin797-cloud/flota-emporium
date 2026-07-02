@@ -6666,74 +6666,6 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
     }
   };
 
-  const enviarResumenDiscord = React.useCallback(async (automatico = false) => {
-    const cfg = (() => { try { return JSON.parse(localStorage.getItem('emp:v4:config') || '{}'); } catch { return {}; } })();
-    const webhook = cfg?.discordWebhookGeneral || vehicles[0]?.maintenanceWebhook || '';
-    if (!webhook) {
-      if (!automatico) setExportMsg({ type: 'error', msg: '❌ No hay webhook de Discord configurado en Ajustes' });
-      return;
-    }
-    const hoy = new Date().toLocaleDateString('es-VE', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-    const grandKm = trips.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
-    const grandC  = trips.reduce((s, t) => s + (Number(t.cost) || 0), 0);
-    const grandD  = trips.reduce((s, t) => s + (Number(t.deliveries) || 0), 0);
-    const grandT  = trips.length;
-    let lineas = [];
-    vehicles.forEach(v => {
-      const vt = trips.filter(t => t.vehicleId === v.id);
-      if (vt.length === 0) { lineas.push(`⬛ **${v.code}** — Sin actividad`); return; }
-      const km = vt.reduce((s, t) => s + (Number(t.kmTraveled) || 0), 0);
-      const cs = vt.reduce((s, t) => s + (Number(t.cost) || 0), 0);
-      const dl = vt.reduce((s, t) => s + (Number(t.deliveries) || 0), 0);
-      const chofer = (() => { const d = drivers.find(x => x.id === vt[vt.length-1]?.driverId); return d?.shortName || d?.name || '—'; })();
-      lineas.push(`🚛 **${v.code}** — ${chofer}\n• ${vt.length} viajes · ${km} km · ${dl} entregas · $${cs.toFixed(2)}`);
-    });
-    const mensaje = {
-      username: 'Flota Emporium',
-      avatar_url: 'https://cdn-icons-png.flaticon.com/512/3774/3774278.png',
-      embeds: [{
-        title: `📊 Resumen de Flota — ${hoy}`,
-        color: 0x047857,
-        description: lineas.join('\n\n'),
-        fields: [
-          { name: '📦 Total viajes', value: String(grandT), inline: true },
-          { name: '🛣️ KM totales', value: String(grandKm), inline: true },
-          { name: '🚚 Entregas', value: String(grandD), inline: true },
-          { name: '⛽ Costo combustible', value: `$${grandC.toFixed(2)}`, inline: true },
-          { name: '💰 Costo/entrega', value: grandD > 0 ? `$${(grandC/grandD).toFixed(2)}` : '—', inline: true },
-        ],
-        footer: { text: `Transporte Emporium · ${automatico ? 'Envío automático 7:00 PM' : 'Enviado manualmente'} · José Marín — Jefe de Transporte` },
-        timestamp: new Date().toISOString(),
-      }]
-    };
-    try {
-      await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(mensaje) });
-      if (!automatico) setExportMsg({ type: 'success', msg: '✅ Resumen enviado a Discord' });
-      setTimeout(() => setExportMsg(null), 5000);
-    } catch (e) {
-      if (!automatico) setExportMsg({ type: 'error', msg: `❌ Error enviando a Discord: ${e.message}` });
-    }
-  }, [trips, vehicles, drivers, config]);
-
-  // Auto-envío a las 7:00 PM
-  React.useEffect(() => {
-    const CHECK_INTERVAL = 60000; // revisar cada minuto
-    const SENT_KEY = `discord_resumen_sent_${new Date().toISOString().slice(0,10)}`;
-    const timer = setInterval(() => {
-      const ahora = new Date();
-      const hora = ahora.getHours();
-      const minuto = ahora.getMinutes();
-      if (hora === 19 && minuto === 0) {
-        const yaEnviado = localStorage.getItem(SENT_KEY);
-        if (!yaEnviado) {
-          localStorage.setItem(SENT_KEY, '1');
-          enviarResumenDiscord(true);
-        }
-      }
-    }, CHECK_INTERVAL);
-    return () => clearInterval(timer);
-  }, [enviarResumenDiscord]);
-
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 flex-wrap">
@@ -6749,11 +6681,6 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         <button onClick={exportResumenEjecutivo}
               className="text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition bg-sky-600 hover:bg-sky-700 shadow-sky-700/30">
               <FileSpreadsheet className="w-4 h-4" /> RESUMEN EJECUTIVO
-            </button>
-        <button onClick={() => enviarResumenDiscord(false)}
-              className="text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-bold shadow-lg transition bg-indigo-600 hover:bg-indigo-700 shadow-indigo-700/30"
-              title="Enviar resumen del día a Discord (auto: 7:00 PM)">
-              📊 DISCORD
             </button>
       </div>
       <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-xl p-3 mt-2">
