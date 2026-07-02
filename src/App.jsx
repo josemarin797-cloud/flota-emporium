@@ -1349,7 +1349,7 @@ function LoginScreen({ drivers, onLogin }) {
           <h1 className="text-4xl font-black tracking-tight leading-none mt-1" style={{ letterSpacing: '-0.03em', color: '#047857' }}>
             Emporium
           </h1>
-          <p className="text-stone-700 text-sm mt-2 font-semibold">¿Quién está usando la app?</p>
+          <p className="text-emerald-700 text-sm mt-2 font-semibold italic text-center px-4">             {[               'Seguridad primero, siempre.',               'La excelencia operativa en cada kilómetro.',               'Cada entrega a tiempo es un compromiso cumplido.',               'La disciplina hoy construye la reputación de mañana.',               'Profesionalismo en cada ruta, cada día.',               'El camino es tuyo. La excelencia también.',               'Una flota fuerte empieza con cada uno de nosotros.'             ][new Date().getDay()]}           </p>
         </div>
 
         {/* Tarjeta principal — solo choferes */}
