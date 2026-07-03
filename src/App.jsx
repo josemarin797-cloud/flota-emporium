@@ -5550,7 +5550,13 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       const kmL = lt > 0 ? (km / lt).toFixed(2) : '0';
       const estadoEfic = lt === 0 ? 'SIN DATOS' : Number(kmL) >= 5 ? 'EFICIENTE' : Number(kmL) >= 3 ? 'NORMAL' : 'REVISAR';
       const cpEntrega = dl > 0 ? (cs / dl).toFixed(2) : '—';
-      return { v, vt, km, lt, cs, dl, diasOp, kmL, estadoEfic, cpEntrega };
+      const cpk = km > 0 ? (cs / km).toFixed(4) : null;
+      const meta = v.performance || 0;
+      const varPct = meta > 0 && lt > 0 ? (((Number(kmL) - meta) / meta) * 100).toFixed(1) : null;
+      const lastVTrip = [...vt].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+      const horasInac = lastVTrip ? Math.floor((Date.now() - (lastVTrip.createdAt || 0)) / 3600000) : null;
+      const alertaInac = vt.length > 0 && horasInac !== null && horasInac > 48;
+      return { v, vt, km, lt, cs, dl, diasOp, kmL, estadoEfic, cpEntrega, cpk, meta, varPct, alertaInac, horasInac };
     });
 
     // Stats por conductor
@@ -5579,10 +5585,11 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
 
     // Alertas
     const alertas = [];
-    vStats.forEach(({ v, vt, lt, kmL, estadoEfic }) => {
+    vStats.forEach(({ v, vt, lt, kmL, estadoEfic, alertaInac, horasInac }) => {
       const sinKM = vt.filter(t => !t.kmTraveled || t.kmTraveled === 0);
       if (sinKM.length === vt.length && vt.length > 0) alertas.push(`🔴 ${v.code}: ${sinKM.length} viaje(s) sin KM registrado`);
       else if (sinKM.length > 0) alertas.push(`🟡 ${v.code}: ${sinKM.length} viaje(s) con KM incompleto`);
+      if (alertaInac) alertas.push(`🔴 ${v.code}: Sin actividad hace ${horasInac}h — última actividad registrada hace más de 48 horas`);
       if (estadoEfic === 'EFICIENTE') alertas.push(`🟢 ${v.code}: Rendimiento excelente — ${kmL} km/L`);
     });
     if (alertas.length === 0) alertas.push('🟢 Sin alertas activas este mes');
@@ -5709,14 +5716,16 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
   <tr>
     <th>Unidad</th><th>Placa</th><th>Días op.</th>
     <th>Viajes</th><th>KM</th><th>Litros</th>
-    <th>Costo $</th><th>Entregas</th><th>$ / Entrega</th>
-    <th>km/L</th><th>Estado</th>
+    <th>Costo $</th><th>CPK $/km</th><th>Entregas</th><th>$ / Entrega</th>
+    <th>km/L</th><th>Objetivo</th><th>Var %</th><th>Estado</th>
   </tr>`;
 
-    vStats.forEach(({ v, vt, km, lt, cs, dl, diasOp, kmL, estadoEfic, cpEntrega }) => {
+    vStats.forEach(({ v, vt, km, lt, cs, dl, diasOp, kmL, estadoEfic, cpEntrega, cpk, meta, varPct, alertaInac }) => {
       const sinDatos = vt.length === 0;
-      const rowClass = sinDatos ? 'sin-datos' : estadoEfic === 'REVISAR' ? 'rojo-bg' : '';
-      const badgeClass = estadoEfic === 'EFICIENTE' ? 'badge-verde' : estadoEfic === 'NORMAL' ? 'badge-amarillo' : estadoEfic === 'REVISAR' ? 'badge-rojo' : 'badge-gris';
+      const rowClass = sinDatos ? 'sin-datos' : alertaInac ? 'rojo-bg' : estadoEfic === 'REVISAR' ? 'rojo-bg' : '';
+      const badgeEstado = alertaInac ? 'ALERTA: Sin actividad' : estadoEfic;
+      const badgeClass = alertaInac ? 'badge-rojo' : estadoEfic === 'EFICIENTE' ? 'badge-verde' : estadoEfic === 'NORMAL' ? 'badge-amarillo' : estadoEfic === 'REVISAR' ? 'badge-rojo' : 'badge-gris';
+      const varColor = varPct !== null ? (Number(varPct) >= 0 ? 'color:#065f46;font-weight:bold' : 'color:#991b1b;font-weight:bold') : '';
       html += `<tr class="${rowClass}">
         <td class="bold">${esc(v.code)}</td>
         <td>${esc(v.plate)}</td>
@@ -5725,10 +5734,13 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         <td class="num">${km}</td>
         <td class="num">${lt.toFixed(2)}</td>
         <td class="num verde">$${cs.toFixed(2)}</td>
+        <td class="num">${cpk !== null ? '$' + cpk : '—'}</td>
         <td class="cen">${dl}</td>
         <td class="num">${dl > 0 ? '$' + cpEntrega : '—'}</td>
         <td class="num">${lt > 0 ? kmL : '—'}</td>
-        <td class="cen"><span class="badge ${badgeClass}">${estadoEfic}</span></td>
+        <td class="num">${meta > 0 ? meta : '—'}</td>
+        <td class="cen" style="${varColor}">${varPct !== null ? (Number(varPct) >= 0 ? '+' + varPct + '%' : varPct + '%') : '—'}</td>
+        <td class="cen"><span class="badge ${badgeClass}">${badgeEstado}</span></td>
       </tr>`;
     });
 
@@ -5738,10 +5750,11 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       <td class="num bold">${grandKm}</td>
       <td class="num bold">${grandL.toFixed(2)}</td>
       <td class="num bold verde">$${grandC.toFixed(2)}</td>
+      <td class="num bold">${grandKm > 0 ? '$' + (grandC / grandKm).toFixed(4) : '—'}</td>
       <td class="cen bold">${grandD}</td>
       <td class="num bold">$${costoPorEntrega}</td>
       <td class="num bold">${kmLFlota}</td>
-      <td></td>
+      <td></td><td></td><td></td>
     </tr>
   </table>
 
@@ -5874,7 +5887,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
   <tr>
     <th>Fecha</th><th>Unidad</th><th>Chofer</th><th>Ruta</th>
     <th>H.Salida</th><th>H.Llegada</th><th>T.Viaje</th><th>T.Origen</th><th>T.Destino</th>
-    <th>KM</th><th>Litros</th><th>Costo $</th><th>Entregas</th>
+    <th>KM</th><th>Litros</th><th>Costo $</th><th>Entregas</th><th>Tipo</th>
   </tr>`;
 
     const sortedTrips = [...trips].sort((a, b) => (a.startDate||'').localeCompare(b.startDate||'') || (a.startTime||'').localeCompare(b.startTime||''));
@@ -5906,6 +5919,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         <td class="num">${Number(t.liters||0).toFixed(2)}</td>
         <td class="num verde">$${Number(t.cost||0).toFixed(2)}</td>
         <td class="cen">${t.deliveries||0}</td>
+        <td class="cen" style="${t.tipoViaje === 'Traslado' ? 'background:#eff6ff;color:#1d4ed8' : t.tipoViaje === 'Operativo' ? 'background:#fef3c7;color:#92400e' : 'background:#d1fae5;color:#065f46'};font-weight:bold">${t.tipoViaje || 'Entrega'}</td>
       </tr>`;
     });
 
@@ -5916,6 +5930,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
       <td class="num bold">${grandL.toFixed(2)}</td>
       <td class="num bold verde">$${grandC.toFixed(2)}</td>
       <td class="cen bold">${grandD}</td>
+      <td></td>
     </tr></table>
 
 <p class="footer">
