@@ -6046,19 +6046,15 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         const maxEn  = Math.max(...vMetrics.map(m => m.en), 1);
         const maxKml = Math.max(...vMetrics.map(m => m.kml), 1);
         const medals = ['1° 🥇', '2° 🥈', '3° 🥉', '4°', '5°', '6°'];
-        const NC = 8;
+        const NC = 9;
 
         const dd = [];
-        // Fila 0: título principal
         dd.push(['REPORTE MENSUAL DE FLOTA — TRANSPORTE EMPORIUM', ...Array(NC-1).fill('')]);
-        // Fila 1: subtítulo
         dd.push([`Período: ${periodoStr}     ·     Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(NC-1).fill('')]);
         dd.push(Array(NC).fill(''));
-
-        // Filas 3-5: KPIs (label, valor, unidad)
-        dd.push(['KM TOTAL', 'LITROS', 'COSTO $', 'VIAJES', 'ENTREGAS', 'EFICIENCIA', '', '']);
-        dd.push([r2(flotaKm), r2(flotaLt), `$ ${r2(flotaCs)}`, flotaVj, flotaEn, `${flotaLt > 0 ? r2(flotaKm/flotaLt) : 0} km/L`, '', '']);
-        dd.push(['kilómetros', 'litros consumidos', 'combustible', 'viajes realizados', 'entregas completadas', 'promedio flota', '', '']);
+        dd.push(['KM TOTAL', 'LITROS', 'COSTO $', 'VIAJES', 'ENTREGAS', 'EFICIENCIA', '', '', '']);
+        dd.push([r2(flotaKm), r2(flotaLt), `$ ${r2(flotaCs)}`, flotaVj, flotaEn, `${flotaLt > 0 ? r2(flotaKm/flotaLt) : 0} km/L`, '', '', '']);
+        dd.push(['kilómetros', 'litros consumidos', 'combustible', 'viajes realizados', 'entregas completadas', 'promedio flota', '', '', '']);
         dd.push(Array(NC).fill(''));
         // Fila 7: campeones
         const mostActive = vMetrics.reduce((a, b) => b.vj > a.vj ? b : a, vMetrics[0]);
@@ -6149,8 +6145,8 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         });
         for (let c2 = 0; c2 < NC; c2++) sc(wsDash, dashTotalR, c2, c2>=3?ST.totalRight:ST.totalRow);
 
-        wsDash['!cols'] = [{wch:22},{wch:22},{wch:4},{wch:10},{wch:14},{wch:12},{wch:8},{wch:9}];
-        wsDash['!rows'] = [{hpt:30},{hpt:16},{hpt:8},{hpt:22},{hpt:30},{hpt:14},{hpt:8}];
+        wsDash['!cols'] = [{wch:22},{wch:24},{wch:4},{wch:11},{wch:14},{wch:12},{wch:9},{wch:9},{wch:9}];
+        wsDash['!rows'] = [{hpt:32},{hpt:16},{hpt:8},{hpt:24},{hpt:32},{hpt:14},{hpt:8}];
         XLSX.utils.book_append_sheet(wb, wsDash, 'Dashboard');
 
         // ════════════════════════════════════════════════════════════════
@@ -6371,12 +6367,11 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         });
 
         const wsDet = XLSX.utils.aoa_to_sheet(detD);
-        const NCD = 16;
+        const NCD = 17;
         wsDet['!merges'] = [
           { s: { r: 0, c: 0 }, e: { r: 0, c: NCD - 1 } },
           { s: { r: 1, c: 0 }, e: { r: 1, c: NCD - 1 } },
         ];
-        // Activar filtros automáticos en el encabezado
         wsDet['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: headerRow, c: 0 }, e: { r: headerRow, c: NCD - 1 } }) };
         sr(wsDet, 0, NCD, ST.title);
         sr(wsDet, 1, NCD, ST.subtitle);
@@ -6384,19 +6379,25 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         let dataIdx = 0;
         for (let ri = detDataStartR; ri < detD.length; ri++) {
           if (subtotalRows.includes(ri)) {
-            // Estilo subtotal
             for (let c = 0; c < NCD; c++) sc(wsDet, ri, c, { font:{bold:true,color:{rgb:C.white},sz:9,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:'166534'}}, border:bdr(), alignment:{horizontal:c>=11?'right':'left'} });
           } else {
             const e = dataIdx % 2 === 0;
             for (let c = 0; c < NCD; c++) {
               if (c >= 5 && c <= 10) sc(wsDet, ri, c, ST.timeCell(e));
+              else if (c === 16) {
+                // Tipo Viaje — color según tipo
+                const tipoVal = detD[ri] && detD[ri][16];
+                const tipoBg = tipoVal === 'Traslado' ? C.blue : tipoVal === 'Operativo' ? C.amber : C.lightGreen;
+                const tipoFg = tipoVal === 'Traslado' ? C.blueDark : tipoVal === 'Operativo' ? C.amberDark : C.tealGreen;
+                sc(wsDet, ri, c, { font:{bold:true,color:{rgb:tipoFg},sz:9,name:'Calibri'}, fill:{patternType:'solid',fgColor:{rgb:tipoBg}}, border:bdr(), alignment:{horizontal:'center'} });
+              }
               else if (c >= 11) sc(wsDet, ri, c, ST.dataRight(e));
               else sc(wsDet, ri, c, e ? ST.dataEven : ST.dataOdd);
             }
             dataIdx++;
           }
         }
-        wsDet['!cols'] = [{ wch: 12 }, { wch: 9 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 20 }];
+        wsDet['!cols'] = [{ wch: 12 }, { wch: 9 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 20 }, { wch: 13 }];
         wsDet['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsDet, 'Detalle de Viajes');
 
