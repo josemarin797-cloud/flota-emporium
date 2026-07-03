@@ -1529,6 +1529,7 @@ const SB_KEY_O = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 function DriverOrdersTab({ currentDriver, onOrdersCount }) {
   const [orders, setOrders] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+
   const loadOrders = async () => {
     if (!currentDriver) return;
     setLoading(true);
@@ -1547,7 +1548,9 @@ function DriverOrdersTab({ currentDriver, onOrdersCount }) {
     } catch(e) {}
     setLoading(false);
   };
+
   React.useEffect(() => { loadOrders(); const iv = setInterval(loadOrders, 30000); return () => clearInterval(iv); }, [currentDriver]);
+
   const acceptOrder = async (id) => {
     try {
       await fetch(SB_URL_O + '/rest/v1/orders?id=eq.' + id, {
@@ -1558,19 +1561,35 @@ function DriverOrdersTab({ currentDriver, onOrdersCount }) {
       loadOrders();
     } catch(e) {}
   };
-  const deliverOrder = async (id) => {
+
+  // Marca una parada específica como entregada
+  const deliverStop = async (order, stopIdx) => {
     try {
-      await fetch(SB_URL_O + '/rest/v1/orders?id=eq.' + id, {
+      // Actualizar destinations localmente
+      const dests = Array.isArray(order.destinations) ? [...order.destinations] : [];
+      if (typeof dests[stopIdx] === 'object') {
+        dests[stopIdx] = { ...dests[stopIdx], entregado: true, horaEntrega: new Date().toTimeString().slice(0,5) };
+      } else {
+        // formato viejo — string
+        dests[stopIdx] = { sucursal: dests[stopIdx], deptos: [], entregado: true, horaEntrega: new Date().toTimeString().slice(0,5) };
+      }
+      // ¿Todas las paradas entregadas?
+      const todasEntregadas = dests.every(d => typeof d === 'object' ? d.entregado : false);
+      const nuevoStatus = todasEntregadas ? 'Entregada' : 'Recogida';
+      await fetch(SB_URL_O + '/rest/v1/orders?id=eq.' + order.id, {
         method: 'PATCH',
         headers: { 'apikey': SB_KEY_O, 'Authorization': 'Bearer ' + SB_KEY_O, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-        body: JSON.stringify({ status: 'Entregada' })
+        body: JSON.stringify({ destinations: dests, status: nuevoStatus })
       });
       loadOrders();
     } catch(e) {}
   };
+
   const statusColor = { 'Pendiente': 'bg-amber-100 text-amber-800', 'Recogida': 'bg-blue-100 text-blue-800', 'En transito': 'bg-purple-100 text-purple-800', 'Entregada': 'bg-green-100 text-green-800' };
   const borderColor = { 'Pendiente': 'border-amber-400', 'Recogida': 'border-blue-400', 'En transito': 'border-purple-400', 'Entregada': 'border-green-400' };
+
   if (loading) return <div className="flex items-center justify-center py-16 text-stone-400">Cargando ordenes...</div>;
+
   return (
     <div className="space-y-3 py-2">
       <div className="flex items-center justify-between mb-2">
@@ -1582,32 +1601,83 @@ function DriverOrdersTab({ currentDriver, onOrdersCount }) {
           <div className="text-sm">No tienes ordenes asignadas hoy</div>
         </div>
       )}
-      {orders.map(o => (
-        <div key={o.id} className={'bg-white rounded-xl border-l-4 ' + (borderColor[o.status] || 'border-stone-300') + ' shadow-sm p-4'}>
-          <div className="flex items-start justify-between mb-2">
-            <div>
-              <span className="font-bold text-stone-800 text-sm">{o.type || 'Transferencia'}</span>
-              {o.department && <span className="ml-2 text-xs text-amber-700 font-medium">{o.department}</span>}
+      {orders.map(o => {
+        const dests = Array.isArray(o.destinations) ? o.destinations : [];
+        const totalParadas = dests.length;
+        const paradasEntregadas = dests.filter(d => typeof d === 'object' ? d.entregado : false).length;
+        return (
+          <div key={o.id} className={'bg-white rounded-xl border-l-4 ' + (borderColor[o.status] || 'border-stone-300') + ' shadow-sm p-4'}>
+            {/* Cabecera */}
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <span className="font-bold text-stone-800 text-sm">{o.type || 'Transferencia'}</span>
+                {o.department && <span className="ml-2 text-xs text-amber-700 font-medium">{o.department}</span>}
+              </div>
+              <span className={'text-xs px-2 py-0.5 rounded-full font-medium ' + (statusColor[o.status] || 'bg-stone-100 text-stone-600')}>{o.status}</span>
             </div>
-            <span className={'text-xs px-2 py-0.5 rounded-full font-medium ' + (statusColor[o.status] || 'bg-stone-100 text-stone-600')}>{o.status}</span>
+            <div className="text-xs text-stone-600 mb-1"><span className="font-medium">De:</span> {o.origin || '-'}</div>
+            {o.vehicle_id && <div className="text-xs text-stone-500 mb-1">{o.vehicle_id}</div>}
+            {o.notes && <div className="text-xs text-stone-500 italic mb-2">{o.notes}</div>}
+
+            {/* Progreso de paradas */}
+            {o.status !== 'Pendiente' && totalParadas > 0 && (
+              <div className="mt-2 mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold text-stone-600">Paradas</span>
+                  <span className="text-xs text-stone-400">{paradasEntregadas}/{totalParadas} entregadas</span>
+                </div>
+                {/* Barra de progreso */}
+                <div className="w-full bg-stone-100 rounded-full h-1.5 mb-2">
+                  <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{width: totalParadas > 0 ? (paradasEntregadas/totalParadas*100)+'%' : '0%'}}></div>
+                </div>
+                {/* Lista de paradas */}
+                <div className="space-y-2">
+                  {dests.map((dest, idx) => {
+                    const isObj = typeof dest === 'object';
+                    const nombre = isObj ? dest.sucursal : dest;
+                    const deptos = isObj && dest.deptos ? dest.deptos : [];
+                    const entregado = isObj ? !!dest.entregado : false;
+                    const horaEntrega = isObj ? dest.horaEntrega : null;
+                    return (
+                      <div key={idx} className={`rounded-lg p-2.5 border ${entregado ? 'bg-green-50 border-green-200' : 'bg-stone-50 border-stone-200'}`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm">{entregado ? '✅' : '📍'}</span>
+                            <span className={`text-xs font-bold ${entregado ? 'text-green-700' : 'text-stone-700'}`}>{nombre}</span>
+                            {horaEntrega && <span className="text-xs text-green-500 font-mono">{horaEntrega}</span>}
+                          </div>
+                          {!entregado && o.status === 'Recogida' && (
+                            <button
+                              onClick={() => deliverStop(o, idx)}
+                              className="text-xs bg-green-500 hover:bg-green-600 text-white font-bold px-2.5 py-1 rounded-lg transition">
+                              Entregado ✓
+                            </button>
+                          )}
+                        </div>
+                        {deptos.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {deptos.map((dep, di) => (
+                              <span key={di} className={`text-xs px-2 py-0.5 rounded-full ${entregado ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>{dep}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Botones de acción */}
+            {o.status === 'Pendiente' && (
+              <button onClick={() => acceptOrder(o.id)} className="w-full bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold py-2 rounded-lg transition mt-2">Aceptar orden</button>
+            )}
+            {o.status === 'Entregada' && (
+              <div className="text-center text-xs text-green-600 font-medium py-1 mt-1">✅ Todas las paradas entregadas</div>
+            )}
           </div>
-          <div className="text-xs text-stone-600 mb-1"><span className="font-medium">De:</span> {o.origin || '-'}</div>
-          {o.destinations && o.destinations.length > 0 && (
-            <div className="text-xs text-stone-600 mb-2"><span className="font-medium">A:</span> {Array.isArray(o.destinations) ? o.destinations.join(', ') : o.destinations}</div>
-          )}
-          {o.vehicle_id && <div className="text-xs text-stone-500 mb-2">{o.vehicle_id}</div>}
-          {o.notes && <div className="text-xs text-stone-500 italic mb-2">{o.notes}</div>}
-          {o.status === 'Pendiente' && (
-            <button onClick={() => acceptOrder(o.id)} className="w-full bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold py-2 rounded-lg transition">Aceptar orden</button>
-          )}
-          {o.status === 'Recogida' && (
-            <button onClick={() => deliverOrder(o.id)} className="w-full bg-green-500 hover:bg-green-600 text-white text-sm font-bold py-2 rounded-lg transition">Marcar entregada</button>
-          )}
-          {o.status === 'Entregada' && (
-            <div className="text-center text-xs text-green-600 font-medium py-1">Orden entregada</div>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
