@@ -2114,6 +2114,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       deliveries: Number(data.deliveries) || 0, tripsCount: Number(data.tripsCount) || 1,
       route: data.route || 'LOCAL', fuelLoaded: currentTrip.fuelLoaded || 0, notes: data.notes || '',
       arrivalNotes: data.arrivalNotes || '',
+      tipoViaje: currentTrip.tipoViaje || 'Entrega',
       createdAt: Date.now(),
     };
 
@@ -3057,6 +3058,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   const [customDestType, setCustomDestType] = useState('gestion'); // 'gestion' | 'mantenimiento'
   const [caracasDestName, setCaracasDestName] = useState(''); // lugar específico en Caracas (destino)
   const [caracasOriginName, setCaracasOriginName] = useState(_preOrigin?.sector || ''); // lugar específico en Caracas (origen)
+  const [tipoViaje, setTipoViaje] = useState('Entrega'); // 'Entrega' | 'Traslado' | 'Operativo'
   const showTimeAtBranch = lastTrip && lastTrip.destinationBranchId === form.originBranchId;
 
   useEffect(() => {
@@ -3209,6 +3211,27 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
           )}
         </div>
 
+        {/* TIPO DE VIAJE */}
+        <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-3">
+          <label className="text-xs font-semibold text-emerald-700 mb-2 block uppercase tracking-wider font-mono">🗂️ Tipo de viaje</label>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { key: 'Entrega',   icon: '📦', color: tipoViaje === 'Entrega'   ? 'border-emerald-500 bg-emerald-500/15 text-emerald-800' : 'border-stone-200 text-stone-500 bg-white' },
+              { key: 'Traslado',  icon: '🔄', color: tipoViaje === 'Traslado'  ? 'border-blue-500 bg-blue-500/15 text-blue-800'         : 'border-stone-200 text-stone-500 bg-white' },
+              { key: 'Operativo', icon: '🔧', color: tipoViaje === 'Operativo' ? 'border-amber-500 bg-amber-500/15 text-amber-800'       : 'border-stone-200 text-stone-500 bg-white' },
+            ].map(({ key, icon, color }) => (
+              <button key={key} onClick={() => setTipoViaje(key)}
+                className={`p-2 rounded-lg border-2 text-xs font-bold flex flex-col items-center gap-1 transition ${color}`}>
+                <span className="text-lg">{icon}</span>
+                <span>{key}</span>
+              </button>
+            ))}
+          </div>
+          {tipoViaje === 'Entrega' && (
+            <p className="text-xs text-emerald-600 mt-2 font-mono">⚠️ El tiempo de espera en destino será obligatorio</p>
+          )}
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <DarkField label="KM al salir">
             <input type="number" value={form.kmStart} onChange={e => setForm({ ...form, kmStart: e.target.value })} className="dark-input text-lg font-bold" />
@@ -3262,7 +3285,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
         </div>
       <div className="grid grid-cols-2 gap-2">
         <button onClick={onBack} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200 hover:bg-stone-200">← Atrás</button>
-        <button onClick={() => onStart({...form, tripNotes, tripPhotos, customDestName: form.destinationBranchId === 'otro' ? customDestName.trim() : ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', customDestType: form.destinationBranchId === 'otro' ? customDestType : '', caracasDestName: ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', caracasOriginName: ZONAS_MULTISECTOR.includes(form.originBranchId) ? caracasOriginName.trim() : ''})} disabled={!valid}
+        <button onClick={() => onStart({...form, tipoViaje, tripNotes, tripPhotos, customDestName: form.destinationBranchId === 'otro' ? customDestName.trim() : ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', customDestType: form.destinationBranchId === 'otro' ? customDestType : '', caracasDestName: ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', caracasOriginName: ZONAS_MULTISECTOR.includes(form.originBranchId) ? caracasOriginName.trim() : ''})} disabled={!valid}
           className={`py-3 rounded-xl font-bold text-white transition shadow-lg flex items-center justify-center gap-2 ${valid ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-emerald-700/30 active:scale-[0.98]' : 'bg-stone-100 text-stone-300'}`}>
           <Play className="w-5 h-5" /> INICIAR
         </button>
@@ -3631,8 +3654,10 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack, 
   const [fuelPhoto, setFuelPhoto] = useState(null);
   const kmTraveled = Math.max(0, Number(form.kmEnd) - trip.kmStart);
   const liters = (kmTraveled * (vehicle.litersPer100km || 21)) / 100;
+  const esEntrega = (trip.tipoViaje || 'Entrega') === 'Entrega';
   const valid = Number(form.kmEnd) >= trip.kmStart && form.endTime &&
     (!isOtro || (form.arrivalNotes.trim().length > 0 && arrivalPhotos.length > 0)) &&
+    (!esEntrega || Number(form.deliveries) >= 0) &&
     true; // combustible se registra en pantalla separada
 
   const handleFinish = async () => {
@@ -3648,6 +3673,15 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack, 
         <div className="text-xs text-rose-700 font-mono uppercase tracking-wider">Llegando a</div>
         <div className="font-bold text-rose-900 mt-0.5">{destLabel}</div>
         <div className="text-xs text-stone-500 mt-0.5 font-mono">desde {origin?.name}</div>
+        <div className="mt-2">
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full font-mono ${
+            (trip.tipoViaje || 'Entrega') === 'Entrega'   ? 'bg-emerald-100 text-emerald-800' :
+            (trip.tipoViaje || 'Entrega') === 'Traslado'  ? 'bg-blue-100 text-blue-800' :
+            'bg-amber-100 text-amber-800'
+          }`}>
+            {(trip.tipoViaje || 'Entrega') === 'Entrega' ? '📦' : (trip.tipoViaje || 'Entrega') === 'Traslado' ? '🔄' : '🔧'} {trip.tipoViaje || 'Entrega'}
+          </span>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm space-y-4">
@@ -3818,6 +3852,15 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
           <CheckCircle2 className="w-16 h-16 mx-auto mb-2 drop-shadow-xl" />
           <div className="text-2xl font-black">¡VIAJE REGISTRADO!</div>
           <div className="text-sm text-stone-900 mt-1 font-mono">{origin?.name} → {destination?.name}</div>
+          <div className="mt-2 flex justify-center">
+            <span className={`text-xs font-bold px-3 py-1 rounded-full font-mono ${
+              trip.tipoViaje === 'Entrega'   ? 'bg-emerald-100 text-emerald-800' :
+              trip.tipoViaje === 'Traslado'  ? 'bg-blue-100 text-blue-800' :
+              'bg-amber-100 text-amber-800'
+            }`}>
+              {trip.tipoViaje === 'Entrega' ? '📦' : trip.tipoViaje === 'Traslado' ? '🔄' : '🔧'} {trip.tipoViaje || 'Entrega'}
+            </span>
+          </div>
         </div>
       </div>
 
