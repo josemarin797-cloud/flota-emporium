@@ -6259,15 +6259,20 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         rd.push(['RESUMEN DE FLOTA — TRANSPORTE EMPORIUM', ...Array(9).fill('')]);
         rd.push([`Período: ${periodoStr}     ·     Generado: ${new Date().toLocaleString('es-VE')}`, ...Array(9).fill('')]);
         rd.push(Array(10).fill(''));
-        rd.push(['COMPARATIVO POR UNIDAD', ...Array(9).fill('')]);
-        rd.push(['Camión', 'Placa', 'Chofer(es)', 'Días op.', 'KM', 'Litros', 'Costo $', 'Viajes', 'Entregas', 'km/L', 'Objetivo', 'Var %', 'Estado']);
+        rd.push(['COMPARATIVO POR UNIDAD', ...Array(10).fill('')]);
+        rd.push(['Camión', 'Placa', 'Chofer(es)', 'Días op.', 'KM', 'Litros', 'Costo $', 'CPK $/km', 'Viajes', 'Entregas', 'km/L', 'Objetivo', 'Var %', 'Estado']);
         vMetrics.forEach(({ v, vt, dias, km, lt, cs, vj, en, kml }) => {
           const names = [...new Set(vt.map(t => drivers.find(d => d.id === t.driverId)?.shortName).filter(Boolean))].join(' / ');
           const varPct = v.performance > 0 && kml > 0 ? r2(((kml - v.performance) / v.performance) * 100) : null;
-          rd.push([v.code, v.plate, names, dias, r2(km), r2(lt), r2(cs), vj, en, r2(kml), r2(v.performance), varPct !== null ? `${varPct}%` : '—', kmLText(kml)]);
+          const cpk = km > 0 ? r2(cs / km) : null;
+          // Alerta 48h: buscar último viaje de este vehículo
+          const lastVTrip = [...vt].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+          const horasInac = lastVTrip ? Math.floor((Date.now() - (lastVTrip.createdAt || 0)) / 3600000) : null;
+          const estadoAct = !lastVTrip ? 'SIN DATOS' : horasInac > 48 ? 'ALERTA: Sin actividad' : kmLText(kml);
+          rd.push([v.code, v.plate, names, dias, r2(km), r2(lt), r2(cs), cpk !== null ? cpk : '—', vj, en, r2(kml), r2(v.performance), varPct !== null ? `${varPct}%` : '—', estadoAct]);
         });
         const resTotR = rd.length;
-        rd.push(['TOTAL', '', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaVj, flotaEn, flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, '', '', '']);
+        rd.push(['TOTAL', '', '', '', r2(flotaKm), r2(flotaLt), r2(flotaCs), flotaKm > 0 ? r2(flotaCs / flotaKm) : '—', flotaVj, flotaEn, flotaLt > 0 ? r2(flotaKm / flotaLt) : 0, '', '', '']);
         rd.push(Array(11).fill(''));
         const condR = rd.length;
         rd.push(['RESUMEN POR CONDUCTOR', ...Array(9).fill('')]);
@@ -6283,7 +6288,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         });
 
         const wsRes = XLSX.utils.aoa_to_sheet(rd);
-        const NCR = 13;
+        const NCR = 14;
         wsRes['!merges'] = [
           { s: { r: 0, c: 0 }, e: { r: 0, c: NCR - 1 } },
           { s: { r: 1, c: 0 }, e: { r: 1, c: NCR - 1 } },
@@ -6297,7 +6302,14 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         vMetrics.forEach(({ v, kml }, i) => {
           const ri = 5 + i; const e = i % 2 === 0;
           const varPct = v.performance > 0 && kml > 0 ? r2(((kml - v.performance) / v.performance) * 100) : null;
-          for (let c = 0; c < NCR; c++) sc(wsRes, ri, c, c === NCR-1 ? kmLST(kml) : c === NCR-2 ? (varPct !== null && varPct < 0 ? ST.statusRevisar : varPct !== null && varPct >= 0 ? ST.statusEficiente : ST.statusSinDatos) : c >= 4 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
+          // col 13=Estado, col 12=Var%, col 7=CPK
+          const lastVTrip2 = [...(vMetrics[i]?.vt || [])].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+          const horasInac2 = lastVTrip2 ? Math.floor((Date.now() - (lastVTrip2.createdAt || 0)) / 3600000) : null;
+          const estadoST = !lastVTrip2 ? ST.statusSinDatos : horasInac2 > 48 ? ST.statusRevisar : kmLST(kml);
+          for (let c = 0; c < NCR; c++) sc(wsRes, ri, c,
+            c === NCR-1 ? estadoST :
+            c === NCR-2 ? (varPct !== null && varPct < 0 ? ST.statusRevisar : varPct !== null && varPct >= 0 ? ST.statusEficiente : ST.statusSinDatos) :
+            c >= 4 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
         });
         for (let c = 0; c < NCR; c++) sc(wsRes, resTotR, c, c >= 4 ? ST.totalRight : ST.totalRow);
         sr(wsRes, condR, NCR, ST.secHeader);
@@ -6306,7 +6318,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           const ri = condR + 2 + i; const e = i % 2 === 0;
           for (let c = 0; c < 9; c++) sc(wsRes, ri, c, c >= 2 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
         });
-        wsRes['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 24 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 9 }, { wch: 10 }, { wch: 9 }, { wch: 14 }];
+        wsRes['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 24 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 9 }, { wch: 10 }, { wch: 9 }, { wch: 20 }];
         wsRes['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen Flota');
 
@@ -6317,7 +6329,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         detD.push(['DETALLE DE VIAJES DEL MES — TRANSPORTE EMPORIUM', ...Array(15).fill('')]);
         detD.push([`Total: ${trips.length} viajes  ·  ${periodoStr}`, ...Array(15).fill('')]);
         detD.push(Array(16).fill(''));
-        detD.push(['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje', 'T.Origen', 'T.Destino', 'H.Salida Suc.', 'KM', 'Litros', 'Costo $', 'Entregas', 'Combustible cargado']);
+        detD.push(['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje', 'T.Origen', 'T.Destino', 'H.Salida Suc.', 'KM', 'Litros', 'Costo $', 'Entregas', 'Combustible cargado', 'Tipo Viaje']);
         const headerRow = detD.length - 1;
 
         const sortedTrips = [...trips].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime));
@@ -6345,6 +6357,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
               t.deliveries || 0,
               fuelLoad2 ? `${fuelLoad2.liters}L · ${fuelLoad2.notes}` : '',
+              t.tipoViaje || 'Entrega',
             ]);
           });
           // Subtotal por día
@@ -6354,7 +6367,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           const dLt = dayTrips.reduce((s,t)=>s+(t.liters||0),0);
           const dCs = dayTrips.reduce((s,t)=>s+(t.cost||0),0);
           const dEn = dayTrips.reduce((s,t)=>s+(t.deliveries||0),0);
-          detD.push([`SUBTOTAL ${date}`, '', `${dayTrips.length} viajes`, '', '', '', '', '', '', '', '', r2(dKm), r2(dLt), r2(dCs), dEn, '']);
+          detD.push([`SUBTOTAL ${date}`, '', `${dayTrips.length} viajes`, '', '', '', '', '', '', '', '', r2(dKm), r2(dLt), r2(dCs), dEn, '', '']);
         });
 
         const wsDet = XLSX.utils.aoa_to_sheet(detD);
