@@ -3286,43 +3286,32 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
         </div>
 
         {/* TIPO DE VIAJE */}
-        <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-3">
-          <label className="text-xs font-semibold text-emerald-700 mb-2 block uppercase tracking-wider font-mono">🗂️ Tipo de viaje</label>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { key: 'Entrega',   icon: '📦', color: tipoViaje === 'Entrega'   ? 'border-emerald-500 bg-emerald-500/15 text-emerald-800' : 'border-stone-200 text-stone-500 bg-white' },
-              { key: 'Traslado',  icon: '🔄', color: tipoViaje === 'Traslado'  ? 'border-blue-500 bg-blue-500/15 text-blue-800'         : 'border-stone-200 text-stone-500 bg-white' },
-              { key: 'Operativo', icon: '🔧', color: tipoViaje === 'Operativo' ? 'border-amber-500 bg-amber-500/15 text-amber-800'       : 'border-stone-200 text-stone-500 bg-white' },
-            ].map(({ key, icon, color }) => (
-              <button key={key} onClick={() => setTipoViaje(key)}
-                className={`p-2 rounded-lg border-2 text-xs font-bold flex flex-col items-center gap-1 transition ${color}`}>
-                <span className="text-lg">{icon}</span>
-                <span>{key}</span>
-              </button>
-            ))}
-          </div>
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-3">
+          <label className="text-xs font-semibold text-blue-700 mb-2 block uppercase tracking-wider font-mono">🗂️ Tipo de viaje</label>
+          <button onClick={() => setTipoViaje(tipoViaje === 'Traslado' ? 'Entrega' : 'Traslado')}
+            className={`w-full p-2 rounded-lg border-2 text-xs font-bold flex items-center justify-center gap-2 transition ${
+              tipoViaje === 'Traslado'
+                ? 'border-blue-500 bg-blue-500/15 text-blue-800'
+                : 'border-stone-200 bg-white text-stone-400'
+            }`}>
+            <span className="text-lg">🔄</span>
+            <span>{tipoViaje === 'Traslado' ? 'Traslado — toca para cambiar a Entrega' : 'Marcar como Traslado'}</span>
+          </button>
           {tipoViaje === 'Entrega' && (
-            <p className="text-xs text-emerald-600 mt-2 font-mono">⚠️ El tiempo de espera en destino será obligatorio</p>
+            <p className="text-xs text-stone-400 mt-2 font-mono text-center">Por defecto: Entrega a sucursal</p>
           )}
-          {(tipoViaje === 'Traslado' || tipoViaje === 'Operativo') && (
+          {tipoViaje === 'Traslado' && (
             <div className="mt-3">
               <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2 font-mono">
-                📋 Motivo del {tipoViaje.toLowerCase()}
+                📋 Motivo del traslado
               </label>
               <div className="grid grid-cols-2 gap-2">
-                {(tipoViaje === 'Traslado' ? [
+                {[
+                  'Servicio General',
                   'Transferencia entre sucursales',
-                  'Traslado de personal',
                   'Traslado de activos',
-                  'Servicio General',
-                  'Proveedor / Compras',
-                  'Gestión administrativa',
-                ] : [
-                  'Taller / Mecánico',
-                  'Servicio General',
-                  'Gestión administrativa',
-                  'Proveedor / Compras',
-                ]).map(m => (
+                  'Proveedor',
+                ].map(m => (
                   <button key={m} onClick={() => { setMotivoTraslado(m); if (m !== 'Servicio General') setMotivoDetalle(''); }}
                     className={`p-2 rounded-lg border text-xs font-medium transition text-left ${
                       motivoTraslado === m
@@ -3336,27 +3325,13 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
               {motivoTraslado === 'Servicio General' && (
                 <div className="mt-2 bg-blue-50 border border-blue-200 rounded-xl p-3">
                   <label className="text-xs font-bold text-blue-700 uppercase tracking-wider block mb-1 font-mono">
-                    ¿Qué necesita Servicio General?
+                    ¿Qué necesita Servicio General? (opcional)
                   </label>
                   <input
                     type="text"
                     value={motivoDetalle}
                     onChange={e => setMotivoDetalle(e.target.value)}
-                    placeholder="Ej: Traslado de personal de limpieza a Casarapa..."
-                    className="dark-input w-full"
-                  />
-                </div>
-              )}
-              {motivoTraslado && motivoTraslado !== 'Servicio General' && (
-                <div className="mt-2 bg-stone-50 border border-stone-200 rounded-xl p-2">
-                  <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1 font-mono">
-                    Detalle adicional (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={motivoDetalle}
-                    onChange={e => setMotivoDetalle(e.target.value)}
-                    placeholder="Observación adicional..."
+                    placeholder="Ej: Llevar equipo de limpieza a Casarapa..."
                     className="dark-input w-full"
                   />
                 </div>
@@ -3987,11 +3962,9 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
           <div className="text-sm text-stone-900 mt-1 font-mono">{origin?.name} → {destination?.name}</div>
           <div className="mt-2 flex justify-center flex-wrap gap-1">
             <span className={`text-xs font-bold px-3 py-1 rounded-full font-mono ${
-              trip.tipoViaje === 'Entrega'   ? 'bg-emerald-100 text-emerald-800' :
-              trip.tipoViaje === 'Traslado'  ? 'bg-blue-100 text-blue-800' :
-              'bg-amber-100 text-amber-800'
+              trip.tipoViaje === 'Traslado' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'
             }`}>
-              {trip.tipoViaje === 'Entrega' ? '📦' : trip.tipoViaje === 'Traslado' ? '🔄' : '🔧'} {trip.tipoViaje || 'Entrega'}
+              {trip.tipoViaje === 'Traslado' ? '🔄' : '📦'} {trip.tipoViaje || 'Entrega'}
             </span>
             {trip.motivoTraslado && (
               <span className="text-xs font-medium px-3 py-1 rounded-full bg-stone-100 text-stone-700 font-mono">
@@ -6478,7 +6451,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         detD.push(['DETALLE DE VIAJES DEL MES — TRANSPORTE EMPORIUM', ...Array(15).fill('')]);
         detD.push([`Total: ${trips.length} viajes  ·  ${periodoStr}`, ...Array(15).fill('')]);
         detD.push(Array(16).fill(''));
-        detD.push(['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje', 'T.Origen', 'T.Destino', 'H.Salida Suc.', 'KM', 'Litros', 'Costo $', 'Entregas', 'Combustible cargado', 'Tipo Viaje']);
+        detD.push(['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje', 'T.Origen', 'T.Destino', 'H.Salida Suc.', 'KM', 'Litros', 'Costo $', 'Entregas', 'Combustible cargado', 'Tipo Viaje', 'Motivo', 'Detalle']);
         const headerRow = detD.length - 1;
 
         const sortedTrips = [...trips].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime));
@@ -6507,6 +6480,8 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               t.deliveries || 0,
               fuelLoad2 ? `${fuelLoad2.liters}L · ${fuelLoad2.notes}` : '',
               t.tipoViaje || 'Entrega',
+              t.motivoTraslado || '—',
+              t.motivoDetalle || '—',
             ]);
           });
           // Subtotal por día
@@ -6520,7 +6495,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         });
 
         const wsDet = XLSX.utils.aoa_to_sheet(detD);
-        const NCD = 17;
+        const NCD = 19;
         wsDet['!merges'] = [
           { s: { r: 0, c: 0 }, e: { r: 0, c: NCD - 1 } },
           { s: { r: 1, c: 0 }, e: { r: 1, c: NCD - 1 } },
@@ -6550,7 +6525,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
             dataIdx++;
           }
         }
-        wsDet['!cols'] = [{ wch: 12 }, { wch: 9 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 20 }, { wch: 13 }];
+        wsDet['!cols'] = [{ wch: 12 }, { wch: 9 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 20 }, { wch: 13 }, { wch: 24 }, { wch: 24 }];
         wsDet['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsDet, 'Detalle de Viajes');
 
