@@ -3707,12 +3707,6 @@ function ActiveTripView({ trip, driver, vehicle, branches, onFinish, onCancel, o
         </div>
       )}
 
-      <button onClick={() => setShowCamera(true)}
-        className="w-full py-3 rounded-2xl font-bold text-blue-300 bg-blue-950/40 border-2 border-blue-700/40 hover:bg-blue-900/40 flex items-center justify-center gap-2 transition">
-        <Camera className="w-5 h-5" /> Tomar foto / documento
-      </button>
-      
-
       <button onClick={() => setShowFinishForm(true)}
         className="w-full py-5 rounded-2xl font-bold text-white bg-gradient-to-r from-rose-500 to-rose-700 hover:from-rose-400 active:scale-[0.98] shadow-xl shadow-rose-500/40 flex items-center justify-center gap-2 text-lg">
         <Square className="w-6 h-6 fill-white" /> REGISTRAR LLEGADA
