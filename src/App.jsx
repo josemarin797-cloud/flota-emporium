@@ -3311,7 +3311,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {(tipoViaje === 'Traslado' ? [
-                  'Transferencia de mercancía',
+                  'Transferencia entre sucursales',
                   'Traslado de personal',
                   'Traslado de activos',
                   'Servicio General',
