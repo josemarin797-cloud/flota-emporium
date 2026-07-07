@@ -3768,7 +3768,7 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack, 
   const [fuelPhoto, setFuelPhoto] = useState(null);
   const kmTraveled = Math.max(0, Number(form.kmEnd) - trip.kmStart);
   const liters = (kmTraveled * (vehicle.litersPer100km || 21)) / 100;
-  const esEntrega = (trip.tipoViaje || 'Entrega') === 'Entrega';
+  const esEntrega = trip.tipoViaje === 'Traslado' || !!trip.motivoTraslado ? false : (trip.tipoViaje || 'Entrega') === 'Entrega';
   const valid = Number(form.kmEnd) >= trip.kmStart && form.endTime &&
     (!isOtro || (form.arrivalNotes.trim().length > 0 && arrivalPhotos.length > 0)) &&
     (!esEntrega || Number(form.deliveries) >= 0) &&
@@ -3788,13 +3788,15 @@ function FinishTripForm({ trip, vehicle, origin, destination, onFinish, onBack, 
         <div className="font-bold text-rose-900 mt-0.5">{destLabel}</div>
         <div className="text-xs text-stone-500 mt-0.5 font-mono">desde {origin?.name}</div>
         <div className="mt-2">
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full font-mono ${
-            (trip.tipoViaje || 'Entrega') === 'Entrega'   ? 'bg-emerald-100 text-emerald-800' :
-            (trip.tipoViaje || 'Entrega') === 'Traslado'  ? 'bg-blue-100 text-blue-800' :
-            'bg-amber-100 text-amber-800'
-          }`}>
-            {(trip.tipoViaje || 'Entrega') === 'Entrega' ? '📦' : (trip.tipoViaje || 'Entrega') === 'Traslado' ? '🔄' : '🔧'} {trip.tipoViaje || 'Entrega'}
-          </span>
+          {(() => {
+            const esTrasladoF = trip.tipoViaje === 'Traslado' || !!trip.motivoTraslado;
+            const tipoLabel = esTrasladoF ? 'Traslado' : 'Entrega';
+            const tipoIcon = esTrasladoF ? '🔄' : '📦';
+            const tipoCls = esTrasladoF ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800';
+            return <span className={`text-xs font-bold px-2 py-0.5 rounded-full font-mono ${tipoCls}`}>
+              {tipoIcon} {tipoLabel}{trip.motivoTraslado ? ` · ${trip.motivoTraslado}` : ''}
+            </span>;
+          })()}
         </div>
       </div>
 
