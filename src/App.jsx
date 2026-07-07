@@ -2115,8 +2115,11 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       fields: [
         { name: '⏰ Hora', value: data.startTime, inline: true },
         { name: '📍 KM Salida', value: data.kmStart.toLocaleString(), inline: true },
-        { name: '⛽ Surtido', value: data.fuelLoaded ? `${data.fuelLoaded} L` : 'Sin carga', inline: true },
-...(data.tripNotes ? [{ name: '📝 Notas', value: data.tripNotes, inline: false }] : []),
+        { name: '⛽ Combustible', value: data.fuelLoaded ? `${data.fuelLoaded} L cargados` : 'Sin surtir', inline: true },
+        { name: '🗂️ Tipo', value: data.tipoViaje === 'Traslado'
+          ? `🔄 Traslado${data.motivoTraslado ? ` · ${data.motivoTraslado}` : ''}${data.motivoDetalle ? ` · ${data.motivoDetalle}` : ''}${data.caracasDestName ? ` · ${data.caracasDestName}` : ''}`
+          : '📦 Entrega', inline: false },
+        ...(data.tripNotes ? [{ name: '📝 Notas', value: data.tripNotes, inline: false }] : []),
       ],
       footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
     });
@@ -2296,6 +2299,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         { name: '💵 Costo', value: `$${cost.toFixed(2)}`, inline: true },
         { name: '📦 Entregas', value: `${data.deliveries || 0}`, inline: true },
         { name: '🕐 Hora llegada', value: data.endTime, inline: true },
+        { name: '🗂️ Tipo', value: currentTrip.tipoViaje === 'Traslado'
+          ? `🔄 Traslado${currentTrip.motivoTraslado ? ` · ${currentTrip.motivoTraslado}` : ''}${currentTrip.motivoDetalle ? ` · ${currentTrip.motivoDetalle}` : ''}${currentTrip.caracasDestName ? ` · ${currentTrip.caracasDestName}` : ''}`
+          : '📦 Entrega', inline: false },
         ...(data.arrivalNotes ? [{ name: '📝 Trabajo realizado', value: data.arrivalNotes, inline: false }] : []),
       ],
       footer: { text: `Transporte Emporium · ${new Date().toLocaleString('es-VE')}` },
