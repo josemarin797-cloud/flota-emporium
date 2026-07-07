@@ -2185,6 +2185,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       route: data.route || 'LOCAL', fuelLoaded: currentTrip.fuelLoaded || 0, notes: data.notes || '',
       arrivalNotes: data.arrivalNotes || '',
       tipoViaje: currentTrip.tipoViaje || 'Entrega',
+      motivoTraslado: currentTrip.motivoTraslado || '',
+      motivoDetalle: currentTrip.motivoDetalle || '',
       createdAt: Date.now(),
     };
 
@@ -3129,6 +3131,8 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   const [caracasDestName, setCaracasDestName] = useState(''); // lugar específico en Caracas (destino)
   const [caracasOriginName, setCaracasOriginName] = useState(_preOrigin?.sector || ''); // lugar específico en Caracas (origen)
   const [tipoViaje, setTipoViaje] = useState('Entrega'); // 'Entrega' | 'Traslado' | 'Operativo'
+  const [motivoTraslado, setMotivoTraslado] = useState('');
+  const [motivoDetalle, setMotivoDetalle] = useState('');
   const showTimeAtBranch = lastTrip && lastTrip.destinationBranchId === form.originBranchId;
 
   useEffect(() => {
@@ -3300,6 +3304,65 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
           {tipoViaje === 'Entrega' && (
             <p className="text-xs text-emerald-600 mt-2 font-mono">⚠️ El tiempo de espera en destino será obligatorio</p>
           )}
+          {(tipoViaje === 'Traslado' || tipoViaje === 'Operativo') && (
+            <div className="mt-3">
+              <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2 font-mono">
+                📋 Motivo del {tipoViaje.toLowerCase()}
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {(tipoViaje === 'Traslado' ? [
+                  'Transferencia de mercancía',
+                  'Traslado de personal',
+                  'Traslado de activos',
+                  'Servicio General',
+                  'Proveedor / Compras',
+                  'Gestión administrativa',
+                ] : [
+                  'Taller / Mecánico',
+                  'Servicio General',
+                  'Gestión administrativa',
+                  'Proveedor / Compras',
+                ]).map(m => (
+                  <button key={m} onClick={() => { setMotivoTraslado(m); if (m !== 'Servicio General') setMotivoDetalle(''); }}
+                    className={`p-2 rounded-lg border text-xs font-medium transition text-left ${
+                      motivoTraslado === m
+                        ? 'border-blue-500 bg-blue-50 text-blue-800'
+                        : 'border-stone-200 bg-white text-stone-500'
+                    }`}>
+                    {m}
+                  </button>
+                ))}
+              </div>
+              {motivoTraslado === 'Servicio General' && (
+                <div className="mt-2 bg-blue-50 border border-blue-200 rounded-xl p-3">
+                  <label className="text-xs font-bold text-blue-700 uppercase tracking-wider block mb-1 font-mono">
+                    ¿Qué necesita Servicio General?
+                  </label>
+                  <input
+                    type="text"
+                    value={motivoDetalle}
+                    onChange={e => setMotivoDetalle(e.target.value)}
+                    placeholder="Ej: Traslado de personal de limpieza a Casarapa..."
+                    className="dark-input w-full"
+                  />
+                </div>
+              )}
+              {motivoTraslado && motivoTraslado !== 'Servicio General' && (
+                <div className="mt-2 bg-stone-50 border border-stone-200 rounded-xl p-2">
+                  <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-1 font-mono">
+                    Detalle adicional (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={motivoDetalle}
+                    onChange={e => setMotivoDetalle(e.target.value)}
+                    placeholder="Observación adicional..."
+                    className="dark-input w-full"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -3355,7 +3418,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
         </div>
       <div className="grid grid-cols-2 gap-2">
         <button onClick={onBack} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200 hover:bg-stone-200">← Atrás</button>
-        <button onClick={() => onStart({...form, tipoViaje, tripNotes, tripPhotos, customDestName: form.destinationBranchId === 'otro' ? customDestName.trim() : ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', customDestType: form.destinationBranchId === 'otro' ? customDestType : '', caracasDestName: ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', caracasOriginName: ZONAS_MULTISECTOR.includes(form.originBranchId) ? caracasOriginName.trim() : ''})} disabled={!valid}
+        <button onClick={() => onStart({...form, tipoViaje, motivoTraslado, motivoDetalle, tripNotes, tripPhotos, customDestName: form.destinationBranchId === 'otro' ? customDestName.trim() : ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', customDestType: form.destinationBranchId === 'otro' ? customDestType : '', caracasDestName: ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', caracasOriginName: ZONAS_MULTISECTOR.includes(form.originBranchId) ? caracasOriginName.trim() : ''})} disabled={!valid}
           className={`py-3 rounded-xl font-bold text-white transition shadow-lg flex items-center justify-center gap-2 ${valid ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-emerald-700/30 active:scale-[0.98]' : 'bg-stone-100 text-stone-300'}`}>
           <Play className="w-5 h-5" /> INICIAR
         </button>
@@ -3922,7 +3985,7 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
           <CheckCircle2 className="w-16 h-16 mx-auto mb-2 drop-shadow-xl" />
           <div className="text-2xl font-black">¡VIAJE REGISTRADO!</div>
           <div className="text-sm text-stone-900 mt-1 font-mono">{origin?.name} → {destination?.name}</div>
-          <div className="mt-2 flex justify-center">
+          <div className="mt-2 flex justify-center flex-wrap gap-1">
             <span className={`text-xs font-bold px-3 py-1 rounded-full font-mono ${
               trip.tipoViaje === 'Entrega'   ? 'bg-emerald-100 text-emerald-800' :
               trip.tipoViaje === 'Traslado'  ? 'bg-blue-100 text-blue-800' :
@@ -3930,6 +3993,11 @@ function TripCompleteView({ trip, driver, vehicle, branches, config, onNewTrip, 
             }`}>
               {trip.tipoViaje === 'Entrega' ? '📦' : trip.tipoViaje === 'Traslado' ? '🔄' : '🔧'} {trip.tipoViaje || 'Entrega'}
             </span>
+            {trip.motivoTraslado && (
+              <span className="text-xs font-medium px-3 py-1 rounded-full bg-stone-100 text-stone-700 font-mono">
+                {trip.motivoTraslado}{trip.motivoDetalle ? ` · ${trip.motivoDetalle}` : ''}
+              </span>
+            )}
           </div>
         </div>
       </div>
