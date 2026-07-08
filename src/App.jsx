@@ -2397,6 +2397,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       kmAtHandoff: formData.km,
       fuelAtHandoff: formData.fuel,
       notes: formData.notes,
+      checklist: formData.checklist || {},
+      anomaliaTexto: formData.anomaliaTexto || '',
       handoffDate, handoffTime,
       locationBranchId,
       status: 'pending',
@@ -2420,6 +2422,8 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
             { name: '📍 Lugar de entrega', value: locationBranchName, inline: true },
             { name: '👤 Recibe', value: formData.toDriver?.name || '—', inline: true },
             { name: '📝 Observaciones', value: formData.notes || 'sin novedad', inline: false },
+            ...(formData.anomaliaTexto ? [{ name: '⚠️ Anomalía detectada', value: formData.anomaliaTexto, inline: false }] : []),
+            ...(formData.checklist ? [{ name: '🔍 Inspección', value: `Limpio: ${formData.checklist.limpio ? '✅' : '❌'} · Daño: ${formData.checklist.danio ? '✅' : '❌'} · Falla: ${formData.checklist.falla ? '✅' : '❌'} · Llantas: ${formData.checklist.llantas ? '✅' : '❌'}`, inline: false }] : []),
           ],
           footer: { text: `Transporte Emporium · ${now.toLocaleDateString('es-VE')}` },
         });
@@ -2871,6 +2875,10 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
     // Pre-llenar KM y origen en StartTripForm via setChecklistKm
     if (setChecklistKm) setChecklistKm(Number(pendingHandoff.kmAtHandoff) || null);
 
+    // Llevar al conductor a la pantalla de selección de vehículo
+    setCurrentTrip(null);
+    setStep('select');
+
     // Notificar Discord — recepción confirmada
     const vId = pendingHandoff.vehicleId;
     const v = vehicles.find(x => x.id === vId);
@@ -3056,6 +3064,29 @@ function SelectVehicleOnly({ vehicles, selectedVehicle, setSelectedVehicle, onCo
             <div className="bg-white rounded-lg p-2 border border-amber-200 text-sm">
               <div className="text-xs text-stone-500">Observaciones</div>
               <div className="text-stone-800">{pendingHandoff.notes}</div>
+            </div>
+          )}
+          {pendingHandoff.checklist && (
+            <div className="bg-white rounded-lg p-2 border border-amber-200">
+              <div className="text-xs text-stone-500 mb-1">Inspección del vehículo</div>
+              <div className="grid grid-cols-2 gap-1">
+                {[
+                  { key: 'limpio',  label: '🚗 Limpio' },
+                  { key: 'danio',   label: '⚠️ Sin daños' },
+                  { key: 'falla',   label: '🔧 Sin fallas' },
+                  { key: 'llantas', label: '🛞 Llantas' },
+                ].map(({ key, label }) => (
+                  <div key={key} className={`text-xs font-medium px-2 py-1 rounded-lg ${pendingHandoff.checklist[key] ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+                    {pendingHandoff.checklist[key] ? '✅' : '❌'} {label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {pendingHandoff.anomaliaTexto && (
+            <div className="bg-red-50 border border-red-300 rounded-lg p-2">
+              <div className="text-xs font-bold text-red-700 mb-1">⚠️ Anomalía reportada</div>
+              <div className="text-xs text-red-800">{pendingHandoff.anomaliaTexto}</div>
             </div>
           )}
           <div className="grid grid-cols-2 gap-2">
@@ -4189,8 +4220,15 @@ function EntregarUnidadModal({ vehicle, driver, drivers = [], trips = [], onSubm
   const [notes, setNotes] = React.useState('sin novedad');
   const [photos, setPhotos] = React.useState([]);
   const [toDriver, setToDriver] = React.useState(null);
+  const [checklist, setChecklist] = React.useState({ limpio: null, danio: null, falla: null, llantas: null });
+  const [anomaliaTexto, setAnomaliaTexto] = React.useState('');
+  const [anomaliaFoto, setAnomaliaFoto] = React.useState(null);
   const fileRef = React.useRef();
-  const canSubmit = km !== '' && Number(km) > 0 && fuel !== '' && toDriver !== null;
+  const anomaliaRef = React.useRef();
+
+  const tieneAnomalia = checklist.danio === false || checklist.falla === false || checklist.llantas === false;
+  const checklistCompleto = Object.values(checklist).every(v => v !== null);
+  const canSubmit = km !== '' && Number(km) > 0 && fuel !== '' && toDriver !== null && checklistCompleto && (!tieneAnomalia || anomaliaTexto.trim().length > 0);
 
   // Filtrar choferes — excluir al que entrega
   const otherDrivers = (drivers || []).filter(d => d.id !== driver?.id);
@@ -4258,6 +4296,50 @@ function EntregarUnidadModal({ vehicle, driver, drivers = [], trips = [], onSubm
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
               className="w-full mt-1 border border-stone-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-amber-400 resize-none" />
           </div>
+          {/* CHECKLIST */}
+          <div>
+            <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Inspección del vehículo *</label>
+            <div className="space-y-2 mt-1">
+              {[
+                { key: 'limpio',  label: '🚗 ¿El vehículo está limpio?', anomalia: false },
+                { key: 'danio',   label: '⚠️ ¿Tiene algún daño visible?', anomalia: true },
+                { key: 'falla',   label: '🔧 ¿Tiene alguna falla mecánica?', anomalia: true },
+                { key: 'llantas', label: '🛞 ¿Las llantas están bien?', anomalia: false },
+              ].map(({ key, label, anomalia }) => (
+                <div key={key} className="flex items-center justify-between bg-stone-50 rounded-xl px-3 py-2 border border-stone-200">
+                  <span className="text-xs font-medium text-stone-700">{label}</span>
+                  <div className="flex gap-2">
+                    <button onClick={() => setChecklist(p => ({ ...p, [key]: !anomalia ? true : false }))}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold border transition ${checklist[key] === (!anomalia ? true : false) ? 'bg-emerald-100 border-emerald-400 text-emerald-700' : 'bg-white border-stone-200 text-stone-400'}`}>
+                      ✅ Sí
+                    </button>
+                    <button onClick={() => setChecklist(p => ({ ...p, [key]: !anomalia ? false : true }))}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold border transition ${checklist[key] === (!anomalia ? false : true) ? 'bg-red-100 border-red-400 text-red-700' : 'bg-white border-stone-200 text-stone-400'}`}>
+                      ❌ No
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* ANOMALÍA */}
+          {tieneAnomalia && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3 space-y-2">
+              <div className="text-xs font-bold text-red-700 uppercase tracking-wide">⚠️ Describe la anomalía *</div>
+              <textarea value={anomaliaTexto} onChange={e => setAnomaliaTexto(e.target.value)} rows={2}
+                placeholder="Describe el daño, falla o problema..."
+                className="w-full border border-red-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-red-400 resize-none" />
+              <button onClick={() => anomaliaRef.current?.click()}
+                className="w-full border-2 border-dashed border-red-300 rounded-xl py-2 text-sm text-red-600 hover:border-red-400 flex items-center justify-center gap-2">
+                📷 Foto de la anomalía {anomaliaFoto ? '✅' : '(recomendada)'}
+              </button>
+              <input ref={anomaliaRef} type="file" accept="image/*" capture="environment" onChange={e => {
+                const file = e.target.files[0];
+                if (file) { const r = new FileReader(); r.onload = ev => setAnomaliaFoto({ file, preview: ev.target.result }); r.readAsDataURL(file); }
+              }} className="hidden" />
+              {anomaliaFoto && <img src={anomaliaFoto.preview} className="w-full h-32 object-cover rounded-lg border border-red-200" />}
+            </div>
+          )}
           <div>
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wide">Fotos (opcional)</label>
             <button onClick={() => fileRef.current?.click()}
@@ -4283,7 +4365,7 @@ function EntregarUnidadModal({ vehicle, driver, drivers = [], trips = [], onSubm
             className="py-3 rounded-xl font-bold text-stone-700 bg-stone-100 hover:bg-stone-200">
             Cancelar
           </button>
-          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel, notes, photos: photos.map(p => p.file), toDriver })}
+          <button onClick={() => canSubmit && onSubmit({ km: Number(km), fuel, notes, photos: photos.map(p => p.file), toDriver, checklist, anomaliaTexto, anomaliaFoto: anomaliaFoto?.file })}
             disabled={!canSubmit}
             className={`py-3 rounded-xl font-bold text-white transition-all ${canSubmit ? 'bg-amber-500 hover:bg-amber-600' : 'bg-stone-200 text-stone-400'}`}>
             Entregar ✅
