@@ -818,6 +818,9 @@ export default function App() {
             kmAtHandoff: r.km_at_handoff || r.kmAtHandoff || 0,
             fuelAtHandoff: r.fuel_at_handoff || r.fuelAtHandoff || '',
             notes: r.notes || '',
+            checklist: r.checklist || null,
+            anomaliaTexto: r.anomalia_texto || r.anomaliaTexto || '',
+            locationBranchId: r.location_branch_id || r.locationBranchId || null,
             handoffDate: r.handoff_date || r.handoffDate || '',
             handoffTime: r.handoff_time || r.handoffTime || '',
             status: r.status || 'pending',
@@ -2027,6 +2030,20 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     setGpsEnabled(false);
   };
   useEffect(() => () => stopGpsTracking(), []);
+
+  // Auto-redirigir a pantalla de selección si hay un handoff pendiente para este conductor
+  useEffect(() => {
+    if (!currentDriver || !handoffs) return;
+    const myPendingHandoff = handoffs.find(h =>
+      h.status === 'pending' &&
+      h.fromDriverId !== currentDriver.id &&
+      (h.toDriverId === currentDriver.id || h.toDriverNameExpected === (currentDriver.shortName || currentDriver.name))
+    );
+    if (myPendingHandoff && step !== 'select') {
+      setCurrentTrip(null);
+      setStep('select');
+    }
+  }, [handoffs, currentDriver]);
 
   // OneSignal push notifications init
   useEffect(() => {
