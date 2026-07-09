@@ -2178,8 +2178,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     const v = vehicles.find(x => x.id === currentTrip.vehicleId);
     const kmTraveled = Math.max(0, Number(data.kmEnd) - currentTrip.kmStart);
     const factorCarga = currentTrip.nivelCarga === 'Vacío' ? 1.3 : currentTrip.nivelCarga === 'Máximo' ? 0.75 : 1.0;
-    const kmLAjustado = (v.litersPer100km || 21) / factorCarga;
-    const liters = (kmTraveled * kmLAjustado) / 100;
+    const kmLBase = v.performance > 0 ? v.performance : (v.litersPer100km > 0 ? (100 / v.litersPer100km) : 6.0);
+    const kmLAjustado = kmLBase * factorCarga;
+    const liters = kmTraveled > 0 ? Number((kmTraveled / kmLAjustado).toFixed(2)) : 0;
     const cost = liters * config.fuelPrice;
     const newFuelLevel = Math.max(0, Math.round(((v.fuelLevel || 0) - liters) * 100) / 100);
     const startMs = parseDateTime(currentTrip.startDate, currentTrip.startTime);
