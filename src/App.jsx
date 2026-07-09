@@ -6540,8 +6540,14 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           rd.push([d.name, camiones, dias, dt.reduce((s,t)=>s+(t.tripsCount||1),0), r2(km), r2(lt), r2(dt.reduce((s,t)=>s+(t.cost||0),0)), dt.reduce((s,t)=>s+(t.deliveries||0),0), lt > 0 ? r2(km/lt) : 0, '', '']);
         });
 
+        const wsRes = XLSX.utils.aoa_to_sheet(rd);
         const NCR = 14;
-        // wsRes se crea DESPUÉS de empujar todas las filas a rd
+        wsRes['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: NCR - 1 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: NCR - 1 } },
+          { s: { r: 3, c: 0 }, e: { r: 3, c: NCR - 1 } },
+          { s: { r: condR, c: 0 }, e: { r: condR, c: NCR - 1 } },
+        ];
         sr(wsRes, 0, NCR, ST.title);
         sr(wsRes, 1, NCR, ST.subtitle);
         sr(wsRes, 3, NCR, ST.secHeader);
@@ -6565,39 +6571,34 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           const ri = condR + 2 + i; const e = i % 2 === 0;
           for (let c = 0; c < 9; c++) sc(wsRes, ri, c, c >= 2 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
         });
+        wsRes['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 24 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 9 }, { wch: 10 }, { wch: 9 }, { wch: 20 }];
+        wsRes['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
 
         // ── EFICIENCIA POR NIVEL DE CARGA ────────────────────────────
-        const cargaStartR = rd.length;
-        rd.push([]);
-        rd.push(['EFICIENCIA POR NIVEL DE CARGA', ...Array(NCR-1).fill('')]);
-        rd.push(['Nivel', 'Viajes', 'KM', 'Litros', 'km/L promedio', 'CPK $/km', '', '', '', '', '', '', '', '']);
+        const cargaStartR = rd.length + 1; // +1 por fila vacía
+        const cargaRows = [
+          [],
+          ['EFICIENCIA POR NIVEL DE CARGA', ...Array(NCR-1).fill('')],
+          ['Nivel', 'Viajes', 'KM', 'Litros', 'km/L promedio', 'CPK $/km'],
+        ];
         ['Vacío', 'Medio', 'Máximo'].forEach(nivel => {
           const nt = trips.filter(t => (t.nivelCarga || 'Medio') === nivel);
           const nkm = nt.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
           const nlt = nt.reduce((s,t)=>s+(Number(t.liters)||0),0);
           const ncs = nt.reduce((s,t)=>s+(Number(t.cost)||0),0);
-          const nkml = nlt > 0 ? r2(nkm/nlt) : '—';
-          const ncpk = nkm > 0 ? r2(ncs/nkm) : '—';
           const icon = nivel === 'Vacío' ? '🟢' : nivel === 'Medio' ? '🟡' : '🔴';
-          rd.push([`${icon} ${nivel}`, nt.length, r2(nkm), r2(nlt), nkml, ncpk, '', '', '', '', '', '', '', '']);
+          cargaRows.push([`${icon} ${nivel}`, nt.length, r2(nkm), r2(nlt), nlt > 0 ? r2(nkm/nlt) : '—', nkm > 0 ? r2(ncs/nkm) : '—']);
         });
-        sr(wsRes, cargaStartR + 1, NCR, ST.secHeader);
-        for (let c = 0; c < 6; c++) sc(wsRes, cargaStartR + 2, c, ST.colHeader);
+        XLSX.utils.sheet_add_aoa(wsRes, cargaRows, { origin: rd.length });
+        sr(wsRes, cargaStartR, NCR, ST.secHeader);
+        for (let c = 0; c < 6; c++) sc(wsRes, cargaStartR + 1, c, ST.colHeader);
         ['Vacío', 'Medio', 'Máximo'].forEach((_, i) => {
-          const ri = cargaStartR + 3 + i; const e = i % 2 === 0;
+          const ri = cargaStartR + 2 + i; const e = i % 2 === 0;
           for (let c = 0; c < 6; c++) sc(wsRes, ri, c, c >= 1 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
         });
-        // Crear sheet DESPUÉS de todas las filas
-        const wsRes = XLSX.utils.aoa_to_sheet(rd);
-        wsRes['!merges'] = [
-          { s: { r: 0, c: 0 }, e: { r: 0, c: NCR - 1 } },
-          { s: { r: 1, c: 0 }, e: { r: 1, c: NCR - 1 } },
-          { s: { r: 3, c: 0 }, e: { r: 3, c: NCR - 1 } },
-          { s: { r: condR, c: 0 }, e: { r: condR, c: NCR - 1 } },
-          { s: { r: cargaStartR + 1, c: 0 }, e: { r: cargaStartR + 1, c: NCR - 1 } },
-        ];
-        wsRes['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 24 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 9 }, { wch: 10 }, { wch: 9 }, { wch: 20 }];
-        wsRes['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
+        if (!wsRes['!merges']) wsRes['!merges'] = [];
+        wsRes['!merges'].push({ s: { r: cargaStartR, c: 0 }, e: { r: cargaStartR, c: NCR - 1 } });
+
         XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen Flota');
 
         // ════════════════════════════════════════════════════════════════
