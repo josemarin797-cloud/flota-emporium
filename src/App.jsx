@@ -6540,14 +6540,8 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           rd.push([d.name, camiones, dias, dt.reduce((s,t)=>s+(t.tripsCount||1),0), r2(km), r2(lt), r2(dt.reduce((s,t)=>s+(t.cost||0),0)), dt.reduce((s,t)=>s+(t.deliveries||0),0), lt > 0 ? r2(km/lt) : 0, '', '']);
         });
 
-        const wsRes = XLSX.utils.aoa_to_sheet(rd);
         const NCR = 14;
-        wsRes['!merges'] = [
-          { s: { r: 0, c: 0 }, e: { r: 0, c: NCR - 1 } },
-          { s: { r: 1, c: 0 }, e: { r: 1, c: NCR - 1 } },
-          { s: { r: 3, c: 0 }, e: { r: 3, c: NCR - 1 } },
-          { s: { r: condR, c: 0 }, e: { r: condR, c: NCR - 1 } },
-        ];
+        // wsRes se crea DESPUÉS de empujar todas las filas a rd
         sr(wsRes, 0, NCR, ST.title);
         sr(wsRes, 1, NCR, ST.subtitle);
         sr(wsRes, 3, NCR, ST.secHeader);
@@ -6593,6 +6587,15 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           const ri = cargaStartR + 3 + i; const e = i % 2 === 0;
           for (let c = 0; c < 6; c++) sc(wsRes, ri, c, c >= 1 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
         });
+        // Crear sheet DESPUÉS de todas las filas
+        const wsRes = XLSX.utils.aoa_to_sheet(rd);
+        wsRes['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: NCR - 1 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: NCR - 1 } },
+          { s: { r: 3, c: 0 }, e: { r: 3, c: NCR - 1 } },
+          { s: { r: condR, c: 0 }, e: { r: condR, c: NCR - 1 } },
+          { s: { r: cargaStartR + 1, c: 0 }, e: { r: cargaStartR + 1, c: NCR - 1 } },
+        ];
         wsRes['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 24 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 9 }, { wch: 10 }, { wch: 9 }, { wch: 20 }];
         wsRes['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen Flota');
