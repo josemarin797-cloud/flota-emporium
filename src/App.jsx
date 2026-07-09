@@ -6571,6 +6571,28 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
           const ri = condR + 2 + i; const e = i % 2 === 0;
           for (let c = 0; c < 9; c++) sc(wsRes, ri, c, c >= 2 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
         });
+
+        // ── EFICIENCIA POR NIVEL DE CARGA ────────────────────────────
+        const cargaStartR = rd.length;
+        rd.push([]);
+        rd.push(['EFICIENCIA POR NIVEL DE CARGA', ...Array(NCR-1).fill('')]);
+        rd.push(['Nivel', 'Viajes', 'KM', 'Litros', 'km/L promedio', 'CPK $/km', '', '', '', '', '', '', '', '']);
+        ['Vacío', 'Medio', 'Máximo'].forEach(nivel => {
+          const nt = trips.filter(t => (t.nivelCarga || 'Medio') === nivel);
+          const nkm = nt.reduce((s,t)=>s+(Number(t.kmTraveled)||0),0);
+          const nlt = nt.reduce((s,t)=>s+(Number(t.liters)||0),0);
+          const ncs = nt.reduce((s,t)=>s+(Number(t.cost)||0),0);
+          const nkml = nlt > 0 ? r2(nkm/nlt) : '—';
+          const ncpk = nkm > 0 ? r2(ncs/nkm) : '—';
+          const icon = nivel === 'Vacío' ? '🟢' : nivel === 'Medio' ? '🟡' : '🔴';
+          rd.push([`${icon} ${nivel}`, nt.length, r2(nkm), r2(nlt), nkml, ncpk, '', '', '', '', '', '', '', '']);
+        });
+        sr(wsRes, cargaStartR + 1, NCR, ST.secHeader);
+        for (let c = 0; c < 6; c++) sc(wsRes, cargaStartR + 2, c, ST.colHeader);
+        ['Vacío', 'Medio', 'Máximo'].forEach((_, i) => {
+          const ri = cargaStartR + 3 + i; const e = i % 2 === 0;
+          for (let c = 0; c < 6; c++) sc(wsRes, ri, c, c >= 1 ? ST.dataRight(e) : (e ? ST.dataEven : ST.dataOdd));
+        });
         wsRes['!cols'] = [{ wch: 18 }, { wch: 12 }, { wch: 24 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 8 }, { wch: 10 }, { wch: 9 }, { wch: 10 }, { wch: 9 }, { wch: 20 }];
         wsRes['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsRes, 'Resumen Flota');
@@ -6582,7 +6604,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         detD.push(['DETALLE DE VIAJES DEL MES — TRANSPORTE EMPORIUM', ...Array(15).fill('')]);
         detD.push([`Total: ${trips.length} viajes  ·  ${periodoStr}`, ...Array(15).fill('')]);
         detD.push(Array(16).fill(''));
-        detD.push(['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje', 'T.Origen', 'T.Destino', 'H.Salida Suc.', 'KM', 'Litros', 'Costo $', 'Entregas', 'Combustible cargado', 'Tipo Viaje', 'Motivo', 'Detalle']);
+        detD.push(['Fecha', 'Camión', 'Chofer', 'Origen', 'Destino', 'H.Salida', 'H.Llegada', 'T.Viaje', 'T.Origen', 'T.Destino', 'H.Salida Suc.', 'KM', 'Litros', 'Costo $', 'Entregas', 'Combustible cargado', 'Tipo Viaje', 'Motivo', 'Detalle', 'Nivel Carga']);
         const headerRow = detD.length - 1;
 
         const sortedTrips = [...trips].sort((a, b) => parseDateTime(a.startDate, a.startTime) - parseDateTime(b.startDate, b.startTime));
@@ -6613,6 +6635,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               t.tipoViaje || 'Entrega',
               t.motivoTraslado || '—',
               t.motivoDetalle || '—',
+              t.nivelCarga || 'Medio',
             ]);
           });
           // Subtotal por día
@@ -6626,7 +6649,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
         });
 
         const wsDet = XLSX.utils.aoa_to_sheet(detD);
-        const NCD = 19;
+        const NCD = 20;
         wsDet['!merges'] = [
           { s: { r: 0, c: 0 }, e: { r: 0, c: NCD - 1 } },
           { s: { r: 1, c: 0 }, e: { r: 1, c: NCD - 1 } },
@@ -6656,7 +6679,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
             dataIdx++;
           }
         }
-        wsDet['!cols'] = [{ wch: 12 }, { wch: 9 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 20 }, { wch: 13 }, { wch: 24 }, { wch: 24 }];
+        wsDet['!cols'] = [{ wch: 12 }, { wch: 9 }, { wch: 13 }, { wch: 18 }, { wch: 18 }, { wch: 9 }, { wch: 9 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 20 }, { wch: 13 }, { wch: 24 }, { wch: 24 }, { wch: 12 }];
         wsDet['!rows'] = [{ hpt: 26 }, { hpt: 14 }];
         XLSX.utils.book_append_sheet(wb, wsDet, 'Detalle de Viajes');
 
