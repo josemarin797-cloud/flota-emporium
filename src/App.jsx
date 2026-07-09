@@ -2133,6 +2133,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
         { name: '⏰ Hora', value: data.startTime, inline: true },
         { name: '📍 KM Salida', value: data.kmStart.toLocaleString(), inline: true },
         { name: '⛽ Combustible', value: data.fuelLoaded ? `${data.fuelLoaded} L cargados` : 'Sin surtir', inline: true },
+        { name: '📦 Carga', value: data.nivelCarga || 'Medio', inline: true },
         { name: '🗂️ Tipo', value: data.tipoViaje === 'Traslado'
           ? `🔄 Traslado${data.motivoTraslado ? ` · ${data.motivoTraslado}` : ''}${data.motivoDetalle ? ` · ${data.motivoDetalle}` : ''}${data.caracasDestName ? ` · ${data.caracasDestName}` : ''}`
           : '📦 Entrega', inline: false },
@@ -2176,7 +2177,9 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
     data = { ...data, endDate: realNow.toISOString().slice(0,10), endTime: realNow.toTimeString().slice(0,5) };
     const v = vehicles.find(x => x.id === currentTrip.vehicleId);
     const kmTraveled = Math.max(0, Number(data.kmEnd) - currentTrip.kmStart);
-    const liters = (kmTraveled * (v.litersPer100km || 21)) / 100;
+    const factorCarga = currentTrip.nivelCarga === 'Vacío' ? 1.3 : currentTrip.nivelCarga === 'Máximo' ? 0.75 : 1.0;
+    const kmLAjustado = (v.litersPer100km || 21) / factorCarga;
+    const liters = (kmTraveled * kmLAjustado) / 100;
     const cost = liters * config.fuelPrice;
     const newFuelLevel = Math.max(0, Math.round(((v.fuelLevel || 0) - liters) * 100) / 100);
     const startMs = parseDateTime(currentTrip.startDate, currentTrip.startTime);
@@ -2205,6 +2208,7 @@ function DriverApp({ currentDriver, onLogout, vehicles, drivers, branches, trips
       route: data.route || 'LOCAL', fuelLoaded: currentTrip.fuelLoaded || 0, notes: data.notes || '',
       arrivalNotes: data.arrivalNotes || '',
       tipoViaje: currentTrip.tipoViaje || 'Entrega',
+      nivelCarga: currentTrip.nivelCarga || 'Medio',
       motivoTraslado: currentTrip.motivoTraslado || '',
       motivoDetalle: currentTrip.motivoDetalle || '',
       createdAt: Date.now(),
@@ -3187,6 +3191,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
   const [tipoViaje, setTipoViaje] = useState('Entrega'); // 'Entrega' | 'Traslado' | 'Operativo'
   const [motivoTraslado, setMotivoTraslado] = useState('');
   const [motivoDetalle, setMotivoDetalle] = useState('');
+  const [nivelCarga, setNivelCarga] = useState('Medio');
   const showTimeAtBranch = lastTrip && lastTrip.destinationBranchId === form.originBranchId;
 
   useEffect(() => {
@@ -3394,6 +3399,30 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
           )}
         </div>
 
+        {/* NIVEL DE CARGA */}
+        <div className="bg-stone-50 border border-stone-200 rounded-xl p-3">
+          <label className="text-xs font-semibold text-stone-600 mb-2 block uppercase tracking-wider font-mono">📦 Nivel de carga al salir</label>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { key: 'Vacío',  icon: '🟢', factor: 1.3 },
+              { key: 'Medio',  icon: '🟡', factor: 1.0 },
+              { key: 'Máximo', icon: '🔴', factor: 0.75 },
+            ].map(({ key, icon }) => (
+              <button key={key} onClick={() => setNivelCarga(key)}
+                className={`p-2 rounded-lg border-2 text-xs font-bold flex flex-col items-center gap-1 transition ${
+                  nivelCarga === key
+                    ? key === 'Vacío'  ? 'border-emerald-500 bg-emerald-50 text-emerald-800'
+                    : key === 'Medio'  ? 'border-amber-400 bg-amber-50 text-amber-800'
+                    :                    'border-red-400 bg-red-50 text-red-800'
+                    : 'border-stone-200 bg-white text-stone-400'
+                }`}>
+                <span className="text-lg">{icon}</span>
+                <span>{key}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <DarkField label="KM al salir">
             <input type="number" value={form.kmStart} onChange={e => setForm({ ...form, kmStart: e.target.value })} className="dark-input text-lg font-bold" />
@@ -3447,7 +3476,7 @@ function StartTripForm({ driver, vehicle, branches, trips, onBack, onStart, init
         </div>
       <div className="grid grid-cols-2 gap-2">
         <button onClick={onBack} className="py-3 rounded-xl font-medium text-emerald-700 bg-stone-100 border border-stone-200 hover:bg-stone-200">← Atrás</button>
-        <button onClick={() => onStart({...form, tipoViaje, motivoTraslado, motivoDetalle, tripNotes, tripPhotos, customDestName: form.destinationBranchId === 'otro' ? customDestName.trim() : ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', customDestType: form.destinationBranchId === 'otro' ? customDestType : '', caracasDestName: ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', caracasOriginName: ZONAS_MULTISECTOR.includes(form.originBranchId) ? caracasOriginName.trim() : ''})} disabled={!valid}
+        <button onClick={() => onStart({...form, tipoViaje, nivelCarga, motivoTraslado, motivoDetalle, tripNotes, tripPhotos, customDestName: form.destinationBranchId === 'otro' ? customDestName.trim() : ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', customDestType: form.destinationBranchId === 'otro' ? customDestType : '', caracasDestName: ZONAS_MULTISECTOR.includes(form.destinationBranchId) ? caracasDestName.trim() : '', caracasOriginName: ZONAS_MULTISECTOR.includes(form.originBranchId) ? caracasOriginName.trim() : ''})} disabled={!valid}
           className={`py-3 rounded-xl font-bold text-white transition shadow-lg flex items-center justify-center gap-2 ${valid ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 shadow-emerald-700/30 active:scale-[0.98]' : 'bg-stone-100 text-stone-300'}`}>
           <Play className="w-5 h-5" /> INICIAR
         </button>
