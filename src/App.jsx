@@ -6436,8 +6436,8 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               (t.timeAtBranchPrevMinutes != null && t.timeAtBranchPrevMinutes > 0) ? fmtMin(t.timeAtBranchPrevMinutes) : '',
               r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
               t.deliveries || 0, t.notes || '',
-              fuelLoad ? fuelLoad.liters : '',
-              fuelLoad ? fuelLoad.notes : '',
+              fuelLoad ? fuelLoad.liters : (t.fuelLoaded > 0 ? t.fuelLoaded : ''),
+              fuelLoad ? fuelLoad.notes : (t.fuelLoaded > 0 ? 'Registrado en viaje' : ''),
             ]);
           });
           const detEndR = rows.length;
@@ -6635,7 +6635,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               addMin(t.endTime, tDest),
               r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
               t.deliveries || 0,
-              fuelLoad2 ? `${fuelLoad2.liters}L · ${fuelLoad2.notes}` : '',
+              fuelLoad2 ? `${fuelLoad2.liters}L · ${fuelLoad2.notes}` : (t.fuelLoaded > 0 ? `${t.fuelLoaded}L · Registrado en viaje` : ''),
               t.tipoViaje || 'Entrega',
               t.motivoTraslado || '—',
               t.motivoDetalle || '—',
