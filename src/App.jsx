@@ -1723,7 +1723,7 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
       createdAt: Date.now(),
       notes: isL300 ? 'Bomba gasolinera' : 'Tanque Palma Real',
     };
-    saveFuelRecords([rec, ...fuelRecords]);
+    saveFuelRecords([rec, ...fuelRecords]); sbFetch('fuel_records', { method: 'POST', headers: { 'Prefer': 'return=minimal' }, body: JSON.stringify({ id: rec.id, vehicle_id: rec.vehicleId, vehicle_code: rec.vehicleCode, vehicle_plate: rec.vehiclePlate, driver_id: rec.driverId, driver_name: rec.driverName, date: rec.date, time: rec.time, km: rec.km, liters: rec.liters, price_per_liter: rec.pricePerLiter, cost: rec.cost, tank_level_before: rec.tankLevelBefore, notes: rec.notes, created_at: rec.createdAt }) }).catch(()=>{}); ...fuelRecords]);
 
     // Discord → canal mantenimiento del camión
     const wh = getMaintWebhook(selectedVehicleId, vehicles, config);
@@ -3520,7 +3520,7 @@ function SurtirCombustibleForm({ trip, vehicle, driver, fuelRecords = [], saveFu
       notes: nombreBomba ? nombreBomba : (isL300 ? 'Bomba gasolinera' : 'Gasoil · Tanque'),
       cost: totalCost,
     };
-    saveFuelRecords([rec, ...fuelRecords]);
+    saveFuelRecords([rec, ...fuelRecords]); sbFetch('fuel_records', { method: 'POST', headers: { 'Prefer': 'return=minimal' }, body: JSON.stringify({ id: rec.id, vehicle_id: rec.vehicleId, vehicle_code: rec.vehicleCode, vehicle_plate: rec.vehiclePlate, driver_id: rec.driverId, driver_name: rec.driverName, date: rec.date, time: rec.time, km: rec.km, liters: rec.liters, price_per_liter: rec.pricePerliter, cost: rec.cost, tank_level_before: rec.tankLevelBefore, notes: rec.notes, created_at: rec.createdAt }) }).catch(()=>{});
 
     // Actualizar nivel de combustible del vehículo
     if (saveVehicles && vehicles) {
