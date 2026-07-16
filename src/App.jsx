@@ -1723,7 +1723,7 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
       createdAt: Date.now(),
       notes: isL300 ? 'Bomba gasolinera' : 'Tanque Palma Real',
     };
-    saveFuelRecords([rec, ...fuelRecords]); sbFetch('fuel_records', { method: 'POST', headers: { 'Prefer': 'return=minimal' }, body: JSON.stringify({ id: rec.id, vehicle_id: rec.vehicleId, vehicle_code: rec.vehicleCode, vehicle_plate: rec.vehiclePlate, driver_id: rec.driverId, driver_name: rec.driverName, date: rec.date, time: rec.time, km: rec.km, liters: rec.liters, price_per_liter: rec.pricePerLiter, cost: rec.cost, tank_level_before: rec.tankLevelBefore, notes: rec.notes, created_at: rec.createdAt }) }).catch(()=>{}); ...fuelRecords]);
+    saveFuelRecords([rec, ...fuelRecords]);
 
     // Discord → canal mantenimiento del camión
     const wh = getMaintWebhook(selectedVehicleId, vehicles, config);
@@ -1812,10 +1812,10 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">¿Cuánto tenía antes de surtir?</label>
             <div className="grid grid-cols-4 gap-2">
               {[
-                { id: 'Crítico',       emoji: '🔴', label: 'Crítico', desc: '~25%'  },
+                { id: 'vacio',       emoji: '🔴', label: 'Vacío', desc: '~0L'  },
                 { id: 'cuarto',      emoji: '🟡', label: '1/4',   desc: '~25%' },
                 { id: 'mitad',       emoji: '🟠', label: '1/2',   desc: '~50%' },
-                { id: 'tres_cuartos',emoji: '🟢', label: 'Full',   desc: '~100%' },
+                { id: 'tres_cuartos',emoji: '🟢', label: '3/4',   desc: '~75%' },
               ].map(opt => (
                 <button key={opt.id} onClick={() => setTankLevel(opt.label)}
                   className={`flex flex-col items-center py-3 rounded-xl border-2 transition ${tankLevel===opt.label?'border-amber-400 bg-amber-100':'border-stone-200 bg-white hover:border-amber-300'}`}>
@@ -3520,7 +3520,7 @@ function SurtirCombustibleForm({ trip, vehicle, driver, fuelRecords = [], saveFu
       notes: nombreBomba ? nombreBomba : (isL300 ? 'Bomba gasolinera' : 'Gasoil · Tanque'),
       cost: totalCost,
     };
-    saveFuelRecords([rec, ...fuelRecords]); sbFetch('fuel_records', { method: 'POST', headers: { 'Prefer': 'return=minimal' }, body: JSON.stringify({ id: rec.id, vehicle_id: rec.vehicleId, vehicle_code: rec.vehicleCode, vehicle_plate: rec.vehiclePlate, driver_id: rec.driverId, driver_name: rec.driverName, date: rec.date, time: rec.time, km: rec.km, liters: rec.liters, price_per_liter: rec.pricePerliter, cost: rec.cost, tank_level_before: rec.tankLevelBefore, notes: rec.notes, created_at: rec.createdAt }) }).catch(()=>{});
+    saveFuelRecords([rec, ...fuelRecords]);
 
     // Actualizar nivel de combustible del vehículo
     if (saveVehicles && vehicles) {
@@ -6436,8 +6436,8 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               (t.timeAtBranchPrevMinutes != null && t.timeAtBranchPrevMinutes > 0) ? fmtMin(t.timeAtBranchPrevMinutes) : '',
               r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
               t.deliveries || 0, t.notes || '',
-              fuelLoad ? fuelLoad.liters : (t.fuelLoaded > 0 ? t.fuelLoaded : ''),
-              fuelLoad ? fuelLoad.notes : (t.fuelLoaded > 0 ? 'Registrado en viaje' : ''),
+              fuelLoad ? fuelLoad.liters : '',
+              fuelLoad ? fuelLoad.notes : '',
             ]);
           });
           const detEndR = rows.length;
@@ -6635,7 +6635,7 @@ function TripsTable({ trips, vehicles, drivers, branches, saveTrips, allTrips, g
               addMin(t.endTime, tDest),
               r2(t.kmTraveled || 0), r2(t.liters || 0), r2(t.cost || 0),
               t.deliveries || 0,
-              fuelLoad2 ? `${fuelLoad2.liters}L · ${fuelLoad2.notes}` : (t.fuelLoaded > 0 ? `${t.fuelLoaded}L · Registrado en viaje` : ''),
+              fuelLoad2 ? `${fuelLoad2.liters}L · ${fuelLoad2.notes}` : '',
               t.tipoViaje || 'Entrega',
               t.motivoTraslado || '—',
               t.motivoDetalle || '—',
