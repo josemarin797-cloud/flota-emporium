@@ -1812,10 +1812,10 @@ function DriverSurtirTab({ vehicles, currentDriver, fuelRecords, saveFuelRecords
             <label className="text-xs font-bold text-stone-600 uppercase tracking-wider block mb-2">¿Cuánto tenía antes de surtir?</label>
             <div className="grid grid-cols-4 gap-2">
               {[
-                { id: 'vacio',       emoji: '🔴', label: 'Vacío', desc: '~0L'  },
+                { id: 'Crítico',       emoji: '🔴', label: 'Crítico', desc: '~25%'  },
                 { id: 'cuarto',      emoji: '🟡', label: '1/4',   desc: '~25%' },
                 { id: 'mitad',       emoji: '🟠', label: '1/2',   desc: '~50%' },
-                { id: 'tres_cuartos',emoji: '🟢', label: '3/4',   desc: '~75%' },
+                { id: 'tres_cuartos',emoji: '🟢', label: 'Full',   desc: '~100%' },
               ].map(opt => (
                 <button key={opt.id} onClick={() => setTankLevel(opt.label)}
                   className={`flex flex-col items-center py-3 rounded-xl border-2 transition ${tankLevel===opt.label?'border-amber-400 bg-amber-100':'border-stone-200 bg-white hover:border-amber-300'}`}>
